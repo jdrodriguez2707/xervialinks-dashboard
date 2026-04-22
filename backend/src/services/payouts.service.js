@@ -9,9 +9,11 @@ const workersRepo = require("../repositories/workers.repository");
  *
  * @param {{ startDate?: string, endDate?: string }} filters
  */
-function calculatePayouts(filters = {}) {
-  const reports = reportsRepo.findAll(filters);
-  const workers = workersRepo.findAll();
+async function calculatePayouts(filters = {}) {
+  const [reports, workers] = await Promise.all([
+    reportsRepo.findAll(filters),
+    Promise.resolve(workersRepo.findAll()),
+  ]);
 
   const payouts = workers.map((worker) => {
     const assignedDomains = getAssignedDomains(worker.properties);
@@ -42,7 +44,7 @@ function calculatePayouts(filters = {}) {
   return { payouts, totalPayout };
 }
 
-// --- pure helpers (easy to unit-test in isolation) ---
+// ─── Pure helpers (easy to unit-test in isolation) ────────────────────────────
 
 /**
  * Extracts domain values from a worker's properties list.
@@ -51,9 +53,7 @@ function calculatePayouts(filters = {}) {
  * @returns {string[]}
  */
 function getAssignedDomains(properties) {
-  return properties
-    .filter((p) => p.type === "domain")
-    .map((p) => p.value);
+  return properties.filter((p) => p.type === "domain").map((p) => p.value);
 }
 
 /**
@@ -77,7 +77,6 @@ function sumImpressions(reports) {
 
 module.exports = {
   calculatePayouts,
-  // exported for unit testing
   getAssignedDomains,
   computePayout,
   sumRevenue,

@@ -7,9 +7,9 @@ const reportsService = require("../services/reports.service");
  * @param {import("express").Request} req
  * @param {import("express").Response} res
  */
-function getReports(req, res) {
+async function getReports(req, res) {
   const { domain, startDate, endDate } = req.query;
-  const data = reportsService.getReports({ domain, startDate, endDate });
+  const data = await reportsService.getReports({ domain, startDate, endDate });
   res.json(data);
 }
 

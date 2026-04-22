@@ -5,8 +5,8 @@ const reportsRepository = require("../repositories/reports.repository");
  *
  * @param {{ domain?: string, startDate?: string, endDate?: string }} filters
  */
-function getReports(filters = {}) {
-  const reports = reportsRepository.findAll(filters);
+async function getReports(filters = {}) {
+  const reports = await reportsRepository.findAll(filters);
   const summary = buildSummary(reports);
 
   return { reports, summary };
