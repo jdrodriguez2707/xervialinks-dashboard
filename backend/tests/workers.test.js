@@ -1,7 +1,8 @@
 const request = require("supertest");
 const app = require("../src/app");
-const { closeDb } = require("../src/config/database");
+const { closeDb, resetDb } = require("../src/config/database");
 
+beforeAll(() => resetDb());
 afterAll(() => closeDb());
 
 describe("POST /api/workers", () => {

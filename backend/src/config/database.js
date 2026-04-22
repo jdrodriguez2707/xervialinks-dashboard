@@ -47,4 +47,11 @@ function closeDb() {
   }
 }
 
-module.exports = { getDb, closeDb };
+function resetDb() {
+  const database = getDb();
+  database.exec(
+    "DELETE FROM properties; DELETE FROM workers; DELETE FROM sqlite_sequence WHERE name IN ('workers', 'properties');"
+  );
+}
+
+module.exports = { getDb, closeDb, resetDb };
