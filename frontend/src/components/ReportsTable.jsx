@@ -3,7 +3,7 @@
  */
 export default function ReportsTable({ reports }) {
   if (reports.length === 0) {
-    return <p className="empty-state">No reports found for the selected filters.</p>;
+    return <p className="empty-state">No se encontraron reportes para los filtros seleccionados.</p>;
   }
 
   return (
@@ -11,10 +11,10 @@ export default function ReportsTable({ reports }) {
       <table className="reports-table">
         <thead>
           <tr>
-            <th>Date</th>
-            <th>Domain</th>
-            <th>Impressions</th>
-            <th>Revenue</th>
+            <th>Fecha</th>
+            <th>Dominio</th>
+            <th>Impresiones</th>
+            <th>Ingresos</th>
             <th>eCPM</th>
           </tr>
         </thead>

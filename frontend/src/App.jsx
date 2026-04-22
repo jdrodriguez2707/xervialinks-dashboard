@@ -42,7 +42,7 @@ export default function App() {
       <div className="app">
         <AppHeader />
         <main className="app-main">
-          <p className="status-msg">Loading dashboard…</p>
+          <p className="status-msg">Cargando dashboard…</p>
         </main>
       </div>
     );
@@ -53,7 +53,7 @@ export default function App() {
       <div className="app">
         <AppHeader />
         <main className="app-main">
-          <p className="status-msg error">Error: {error}</p>
+          <p className="status-msg error">Error al cargar el dashboard: {error}</p>
         </main>
       </div>
     );
@@ -64,12 +64,12 @@ export default function App() {
       <AppHeader />
       <main className="app-main">
         <section>
-          <h2>Summary</h2>
+          <h2>Resumen</h2>
           <SummaryCards summary={reports.summary} />
         </section>
 
         <section>
-          <h2>Payouts</h2>
+          <h2>Ganancias por trabajador</h2>
           <PayoutsTable
             payouts={payouts.payouts}
             totalPayout={payouts.totalPayout}
@@ -77,13 +77,13 @@ export default function App() {
         </section>
 
         <section>
-          <h2>Workers</h2>
+          <h2>Trabajadores</h2>
           <WorkerForm onCreated={loadAll} />
           <WorkersList workers={workers} onUpdate={loadAll} />
         </section>
 
         <section>
-          <h2>Reports</h2>
+          <h2>Reportes</h2>
           <ReportsTable reports={reports.reports} />
         </section>
       </main>
@@ -94,7 +94,7 @@ export default function App() {
 function AppHeader() {
   return (
     <header className="app-header">
-      <h1>Ad Manager Dashboard</h1>
+      <h1>Dashboard de Ad Manager</h1>
     </header>
   );
 }

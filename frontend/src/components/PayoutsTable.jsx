@@ -12,8 +12,7 @@ export default function PayoutsTable({ payouts, totalPayout }) {
   if (payouts.length === 0) {
     return (
       <p className="empty-state">
-        No workers configured yet. Add a worker and assign domains to see
-        payouts.
+        Aún no hay trabajadores configurados. Agrega uno y asígnale dominios para ver sus ganancias.
       </p>
     );
   }
@@ -23,12 +22,12 @@ export default function PayoutsTable({ payouts, totalPayout }) {
       <table className="reports-table">
         <thead>
           <tr>
-            <th>Worker</th>
-            <th>Assigned Domains</th>
-            <th>Impressions</th>
-            <th>Assigned Revenue</th>
+            <th>Trabajador</th>
+            <th>Dominios asignados</th>
+            <th>Impresiones</th>
+            <th>Ingresos asignados</th>
             <th>%</th>
-            <th>Payout</th>
+            <th>Ganancia</th>
           </tr>
         </thead>
         <tbody>
@@ -63,7 +62,7 @@ export default function PayoutsTable({ payouts, totalPayout }) {
         <tfoot>
           <tr>
             <td colSpan={5} className="tfoot-label">
-              Total Payout
+              Ganancia total
             </td>
             <td>
               <span className="payout-amount">${totalPayout.toFixed(2)}</span>

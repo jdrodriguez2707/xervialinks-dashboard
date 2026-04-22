@@ -33,7 +33,7 @@ export default function WorkerForm({ onCreated }) {
       <input
         type="text"
         className="form-input"
-        placeholder="Name"
+        placeholder="Nombre"
         value={name}
         onChange={(e) => setName(e.target.value)}
         required
@@ -49,7 +49,7 @@ export default function WorkerForm({ onCreated }) {
       <input
         type="number"
         className="form-input form-input-short"
-        placeholder="% (e.g. 70)"
+        placeholder="% (ej. 70)"
         min="0.01"
         max="100"
         step="0.01"
@@ -58,7 +58,7 @@ export default function WorkerForm({ onCreated }) {
         required
       />
       <button type="submit" className="btn" disabled={submitting}>
-        {submitting ? "Creating…" : "Add Worker"}
+        {submitting ? "Creando…" : "Agregar trabajador"}
       </button>
       {error && <p className="form-error">{error}</p>}
     </form>

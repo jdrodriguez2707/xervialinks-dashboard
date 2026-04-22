@@ -4,11 +4,11 @@
 export default function SummaryCards({ summary }) {
   const cards = [
     {
-      label: "Total Revenue",
+      label: "Ingresos totales",
       value: `$${summary.totalRevenue.toFixed(2)}`,
     },
     {
-      label: "Total Impressions",
+      label: "Impresiones totales",
       value: summary.totalImpressions.toLocaleString(),
     },
     {
