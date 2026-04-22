@@ -1,100 +1,117 @@
 import { useEffect, useState, useCallback } from "react";
+import { getStoredUser, logout } from "./api/auth";
 import { fetchReports } from "./api/reports";
 import { fetchWorkers } from "./api/workers";
 import { fetchPayouts } from "./api/payouts";
+import LoginForm from "./components/LoginForm";
 import SummaryCards from "./components/SummaryCards";
 import ReportsTable from "./components/ReportsTable";
 import PayoutsTable from "./components/PayoutsTable";
 import WorkersList from "./components/WorkersList";
 import WorkerForm from "./components/WorkerForm";
+import WorkerDashboard from "./components/WorkerDashboard";
 
 export default function App() {
-  const [reports, setReports] = useState(null);
-  const [workers, setWorkers] = useState(null);
-  const [payouts, setPayouts] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const [user, setUser] = useState(() => getStoredUser());
+  const [data, setData] = useState(null);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
   const loadAll = useCallback(async () => {
+    if (!user) return;
+    setLoading(true);
     setError(null);
     try {
-      const [reportsData, workersData, payoutsData] = await Promise.all([
-        fetchReports(),
-        fetchWorkers(),
-        fetchPayouts(),
-      ]);
-      setReports(reportsData);
-      setWorkers(workersData);
-      setPayouts(payoutsData);
+      if (user.role === "admin") {
+        const [reports, workers, payouts] = await Promise.all([
+          fetchReports(),
+          fetchWorkers(),
+          fetchPayouts(),
+        ]);
+        setData({ reports, workers, payouts });
+      } else {
+        const payouts = await fetchPayouts();
+        setData({ payouts });
+      }
     } catch (err) {
-      setError(err.message);
+      if (err.message === "401") handleLogout();
+      else setError(err.message);
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [user]);
 
   useEffect(() => {
     loadAll();
   }, [loadAll]);
 
-  if (loading) {
-    return (
-      <div className="app">
-        <AppHeader />
-        <main className="app-main">
-          <p className="status-msg">Cargando dashboard…</p>
-        </main>
-      </div>
-    );
+  function handleLogin(loggedUser) {
+    setUser(loggedUser);
   }
 
-  if (error) {
-    return (
-      <div className="app">
-        <AppHeader />
-        <main className="app-main">
-          <p className="status-msg error">Error al cargar el dashboard: {error}</p>
-        </main>
-      </div>
-    );
+  function handleLogout() {
+    logout();
+    setUser(null);
+    setData(null);
   }
+
+  if (!user) return <LoginForm onLogin={handleLogin} />;
 
   return (
     <div className="app">
-      <AppHeader />
+      <header className="app-header">
+        <h1>Dashboard de Ad Manager</h1>
+        <div className="header-user">
+          <span>{user.name}</span>
+          <span className="role-badge">
+            {user.role === "admin" ? "Administrador" : "Trabajador"}
+          </span>
+          <button className="btn-logout" onClick={handleLogout}>
+            Cerrar sesión
+          </button>
+        </div>
+      </header>
+
       <main className="app-main">
-        <section>
-          <h2>Resumen</h2>
-          <SummaryCards summary={reports.summary} />
-        </section>
+        {loading && <p className="status-msg">Cargando dashboard…</p>}
+        {error && <p className="status-msg error">Error: {error}</p>}
 
-        <section>
-          <h2>Ganancias por trabajador</h2>
-          <PayoutsTable
-            payouts={payouts.payouts}
-            totalPayout={payouts.totalPayout}
-          />
-        </section>
+        {!loading && !error && data && user.role === "admin" && (
+          <AdminDashboard data={data} onUpdate={loadAll} />
+        )}
 
-        <section>
-          <h2>Trabajadores</h2>
-          <WorkerForm onCreated={loadAll} />
-          <WorkersList workers={workers} onUpdate={loadAll} />
-        </section>
-
-        <section>
-          <h2>Reportes</h2>
-          <ReportsTable reports={reports.reports} />
-        </section>
+        {!loading && !error && data && user.role === "worker" && (
+          <WorkerDashboard myPayout={data.payouts?.payouts?.[0] ?? null} />
+        )}
       </main>
     </div>
   );
 }
 
-function AppHeader() {
+function AdminDashboard({ data, onUpdate }) {
+  const { reports, workers, payouts } = data;
   return (
-    <header className="app-header">
-      <h1>Dashboard de Ad Manager</h1>
-    </header>
+    <>
+      <section>
+        <h2>Resumen</h2>
+        <SummaryCards summary={reports.summary} />
+      </section>
+
+      <section>
+        <h2>Ganancias por trabajador</h2>
+        <PayoutsTable payouts={payouts.payouts} totalPayout={payouts.totalPayout} />
+      </section>
+
+      <section>
+        <h2>Trabajadores</h2>
+        <WorkerForm onCreated={onUpdate} />
+        <WorkersList workers={workers} onUpdate={onUpdate} />
+      </section>
+
+      <section>
+        <h2>Reportes</h2>
+        <ReportsTable reports={reports.reports} />
+      </section>
+    </>
   );
 }

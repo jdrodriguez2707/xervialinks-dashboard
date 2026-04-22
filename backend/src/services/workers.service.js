@@ -1,4 +1,6 @@
+const bcrypt = require("bcryptjs");
 const workersRepo = require("../repositories/workers.repository");
+const authRepo = require("../repositories/auth.repository");
 
 class ValidationError extends Error {
   constructor(message) {
@@ -28,22 +30,41 @@ function getAllWorkers() {
   return workersRepo.findAll();
 }
 
+function getWorkerByEmail(email) {
+  return workersRepo.findByEmail(email) || null;
+}
+
 function getWorkerById(id) {
   const worker = workersRepo.findById(Number(id));
   if (!worker) throw new NotFoundError(`Worker ${id} not found`);
   return worker;
 }
 
-function createWorker({ name, email, percentage }) {
+/**
+ * Creates a worker and, if a password is provided, also creates their user
+ * account atomically in a single SQLite transaction so both records are
+ * always in sync.
+ *
+ * @param {{ name: string, email: string, percentage: number, password?: string }} data
+ */
+async function createWorker({ name, email, percentage, password }) {
   if (!name || !email || percentage == null) {
-    throw new ValidationError("name, email and percentage are required");
+    throw new ValidationError("Nombre, email y porcentaje son requeridos");
   }
   if (typeof percentage !== "number" || percentage <= 0 || percentage > 100) {
-    throw new ValidationError("percentage must be a number between 0 and 100 (exclusive)");
+    throw new ValidationError("El porcentaje debe ser un número entre 0 y 100 (exclusivo)");
   }
 
-  const existing = workersRepo.findByEmail(email);
-  if (existing) throw new ConflictError(`Email ${email} is already in use`);
+  const existingWorker = workersRepo.findByEmail(email);
+  if (existingWorker) throw new ConflictError(`El email ${email} ya está en uso`);
+
+  if (password) {
+    const existingUser = authRepo.findByEmail(email);
+    if (existingUser) throw new ConflictError(`Ya existe una cuenta de usuario con el email ${email}`);
+
+    const passwordHash = await bcrypt.hash(password, 10);
+    return workersRepo.createWithUser({ name, email, percentage }, { passwordHash });
+  }
 
   return workersRepo.create({ name, email, percentage });
 }
@@ -51,10 +72,10 @@ function createWorker({ name, email, percentage }) {
 function addPropertyToWorker(workerId, { type, value }) {
   const VALID_TYPES = ["domain", "ad_unit"];
   if (!VALID_TYPES.includes(type)) {
-    throw new ValidationError(`type must be one of: ${VALID_TYPES.join(", ")}`);
+    throw new ValidationError(`El tipo debe ser uno de: ${VALID_TYPES.join(", ")}`);
   }
   if (!value || typeof value !== "string" || !value.trim()) {
-    throw new ValidationError("value is required and must be a non-empty string");
+    throw new ValidationError("El valor es requerido y debe ser una cadena no vacía");
   }
 
   getWorkerById(workerId);
@@ -63,7 +84,7 @@ function addPropertyToWorker(workerId, { type, value }) {
     return workersRepo.addProperty(Number(workerId), { type, value: value.trim() });
   } catch (err) {
     if (err.message.includes("UNIQUE")) {
-      throw new ConflictError(`Property (${type}: ${value}) already assigned to this worker`);
+      throw new ConflictError(`La propiedad (${type}: ${value}) ya está asignada a este trabajador`);
     }
     throw err;
   }
@@ -72,6 +93,7 @@ function addPropertyToWorker(workerId, { type, value }) {
 module.exports = {
   getAllWorkers,
   getWorkerById,
+  getWorkerByEmail,
   createWorker,
   addPropertyToWorker,
 };

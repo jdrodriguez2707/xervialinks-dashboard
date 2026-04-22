@@ -10,19 +10,24 @@ async function getWorker(req, res) {
   res.json({ data: worker });
 }
 
+async function getMe(req, res) {
+  const worker = workersService.getWorkerByEmail(req.user.email);
+  if (!worker) {
+    return res.status(404).json({ error: "No tienes un perfil de trabajador asignado" });
+  }
+  res.json({ data: worker });
+}
+
 async function createWorker(req, res) {
-  const { name, email, percentage } = req.body;
-  const worker = workersService.createWorker({ name, email, percentage });
+  const { name, email, percentage, password } = req.body;
+  const worker = await workersService.createWorker({ name, email, percentage, password });
   res.status(201).json({ data: worker });
 }
 
 async function addProperty(req, res) {
   const { type, value } = req.body;
-  const property = workersService.addPropertyToWorker(req.params.id, {
-    type,
-    value,
-  });
+  const property = workersService.addPropertyToWorker(req.params.id, { type, value });
   res.status(201).json({ data: property });
 }
 
-module.exports = { listWorkers, getWorker, createWorker, addProperty };
+module.exports = { listWorkers, getWorker, getMe, createWorker, addProperty };

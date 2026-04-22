@@ -21,11 +21,31 @@ function findByEmail(email) {
 function create({ name, email, percentage }) {
   const db = getDb();
   const result = db
-    .prepare(
-      "INSERT INTO workers (name, email, percentage) VALUES (?, ?, ?)"
-    )
+    .prepare("INSERT INTO workers (name, email, percentage) VALUES (?, ?, ?)")
     .run(name, email, percentage);
   return findById(result.lastInsertRowid);
+}
+
+/**
+ * Creates a worker AND a user account in a single atomic transaction.
+ * The password hash must be computed before calling this function.
+ *
+ * @param {{ name: string, email: string, percentage: number }} workerData
+ * @param {{ passwordHash: string }} userCredentials
+ */
+function createWithUser({ name, email, percentage }, { passwordHash }) {
+  const db = getDb();
+  return db.transaction(() => {
+    db.prepare(
+      "INSERT INTO users (name, email, password_hash, role) VALUES (?, ?, ?, 'worker')"
+    ).run(name, email, passwordHash);
+
+    const result = db
+      .prepare("INSERT INTO workers (name, email, percentage) VALUES (?, ?, ?)")
+      .run(name, email, percentage);
+
+    return findById(result.lastInsertRowid);
+  })();
 }
 
 function addProperty(workerId, { type, value }) {
@@ -51,4 +71,4 @@ function attachProperties(worker) {
   return { ...worker, properties: getProperties(worker.id) };
 }
 
-module.exports = { findAll, findById, findByEmail, create, addProperty };
+module.exports = { findAll, findById, findByEmail, create, createWithUser, addProperty };

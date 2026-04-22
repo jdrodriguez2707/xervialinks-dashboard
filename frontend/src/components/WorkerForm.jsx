@@ -8,6 +8,7 @@ export default function WorkerForm({ onCreated }) {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [percentage, setPercentage] = useState("");
+  const [password, setPassword] = useState("");
   const [error, setError] = useState(null);
   const [submitting, setSubmitting] = useState(false);
 
@@ -16,10 +17,16 @@ export default function WorkerForm({ onCreated }) {
     setError(null);
     setSubmitting(true);
     try {
-      await createWorker({ name, email, percentage: parseFloat(percentage) });
+      await createWorker({
+        name,
+        email,
+        percentage: parseFloat(percentage),
+        password: password || undefined,
+      });
       setName("");
       setEmail("");
       setPercentage("");
+      setPassword("");
       onCreated();
     } catch (err) {
       setError(err.message);
@@ -56,6 +63,13 @@ export default function WorkerForm({ onCreated }) {
         value={percentage}
         onChange={(e) => setPercentage(e.target.value)}
         required
+      />
+      <input
+        type="password"
+        className="form-input"
+        placeholder="Contraseña (para acceso al sistema)"
+        value={password}
+        onChange={(e) => setPassword(e.target.value)}
       />
       <button type="submit" className="btn" disabled={submitting}>
         {submitting ? "Creando…" : "Agregar trabajador"}

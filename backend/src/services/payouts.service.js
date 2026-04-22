@@ -8,12 +8,17 @@ const workersRepo = require("../repositories/workers.repository");
  * Formula: payout = assignedRevenue * (percentage / 100)
  *
  * @param {{ startDate?: string, endDate?: string }} filters
+ * @param {string|null} requesterEmail  When set (worker role), only returns that worker's payout.
  */
-async function calculatePayouts(filters = {}) {
-  const [reports, workers] = await Promise.all([
+async function calculatePayouts(filters = {}, requesterEmail = null) {
+  const [reports, allWorkers] = await Promise.all([
     reportsRepo.findAll(filters),
     Promise.resolve(workersRepo.findAll()),
   ]);
+
+  const workers = requesterEmail
+    ? allWorkers.filter((w) => w.email === requesterEmail)
+    : allWorkers;
 
   const payouts = workers.map((worker) => {
     const assignedDomains = getAssignedDomains(worker.properties);
@@ -31,6 +36,7 @@ async function calculatePayouts(filters = {}) {
       email: worker.email,
       percentage: worker.percentage,
       assignedDomains,
+      assignedProperties: worker.properties,
       assignedRevenue,
       assignedImpressions,
       payout,
@@ -46,21 +52,10 @@ async function calculatePayouts(filters = {}) {
 
 // ─── Pure helpers (easy to unit-test in isolation) ────────────────────────────
 
-/**
- * Extracts domain values from a worker's properties list.
- *
- * @param {Array<{ type: string, value: string }>} properties
- * @returns {string[]}
- */
 function getAssignedDomains(properties) {
   return properties.filter((p) => p.type === "domain").map((p) => p.value);
 }
 
-/**
- * @param {number} revenue
- * @param {number} percentage  (0 < percentage <= 100)
- * @returns {number} rounded to 6 decimal places
- */
 function computePayout(revenue, percentage) {
   return parseFloat(((revenue * percentage) / 100).toFixed(6));
 }
