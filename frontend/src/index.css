@@ -135,3 +135,200 @@ body {
   color: #999;
   padding: 2rem;
 }
+
+/* Payouts table */
+.worker-name {
+  display: block;
+  font-weight: 600;
+  color: #1a1a2e;
+}
+
+.worker-email {
+  display: block;
+  font-size: 0.8rem;
+  color: #888;
+}
+
+.payout-amount {
+  font-weight: 700;
+  color: #27ae60;
+}
+
+.tfoot-label {
+  text-align: right;
+  font-weight: 600;
+  color: #555;
+  padding: 0.75rem 1rem;
+  background: #f8f9fb;
+  border-top: 2px solid #e8eaed;
+}
+
+.reports-table tfoot td {
+  background: #f8f9fb;
+  border-top: 2px solid #e8eaed;
+}
+
+.no-domains {
+  color: #bbb;
+  font-size: 0.85rem;
+}
+
+/* Tags */
+.domain-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+}
+
+.tag {
+  display: inline-block;
+  background: #e8f4fd;
+  color: #2980b9;
+  font-size: 0.75rem;
+  padding: 0.2rem 0.5rem;
+  border-radius: 4px;
+  font-weight: 500;
+}
+
+.tag-adunit {
+  background: #fef3e2;
+  color: #e67e22;
+}
+
+/* Workers list */
+.workers-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 1rem;
+  margin-top: 1rem;
+}
+
+.worker-card {
+  background: #fff;
+  border-radius: 8px;
+  padding: 1.25rem;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.worker-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+}
+
+.percentage-badge {
+  background: #1a1a2e;
+  color: #fff;
+  font-size: 0.8rem;
+  font-weight: 700;
+  padding: 0.2rem 0.6rem;
+  border-radius: 20px;
+  white-space: nowrap;
+}
+
+.worker-properties {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.property-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.property-group-label {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  color: #999;
+  font-weight: 600;
+}
+
+/* Forms */
+.worker-form {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+.property-form {
+  display: flex;
+  gap: 0.4rem;
+  align-items: center;
+  border-top: 1px solid #f0f2f5;
+  padding-top: 0.75rem;
+}
+
+.form-input {
+  padding: 0.45rem 0.75rem;
+  border: 1px solid #dde1e7;
+  border-radius: 6px;
+  font-size: 0.875rem;
+  color: #1a1a2e;
+  background: #fff;
+  flex: 1;
+  min-width: 0;
+  outline: none;
+  transition: border-color 0.15s;
+}
+
+.form-input:focus {
+  border-color: #1a1a2e;
+}
+
+.form-input-short {
+  max-width: 110px;
+  flex: 0 0 auto;
+}
+
+.form-select {
+  padding: 0.45rem 0.5rem;
+  border: 1px solid #dde1e7;
+  border-radius: 6px;
+  font-size: 0.875rem;
+  color: #1a1a2e;
+  background: #fff;
+  outline: none;
+  cursor: pointer;
+}
+
+.btn {
+  padding: 0.45rem 1rem;
+  background: #1a1a2e;
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: opacity 0.15s;
+}
+
+.btn:hover:not(:disabled) {
+  opacity: 0.85;
+}
+
+.btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.btn-sm {
+  padding: 0.35rem 0.75rem;
+  font-size: 0.8rem;
+}
+
+.form-error {
+  width: 100%;
+  font-size: 0.82rem;
+  color: #c0392b;
+  margin-top: 0.1rem;
+}
