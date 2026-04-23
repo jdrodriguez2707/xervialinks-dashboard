@@ -3,6 +3,7 @@ import { getStoredUser, logout } from "./api/auth";
 import { fetchReports } from "./api/reports";
 import { fetchWorkers } from "./api/workers";
 import { fetchPayouts } from "./api/payouts";
+import { fetchWorkerDashboard } from "./api/worker";
 import LoginForm from "./components/LoginForm";
 import SummaryCards from "./components/SummaryCards";
 import ReportsTable from "./components/ReportsTable";
@@ -30,8 +31,8 @@ export default function App() {
         ]);
         setData({ reports, workers, payouts });
       } else {
-        const payouts = await fetchPayouts();
-        setData({ payouts });
+        const dashboard = await fetchWorkerDashboard();
+        setData({ dashboard });
       }
     } catch (err) {
       if (err.message === "401") handleLogout();
@@ -73,15 +74,22 @@ export default function App() {
       </header>
 
       <main className="app-main">
-        {loading && <p className="status-msg">Cargando dashboard…</p>}
-        {error && <p className="status-msg error">Error: {error}</p>}
-
-        {!loading && !error && data && user.role === "admin" && (
-          <AdminDashboard data={data} onUpdate={loadAll} />
+        {user.role === "admin" && (
+          <>
+            {loading && <p className="status-msg">Cargando dashboard…</p>}
+            {error && <p className="status-msg error">Error: {error}</p>}
+            {!loading && !error && data && (
+              <AdminDashboard data={data} onUpdate={loadAll} />
+            )}
+          </>
         )}
 
-        {!loading && !error && data && user.role === "worker" && (
-          <WorkerDashboard myPayout={data.payouts?.payouts?.[0] ?? null} />
+        {user.role === "worker" && (
+          <WorkerDashboard
+            dashboard={data?.dashboard ?? null}
+            loading={loading}
+            error={error}
+          />
         )}
       </main>
     </div>

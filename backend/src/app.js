@@ -10,6 +10,7 @@ const authRoutes = require("./routes/auth.routes");
 const reportsRoutes = require("./routes/reports.routes");
 const workersRoutes = require("./routes/workers.routes");
 const payoutsRoutes = require("./routes/payouts.routes");
+const workerRoutes = require("./routes/worker.routes");
 const errorHandler = require("./middleware/errorHandler");
 
 const app = express();
@@ -27,6 +28,7 @@ app.use("/api/reports", authenticate, requireAdmin, reportsRoutes);
 app.get("/api/workers/me", authenticate, require("./controllers/workers.controller").getMe);
 app.use("/api/workers", authenticate, requireAdmin, workersRoutes);
 app.use("/api/payouts", authenticate, payoutsRoutes);
+app.use("/api/worker", authenticate, workerRoutes);
 
 app.use(errorHandler);
 

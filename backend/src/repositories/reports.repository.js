@@ -2,17 +2,27 @@ const env = require("../config/env");
 const { fetchReports } = require("../integrations/gamReports");
 
 /**
- * Mock data that mirrors the shape Google Ad Manager API returns.
+ * Mock data with dynamic dates so revenue ranges (today, yesterday, last 7
+ * days, current month) always return meaningful values in development.
+ *
  * Revenue is in USD (floating point, 6 decimal precision as GAM returns it).
  */
-const mockReports = [
-  { date: "2024-04-01", domain: "sports.example.com", impressions: 120000, revenue: 210.45, ecpm: 1.75 },
-  { date: "2024-04-01", domain: "tech.example.com",   impressions: 85000,  revenue: 178.5,  ecpm: 2.1  },
-  { date: "2024-04-02", domain: "sports.example.com", impressions: 130000, revenue: 234.0,  ecpm: 1.8  },
-  { date: "2024-04-02", domain: "tech.example.com",   impressions: 92000,  revenue: 193.2,  ecpm: 2.1  },
-  { date: "2024-04-03", domain: "sports.example.com", impressions: 110000, revenue: 187.0,  ecpm: 1.7  },
-  { date: "2024-04-03", domain: "tech.example.com",   impressions: 78000,  revenue: 156.0,  ecpm: 2.0  },
-];
+function buildMockReports() {
+  const date = (daysAgo) => {
+    const d = new Date();
+    d.setDate(d.getDate() - daysAgo);
+    return d.toISOString().slice(0, 10);
+  };
+
+  return [
+    { date: date(0), domain: "sports.example.com", impressions: 120000, revenue: 210.45, ecpm: 1.75 },
+    { date: date(0), domain: "tech.example.com",   impressions: 85000,  revenue: 178.5,  ecpm: 2.1  },
+    { date: date(1), domain: "sports.example.com", impressions: 130000, revenue: 234.0,  ecpm: 1.8  },
+    { date: date(1), domain: "tech.example.com",   impressions: 92000,  revenue: 193.2,  ecpm: 2.1  },
+    { date: date(3), domain: "sports.example.com", impressions: 110000, revenue: 187.0,  ecpm: 1.7  },
+    { date: date(3), domain: "tech.example.com",   impressions: 78000,  revenue: 156.0,  ecpm: 2.0  },
+  ];
+}
 
 const DEFAULT_DATE_RANGE_DAYS = 30;
 
@@ -42,7 +52,7 @@ async function findAllFromGam(filters) {
 }
 
 function findAllFromMock(filters) {
-  let results = mockReports;
+  let results = buildMockReports();
 
   if (filters.domain) {
     results = results.filter((r) => r.domain === filters.domain);

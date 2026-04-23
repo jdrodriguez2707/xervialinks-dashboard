@@ -1,69 +1,86 @@
-/**
- * Vista personal del trabajador con las tres secciones definidas en el proyecto:
- *  1. Ingresos personales   — revenue generado por sus propiedades
- *  2. Monto a recibir       — su ganancia después de aplicar el porcentaje
- *  3. Propiedades asignadas — dominios y ad units que le fueron asignados
- *
- * @param {{ myPayout: object|null }} props
- */
-export default function WorkerDashboard({ myPayout }) {
-  if (!myPayout) {
-    return (
-      <p className="empty-state">
-        Aún no tienes propiedades asignadas. Contacta al administrador.
-      </p>
-    );
+const fmt = (n) =>
+  new Intl.NumberFormat("es-MX", {
+    style: "currency",
+    currency: "USD",
+    minimumFractionDigits: 2,
+  }).format(n ?? 0);
+
+const fmtImpressions = (n) =>
+  new Intl.NumberFormat("es-MX").format(n ?? 0);
+
+const PROPERTY_LABELS = {
+  domain: "Dominio",
+  ad_unit: "Ad Unit",
+};
+
+export default function WorkerDashboard({ dashboard, loading, error }) {
+  if (loading) {
+    return <p className="status-msg">Cargando ingresos…</p>;
   }
 
-  const { assignedRevenue, assignedImpressions, percentage, payout, assignedProperties } = myPayout;
-  const domains = assignedProperties.filter((p) => p.type === "domain");
-  const adUnits = assignedProperties.filter((p) => p.type === "ad_unit");
-  const hasProperties = assignedProperties.length > 0;
+  if (error) {
+    return <p className="status-msg error">Error al cargar los ingresos.</p>;
+  }
+
+  if (!dashboard) {
+    return <p className="status-msg">Sin datos disponibles.</p>;
+  }
+
+  const { today, yesterday, last7Days, currentMonth, impressions, properties = [] } = dashboard;
+
+  const domains = properties.filter((p) => p.type === "domain");
+  const adUnits = properties.filter((p) => p.type === "ad_unit");
 
   return (
     <div className="worker-dashboard">
+      <section className="adsense-section">
+        <h2 className="section-title">Tus ingresos estimados</h2>
 
-      {/* 1. Ingresos personales */}
-      <section>
-        <h2>Ingresos personales</h2>
-        <div className="worker-summary">
-          <div className="card">
-            <span className="card-label">Ingresos generados</span>
-            <span className="card-value">${assignedRevenue.toFixed(2)}</span>
+        <div className="adsense-cards">
+          <div className="adsense-card">
+            <span className="adsense-label">Hoy (estimado)</span>
+            <span className="adsense-value">{fmt(today)}</span>
           </div>
-          <div className="card">
-            <span className="card-label">Impresiones</span>
-            <span className="card-value">{assignedImpressions.toLocaleString()}</span>
+
+          <div className="adsense-card">
+            <span className="adsense-label">Ayer</span>
+            <span className="adsense-value">{fmt(yesterday)}</span>
           </div>
-          <div className="card">
-            <span className="card-label">Porcentaje asignado</span>
-            <span className="card-value">{percentage}%</span>
+
+          <div className="adsense-card">
+            <span className="adsense-label">Últimos 7 días</span>
+            <span className="adsense-value">{fmt(last7Days)}</span>
+          </div>
+
+          <div className="adsense-card highlight">
+            <span className="adsense-label">Tu ganancia (este mes)</span>
+            <span className="adsense-value gain">{fmt(currentMonth)}</span>
+          </div>
+        </div>
+
+        <p className="adsense-note">
+          * Los ingresos de hoy son estimados y pueden variar.
+          Los datos de Ad Manager no son en tiempo real.
+        </p>
+      </section>
+
+      <section className="adsense-section">
+        <h2 className="section-title">Impresiones este mes</h2>
+        <div className="adsense-cards">
+          <div className="adsense-card">
+            <span className="adsense-label">Total de impresiones</span>
+            <span className="adsense-value">{fmtImpressions(impressions)}</span>
           </div>
         </div>
       </section>
 
-      {/* 2. Monto a recibir */}
-      <section>
-        <h2>Monto a recibir</h2>
-        <div className="worker-summary">
-          <div className="card card-highlight">
-            <span className="card-label">Tu ganancia</span>
-            <span className="card-value payout-amount">${payout.toFixed(2)}</span>
-          </div>
-          <div className="card">
-            <span className="card-label">Cálculo</span>
-            <span className="card-value card-formula">
-              ${assignedRevenue.toFixed(2)} × {percentage}%
-            </span>
-          </div>
-        </div>
-      </section>
+      <section className="adsense-section">
+        <h2 className="section-title">Propiedades asignadas</h2>
 
-      {/* 3. Propiedades asignadas */}
-      <section>
-        <h2>Propiedades asignadas</h2>
-        {!hasProperties ? (
-          <p className="empty-state">Sin propiedades asignadas. Contacta al administrador.</p>
+        {properties.length === 0 ? (
+          <p className="empty-state">
+            Sin propiedades asignadas. Contacta al administrador.
+          </p>
         ) : (
           <div className="table-wrapper">
             <table className="reports-table">
@@ -76,14 +93,22 @@ export default function WorkerDashboard({ myPayout }) {
               <tbody>
                 {domains.map((p) => (
                   <tr key={p.id}>
-                    <td><span className="tag">Dominio</span></td>
-                    <td>{p.value}</td>
+                    <td>
+                      <span className="prop-badge prop-domain">
+                        {PROPERTY_LABELS[p.type]}
+                      </span>
+                    </td>
+                    <td className="prop-value">{p.value}</td>
                   </tr>
                 ))}
                 {adUnits.map((p) => (
                   <tr key={p.id}>
-                    <td><span className="tag tag-adunit">Ad Unit</span></td>
-                    <td>{p.value}</td>
+                    <td>
+                      <span className="prop-badge prop-adunit">
+                        {PROPERTY_LABELS[p.type]}
+                      </span>
+                    </td>
+                    <td className="prop-value">{p.value}</td>
                   </tr>
                 ))}
               </tbody>
@@ -91,7 +116,6 @@ export default function WorkerDashboard({ myPayout }) {
           </div>
         )}
       </section>
-
     </div>
   );
 }

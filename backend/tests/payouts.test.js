@@ -117,7 +117,7 @@ describe("GET /api/payouts", () => {
 
     expect(grace).toBeDefined();
     expect(grace.assignedDomains).toContain("sports.example.com");
-    // sports.example.com: 210.45 + 234.00 + 187.00 = 631.45 → payout = 631.45 * 70/100
+    // mock: sports.example.com today + yesterday + 3-days-ago = 210.45 + 234.00 + 187.00 = 631.45
     expect(grace.assignedRevenue).toBe(631.45);
     expect(grace.payout).toBe(442.015);
   });
@@ -138,11 +138,13 @@ describe("GET /api/payouts", () => {
     expect(unassigned.payout).toBe(0);
   });
 
-  it("respects date filters", async () => {
+  it("respects date filters (today only)", async () => {
+    const today = new Date().toISOString().slice(0, 10);
     const res = await request(app)
-      .get("/api/payouts?startDate=2024-04-01&endDate=2024-04-01")
+      .get(`/api/payouts?startDate=${today}&endDate=${today}`)
       .set("Authorization", `Bearer ${token}`);
     const grace = res.body.data.payouts.find((w) => w.workerId === workerId);
+    // sports.example.com today only = 210.45, 70% = 147.315
     expect(grace.assignedRevenue).toBe(210.45);
     expect(grace.payout).toBe(147.315);
   });

@@ -15,7 +15,8 @@ function findById(id) {
 
 function findByEmail(email) {
   const db = getDb();
-  return db.prepare("SELECT * FROM workers WHERE email = ?").get(email) || null;
+  const worker = db.prepare("SELECT * FROM workers WHERE email = ?").get(email);
+  return worker ? attachProperties(worker) : null;
 }
 
 function create({ name, email, percentage }) {
