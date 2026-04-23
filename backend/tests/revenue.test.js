@@ -11,6 +11,7 @@ const {
   getYesterdayRevenue,
   getLast7DaysRevenue,
   getCurrentMonthRevenue,
+  getWorkerDashboardPeriods,
 } = require("../src/services/revenue.service");
 
 let adminToken;
@@ -156,38 +157,50 @@ describe("GET /api/worker/dashboard", () => {
     expect(res.status).toBe(401);
   });
 
-  it("returns the 4 earnings periods + impressions", async () => {
+  it("returns 4 periods each with revenue, ecpm and impressions", async () => {
     const res = await request(app)
       .get("/api/worker/dashboard")
       .set("Authorization", `Bearer ${workerToken}`);
 
     expect(res.status).toBe(200);
     const { data } = res.body;
-    expect(typeof data.today).toBe("number");
-    expect(typeof data.yesterday).toBe("number");
-    expect(typeof data.last7Days).toBe("number");
-    expect(typeof data.currentMonth).toBe("number");
-    expect(typeof data.impressions).toBe("number");
+
+    for (const period of ["today", "yesterday", "last7Days", "currentMonth"]) {
+      expect(typeof data[period].revenue).toBe("number");
+      expect(typeof data[period].ecpm).toBe("number");
+      expect(typeof data[period].impressions).toBe("number");
+    }
   });
 
-  it("values already have percentage applied (today > 0 for assigned subdomain)", async () => {
+  it("revenue has percentage applied (today: elvalerobux 279.42 × 70% = 195.59)", async () => {
     const res = await request(app)
       .get("/api/worker/dashboard")
       .set("Authorization", `Bearer ${workerToken}`);
 
     const { data } = res.body;
-    // elvalerobux today = 279.42, 70% = 195.594 → rounded to 2 decimals = 195.59
-    expect(data.today).toBeCloseTo(195.59, 1);
-    expect(data.today).toBeLessThan(279.42); // never gross revenue
+    // gross today = 279.42 → net 70% = 195.594 ≈ 195.59
+    expect(data.today.revenue).toBeCloseTo(195.59, 1);
+    expect(data.today.revenue).toBeLessThan(279.42);
   });
 
-  it("currentMonth >= last7Days >= today", async () => {
+  it("ecpm is gross (not affected by worker percentage)", async () => {
     const res = await request(app)
       .get("/api/worker/dashboard")
       .set("Authorization", `Bearer ${workerToken}`);
 
     const { data } = res.body;
-    expect(data.currentMonth).toBeGreaterThanOrEqual(data.last7Days);
-    expect(data.last7Days).toBeGreaterThanOrEqual(data.today);
+    // elvalerobux today: ecpm = (279.42 / 29714) * 1000 ≈ 9.40
+    expect(data.today.ecpm).toBeGreaterThan(0);
+    expect(data.today.ecpm).toBeCloseTo(9.40, 0);
+  });
+
+  it("currentMonth.revenue >= last7Days.revenue", async () => {
+    const res = await request(app)
+      .get("/api/worker/dashboard")
+      .set("Authorization", `Bearer ${workerToken}`);
+
+    const { data } = res.body;
+    expect(data.currentMonth.revenue).toBeGreaterThanOrEqual(data.last7Days.revenue);
+    expect(data.currentMonth.impressions).toBeGreaterThanOrEqual(data.last7Days.impressions);
   });
 });

@@ -493,6 +493,26 @@ body {
   background: #f0fdf4;
 }
 
+/* Metric-type accent bars */
+.card--revenue    { border-top: 3px solid #27ae60; }
+.card--ecpm       { border-top: 3px solid #2980b9; }
+.card--impressions{ border-top: 3px solid #e67e22; }
+
+/* Skeleton loader */
+@keyframes shimmer {
+  0%   { background-position: -400px 0; }
+  100% { background-position:  400px 0; }
+}
+
+.adsense-card--skeleton {
+  height: 90px;
+  background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+  background-size: 800px 100%;
+  animation: shimmer 1.4s infinite linear;
+  border: none;
+  box-shadow: none;
+}
+
 .adsense-label {
   font-size: 0.78rem;
   font-weight: 600;

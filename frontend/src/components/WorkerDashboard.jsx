@@ -1,83 +1,113 @@
-const fmt = (n) =>
+const PERIODS = ["today", "yesterday", "last7Days", "currentMonth"];
+
+const PERIOD_LABELS = {
+  today:        "Hoy (estimado)",
+  yesterday:    "Ayer",
+  last7Days:    "Últimos 7 días",
+  currentMonth: "Este mes",
+};
+
+const PROPERTY_LABELS = {
+  domain:  "Dominio",
+  ad_unit: "Ad Unit",
+};
+
+const fmtCurrency = (n) =>
   new Intl.NumberFormat("es-MX", {
     style: "currency",
     currency: "USD",
     minimumFractionDigits: 2,
   }).format(n ?? 0);
 
+const fmtEcpm = (n) =>
+  new Intl.NumberFormat("es-MX", {
+    style: "currency",
+    currency: "USD",
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(n ?? 0);
+
 const fmtImpressions = (n) =>
   new Intl.NumberFormat("es-MX").format(n ?? 0);
 
-const PROPERTY_LABELS = {
-  domain: "Dominio",
-  ad_unit: "Ad Unit",
-};
+function SkeletonCards() {
+  return (
+    <div className="adsense-cards">
+      {PERIODS.map((p) => (
+        <div key={p} className="adsense-card adsense-card--skeleton" />
+      ))}
+    </div>
+  );
+}
+
+function MetricSection({ title, colorClass, loading, data, getValue, format, highlight }) {
+  return (
+    <section className="adsense-section">
+      <h2 className="section-title">{title}</h2>
+      {loading ? (
+        <SkeletonCards />
+      ) : (
+        <div className="adsense-cards">
+          {PERIODS.map((period) => (
+            <div
+              key={period}
+              className={`adsense-card ${colorClass} ${period === "currentMonth" && highlight ? "highlight" : ""}`}
+            >
+              <span className="adsense-label">{PERIOD_LABELS[period]}</span>
+              <span className="adsense-value">
+                {format(getValue(data, period))}
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
+    </section>
+  );
+}
 
 export default function WorkerDashboard({ dashboard, loading, error }) {
-  if (loading) {
-    return <p className="status-msg">Cargando ingresos…</p>;
-  }
-
   if (error) {
     return <p className="status-msg error">Error al cargar los ingresos.</p>;
   }
 
-  if (!dashboard) {
-    return <p className="status-msg">Sin datos disponibles.</p>;
-  }
-
-  const { today, yesterday, last7Days, currentMonth, impressions, properties = [] } = dashboard;
-
+  const { properties = [] } = dashboard ?? {};
   const domains = properties.filter((p) => p.type === "domain");
   const adUnits = properties.filter((p) => p.type === "ad_unit");
 
   return (
     <div className="worker-dashboard">
-      <section className="adsense-section">
-        <h2 className="section-title">Tus ingresos estimados</h2>
+      <MetricSection
+        title="Ingresos estimados"
+        colorClass="card--revenue"
+        loading={loading}
+        data={dashboard}
+        getValue={(d, period) => d?.[period]?.revenue}
+        format={fmtCurrency}
+        highlight
+      />
 
-        <div className="adsense-cards">
-          <div className="adsense-card">
-            <span className="adsense-label">Hoy (estimado)</span>
-            <span className="adsense-value">{fmt(today)}</span>
-          </div>
+      <MetricSection
+        title="eCPM promedio"
+        colorClass="card--ecpm"
+        loading={loading}
+        data={dashboard}
+        getValue={(d, period) => d?.[period]?.ecpm}
+        format={fmtEcpm}
+      />
 
-          <div className="adsense-card">
-            <span className="adsense-label">Ayer</span>
-            <span className="adsense-value">{fmt(yesterday)}</span>
-          </div>
-
-          <div className="adsense-card">
-            <span className="adsense-label">Últimos 7 días</span>
-            <span className="adsense-value">{fmt(last7Days)}</span>
-          </div>
-
-          <div className="adsense-card highlight">
-            <span className="adsense-label">Tu ganancia (este mes)</span>
-            <span className="adsense-value gain">{fmt(currentMonth)}</span>
-          </div>
-        </div>
-
-        <p className="adsense-note">
-          * Los ingresos de hoy son estimados y pueden variar.
-          Los datos de Ad Manager no son en tiempo real.
-        </p>
-      </section>
-
-      <section className="adsense-section">
-        <h2 className="section-title">Impresiones este mes</h2>
-        <div className="adsense-cards">
-          <div className="adsense-card">
-            <span className="adsense-label">Total de impresiones</span>
-            <span className="adsense-value">{fmtImpressions(impressions)}</span>
-          </div>
-        </div>
-      </section>
+      <MetricSection
+        title="Impresiones"
+        colorClass="card--impressions"
+        loading={loading}
+        data={dashboard}
+        getValue={(d, period) => d?.[period]?.impressions}
+        format={fmtImpressions}
+      />
 
       <section className="adsense-section">
         <h2 className="section-title">Propiedades asignadas</h2>
 
-        {properties.length === 0 ? (
+        {!loading && properties.length === 0 ? (
           <p className="empty-state">
             Sin propiedades asignadas. Contacta al administrador.
           </p>

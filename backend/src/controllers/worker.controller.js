@@ -10,10 +10,10 @@ async function getDashboard(req, res) {
       .json({ error: "No tienes un perfil de trabajador asignado" });
   }
 
-  const revenue = await revenueService.getWorkerDashboard(worker);
+  const periods = await revenueService.getWorkerDashboardPeriods(worker);
   res.json({
     data: {
-      ...revenue,
+      ...periods,
       properties: worker.properties,
     },
   });

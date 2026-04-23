@@ -39,8 +39,11 @@ async function aggregateForRange(startDate, endDate, domains = null) {
     filtered.reduce((sum, r) => sum + r.revenue, 0).toFixed(6)
   );
   const impressions = filtered.reduce((sum, r) => sum + r.impressions, 0);
+  const ecpm = impressions > 0
+    ? parseFloat(((revenue / impressions) * 1000).toFixed(4))
+    : 0;
 
-  return { revenue, impressions };
+  return { revenue, impressions, ecpm };
 }
 
 async function getTodayRevenue(domains = null) {
@@ -78,33 +81,41 @@ function applyPercentage(revenue, percentage) {
 }
 
 /**
- * Builds the full worker dashboard payload.
- * All monetary values are already multiplied by the worker's percentage —
- * the frontend never sees gross revenue.
+ * Returns all 4 dashboard periods for a worker, each with revenue (net),
+ * eCPM (gross — reflects site performance), and impressions.
+ *
+ * Periods:
+ *   today        → current day (may be incomplete)
+ *   yesterday    → previous complete day
+ *   last7Days    → 7 complete days ending yesterday
+ *   currentMonth → 1st of month → today
  *
  * @param {{ percentage: number, properties: Array }} worker
- * @returns {Promise<{ today, yesterday, last7Days, currentMonth, impressions }>}
  */
-async function getWorkerDashboard(worker) {
+async function getWorkerDashboardPeriods(worker) {
   const assignedDomains = worker.properties
     .filter((p) => p.type === "domain")
     .map((p) => p.value);
 
-  const [today, yesterday, last7Days, currentMonth] = await Promise.all([
-    getTodayRevenue(assignedDomains),
-    getYesterdayRevenue(assignedDomains),
-    getLast7DaysRevenue(assignedDomains),
-    getCurrentMonthRevenue(assignedDomains),
+  const [rawToday, rawYesterday, rawLast7, rawMonth] = await Promise.all([
+    aggregateForRange(todayISO(),            todayISO(),            assignedDomains),
+    aggregateForRange(daysAgoISO(1),         daysAgoISO(1),         assignedDomains),
+    aggregateForRange(daysAgoISO(7),         daysAgoISO(1),         assignedDomains),
+    aggregateForRange(currentMonthStartISO(), todayISO(),           assignedDomains),
   ]);
 
-  const { percentage } = worker;
+  const pct = worker.percentage;
+  const build = (raw) => ({
+    revenue:     applyPercentage(raw.revenue, pct),
+    ecpm:        raw.ecpm,
+    impressions: raw.impressions,
+  });
 
   return {
-    today: applyPercentage(today.revenue, percentage),
-    yesterday: applyPercentage(yesterday.revenue, percentage),
-    last7Days: applyPercentage(last7Days.revenue, percentage),
-    currentMonth: applyPercentage(currentMonth.revenue, percentage),
-    impressions: currentMonth.impressions,
+    today:        build(rawToday),
+    yesterday:    build(rawYesterday),
+    last7Days:    build(rawLast7),
+    currentMonth: build(rawMonth),
   };
 }
 
@@ -114,7 +125,7 @@ module.exports = {
   getLast7DaysRevenue,
   getCurrentMonthRevenue,
   applyPercentage,
-  getWorkerDashboard,
+  getWorkerDashboardPeriods,
   // exported for testing
   todayISO,
   daysAgoISO,
