@@ -54,7 +54,9 @@ async function getYesterdayRevenue(domains = null) {
 }
 
 async function getLast7DaysRevenue(domains = null) {
-  return aggregateForRange(daysAgoISO(6), todayISO(), domains);
+  // Use complete days only (yesterday back 7 days) so today's incomplete data
+  // doesn't skew the result and the range matches GAM's "last 7 days" preset.
+  return aggregateForRange(daysAgoISO(7), daysAgoISO(1), domains);
 }
 
 async function getCurrentMonthRevenue(domains = null) {

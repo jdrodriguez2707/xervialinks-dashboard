@@ -99,13 +99,16 @@ describe("getYesterdayRevenue", () => {
 });
 
 describe("getLast7DaysRevenue", () => {
-  it("includes today and yesterday", async () => {
+  it("covers 7 complete days ending yesterday (today excluded)", async () => {
     const [today, yesterday, week] = await Promise.all([
       getTodayRevenue(),
       getYesterdayRevenue(),
       getLast7DaysRevenue(),
     ]);
-    expect(week.revenue).toBeGreaterThanOrEqual(today.revenue + yesterday.revenue);
+    // week = 7 complete days (yesterday + 6 prior days) — today is intentionally excluded
+    // so incomplete intra-day data doesn't skew the result
+    expect(week.revenue).toBeGreaterThanOrEqual(yesterday.revenue);
+    expect(week.revenue).not.toBe(today.revenue);
   });
 });
 
