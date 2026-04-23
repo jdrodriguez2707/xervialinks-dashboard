@@ -41,20 +41,20 @@ describe("computePayout", () => {
 });
 
 describe("getAssignedDomains", () => {
-  it("returns only domain-type properties", () => {
+  it("returns values for domain-type properties only", () => {
     const properties = [
-      { type: "domain", value: "sports.example.com" },
-      { type: "ad_unit", value: "/12345/homepage" },
-      { type: "domain", value: "tech.example.com" },
+      { type: "domain", value: "elvalerobux.barbacoadicto.com" },
+      { type: "other",  value: "ignored" },
+      { type: "domain", value: "parceitorobux.barbacoadicto.com" },
     ];
     expect(getAssignedDomains(properties)).toEqual([
-      "sports.example.com",
-      "tech.example.com",
+      "elvalerobux.barbacoadicto.com",
+      "parceitorobux.barbacoadicto.com",
     ]);
   });
 
-  it("returns empty array when no domain properties", () => {
-    expect(getAssignedDomains([{ type: "ad_unit", value: "/unit/1" }])).toEqual([]);
+  it("returns empty array when no domain-type properties exist", () => {
+    expect(getAssignedDomains([{ type: "other", value: "foo" }])).toEqual([]);
   });
 
   it("returns empty array for empty properties", () => {
@@ -91,7 +91,7 @@ describe("GET /api/payouts", () => {
     await request(app)
       .post(`/api/workers/${workerId}/properties`)
       .set("Authorization", `Bearer ${token}`)
-      .send({ type: "domain", value: "sports.example.com" });
+      .send({ type: "domain", value: "elvalerobux.barbacoadicto.com" });
   });
 
   it("returns 401 without token", async () => {
@@ -116,10 +116,10 @@ describe("GET /api/payouts", () => {
     const grace = res.body.data.payouts.find((w) => w.workerId === workerId);
 
     expect(grace).toBeDefined();
-    expect(grace.assignedDomains).toContain("sports.example.com");
-    // mock: sports.example.com today + yesterday + 3-days-ago = 210.45 + 234.00 + 187.00 = 631.45
-    expect(grace.assignedRevenue).toBe(631.45);
-    expect(grace.payout).toBe(442.015);
+    expect(grace.assignedDomains).toContain("elvalerobux.barbacoadicto.com");
+    // mock: elvalerobux today + yesterday + 3-days-ago = 279.42 + 265.80 + 248.60 = 793.82
+    expect(grace.assignedRevenue).toBe(793.82);
+    expect(grace.payout).toBe(555.674);
   });
 
   it("returns 0 payout for a worker with no assigned properties", async () => {
@@ -144,8 +144,8 @@ describe("GET /api/payouts", () => {
       .get(`/api/payouts?startDate=${today}&endDate=${today}`)
       .set("Authorization", `Bearer ${token}`);
     const grace = res.body.data.payouts.find((w) => w.workerId === workerId);
-    // sports.example.com today only = 210.45, 70% = 147.315
-    expect(grace.assignedRevenue).toBe(210.45);
-    expect(grace.payout).toBe(147.315);
+    // mock: elvalerobux today only = 279.42, 70% = 195.594
+    expect(grace.assignedRevenue).toBe(279.42);
+    expect(grace.payout).toBe(195.594);
   });
 });

@@ -15,12 +15,17 @@ function buildMockReports() {
   };
 
   return [
-    { date: date(0), domain: "sports.example.com", impressions: 120000, revenue: 210.45, ecpm: 1.75 },
-    { date: date(0), domain: "tech.example.com",   impressions: 85000,  revenue: 178.5,  ecpm: 2.1  },
-    { date: date(1), domain: "sports.example.com", impressions: 130000, revenue: 234.0,  ecpm: 1.8  },
-    { date: date(1), domain: "tech.example.com",   impressions: 92000,  revenue: 193.2,  ecpm: 2.1  },
-    { date: date(3), domain: "sports.example.com", impressions: 110000, revenue: 187.0,  ecpm: 1.7  },
-    { date: date(3), domain: "tech.example.com",   impressions: 78000,  revenue: 156.0,  ecpm: 2.0  },
+    { date: date(0), domain: "elvalerobux.barbacoadicto.com",    impressions: 29714, revenue: 279.42, ecpm: 9.40 },
+    { date: date(0), domain: "parceitorobux.barbacoadicto.com",  impressions: 45661, revenue: 552.10, ecpm: 12.09 },
+    { date: date(0), domain: "plez.barbacoadicto.com",           impressions: 27527, revenue: 53.54,  ecpm: 1.94 },
+    { date: date(0), domain: "barbacoadicto.com",                impressions: 16,    revenue: 0.01,   ecpm: 0.42 },
+    { date: date(0), domain: "mundialautos.barbacoadicto.com",   impressions: 62,    revenue: 0.10,   ecpm: 1.59 },
+    { date: date(1), domain: "elvalerobux.barbacoadicto.com",    impressions: 28100, revenue: 265.80, ecpm: 9.46 },
+    { date: date(1), domain: "parceitorobux.barbacoadicto.com",  impressions: 43200, revenue: 520.30, ecpm: 12.04 },
+    { date: date(1), domain: "plez.barbacoadicto.com",           impressions: 25900, revenue: 50.10,  ecpm: 1.93 },
+    { date: date(3), domain: "elvalerobux.barbacoadicto.com",    impressions: 26500, revenue: 248.60, ecpm: 9.38 },
+    { date: date(3), domain: "parceitorobux.barbacoadicto.com",  impressions: 41800, revenue: 498.70, ecpm: 11.93 },
+    { date: date(3), domain: "plez.barbacoadicto.com",           impressions: 24300, revenue: 47.20,  ecpm: 1.94 },
   ];
 }
 

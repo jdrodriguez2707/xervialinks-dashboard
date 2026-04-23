@@ -42,13 +42,13 @@ describe("GET /api/reports", () => {
 
   it("filters by domain", async () => {
     const res = await request(app)
-      .get("/api/reports?domain=sports.example.com")
+      .get("/api/reports?domain=elvalerobux.barbacoadicto.com")
       .set("Authorization", `Bearer ${token}`);
 
     expect(res.statusCode).toBe(200);
     expect(res.body.reports.length).toBeGreaterThan(0);
     res.body.reports.forEach((r) => {
-      expect(r.domain).toBe("sports.example.com");
+      expect(r.domain).toBe("elvalerobux.barbacoadicto.com");
     });
   });
 

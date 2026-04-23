@@ -80,7 +80,7 @@ describe("getTodayRevenue", () => {
 
   it("filters by domains when provided", async () => {
     const all = await getTodayRevenue();
-    const filtered = await getTodayRevenue(["sports.example.com"]);
+    const filtered = await getTodayRevenue(["elvalerobux.barbacoadicto.com"]);
     expect(filtered.revenue).toBeLessThan(all.revenue);
   });
 
@@ -139,7 +139,7 @@ describe("GET /api/worker/dashboard", () => {
     await request(app)
       .post(`/api/workers/${workerId}/properties`)
       .set("Authorization", `Bearer ${adminToken}`)
-      .send({ type: "domain", value: "sports.example.com" });
+      .send({ type: "domain", value: "elvalerobux.barbacoadicto.com" });
 
     const loginRes = await request(app)
       .post("/api/auth/login")
@@ -167,15 +167,15 @@ describe("GET /api/worker/dashboard", () => {
     expect(typeof data.impressions).toBe("number");
   });
 
-  it("values already have percentage applied (today > 0 for sports domain)", async () => {
+  it("values already have percentage applied (today > 0 for assigned subdomain)", async () => {
     const res = await request(app)
       .get("/api/worker/dashboard")
       .set("Authorization", `Bearer ${workerToken}`);
 
     const { data } = res.body;
-    // sports.example.com today = 210.45, 70% = 147.315 → rounded to 2 decimals = 147.32
-    expect(data.today).toBeCloseTo(147.32, 1);
-    expect(data.today).toBeLessThan(210.45); // never gross revenue
+    // elvalerobux today = 279.42, 70% = 195.594 → rounded to 2 decimals = 195.59
+    expect(data.today).toBeCloseTo(195.59, 1);
+    expect(data.today).toBeLessThan(279.42); // never gross revenue
   });
 
   it("currentMonth >= last7Days >= today", async () => {

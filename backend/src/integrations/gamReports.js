@@ -78,7 +78,9 @@ async function createReport(headers, { startDate, endDate }) {
         // IMPRESSIONS + REVENUE map to "Total impressions" and "Total revenue" in the GAM UI,
         // which include Ad Server, AdSense, Ad Exchange, and yield group partners.
         // AD_SERVER_* metrics only cover direct-sold line items (not Ad Exchange).
-        dimensions: ["DATE", "AD_UNIT_NAME"],
+        // SITE dimension groups by subdomain (e.g. "elvalerobux.barbacoadicto.com"),
+        // matching the "Site" column in the GAM UI — this is what we assign to workers.
+        dimensions: ["DATE", "SITE"],
         metrics: ["IMPRESSIONS", "REVENUE"],
         dateRange: {
           // DateRange is a union: use "fixed" for explicit dates, "relative" for enums like YESTERDAY.
@@ -159,8 +161,8 @@ async function fetchAllRows(headers, reportId, resultId) {
  *
  * Actual GAM response format (observed):
  *   dimensionValues: [
- *     { intValue: "20260330" },      // DATE → YYYYMMDD as string
- *     { stringValue: "Anchor" },     // AD_UNIT_NAME
+ *     { intValue: "20260330" },                          // DATE → YYYYMMDD as string
+ *     { stringValue: "elvalerobux.barbacoadicto.com" },  // SITE → subdomain
  *   ]
  *   metricValueGroups: [{
  *     primaryValues: [
@@ -169,8 +171,8 @@ async function fetchAllRows(headers, reportId, resultId) {
  *     ]
  *   }]
  *
- * Second dimension is AD_UNIT_NAME, stored as "domain" to keep compatibility
- * with the rest of the app (payouts service, worker filtering, etc).
+ * Second dimension is SITE (subdomain), stored as "domain" — the field name
+ * used throughout the app (payouts service, worker filtering, etc).
  */
 function normalizeRows(rows) {
   return rows.map((row) => {

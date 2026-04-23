@@ -54,7 +54,7 @@ async function calculatePayouts(filters = {}, requesterEmail = null) {
 
 function getAssignedDomains(properties) {
   return properties
-    .filter((p) => p.type === "domain" || p.type === "ad_unit")
+    .filter((p) => p.type === "domain")
     .map((p) => p.value);
 }
 
