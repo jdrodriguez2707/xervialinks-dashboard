@@ -53,7 +53,9 @@ async function calculatePayouts(filters = {}, requesterEmail = null) {
 // ─── Pure helpers (easy to unit-test in isolation) ────────────────────────────
 
 function getAssignedDomains(properties) {
-  return properties.filter((p) => p.type === "domain").map((p) => p.value);
+  return properties
+    .filter((p) => p.type === "domain" || p.type === "ad_unit")
+    .map((p) => p.value);
 }
 
 function computePayout(revenue, percentage) {

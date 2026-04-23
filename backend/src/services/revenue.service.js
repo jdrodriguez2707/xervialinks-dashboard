@@ -85,7 +85,7 @@ function applyPercentage(revenue, percentage) {
  */
 async function getWorkerDashboard(worker) {
   const assignedDomains = worker.properties
-    .filter((p) => p.type === "domain")
+    .filter((p) => p.type === "domain" || p.type === "ad_unit")
     .map((p) => p.value);
 
   const [today, yesterday, last7Days, currentMonth] = await Promise.all([
