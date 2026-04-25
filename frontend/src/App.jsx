@@ -1,12 +1,11 @@
 import { useEffect, useState, useCallback } from "react";
 import { getStoredUser, logout } from "./api/auth";
-import { fetchReports } from "./api/reports";
+import { fetchSummary } from "./api/summary";
 import { fetchWorkers } from "./api/workers";
 import { fetchPayouts } from "./api/payouts";
 import { fetchWorkerDashboard } from "./api/worker";
 import LoginForm from "./components/LoginForm";
 import SummaryCards from "./components/SummaryCards";
-import ReportsTable from "./components/ReportsTable";
 import PayoutsTable from "./components/PayoutsTable";
 import WorkersList from "./components/WorkersList";
 import WorkerForm from "./components/WorkerForm";
@@ -24,12 +23,12 @@ export default function App() {
     setError(null);
     try {
       if (user.role === "admin") {
-        const [reports, workers, payouts] = await Promise.all([
-          fetchReports(),
+        const [summary, workers, payouts] = await Promise.all([
+          fetchSummary(),
           fetchWorkers(),
           fetchPayouts(),
         ]);
-        setData({ reports, workers, payouts });
+        setData({ summary, workers, payouts });
       } else {
         const dashboard = await fetchWorkerDashboard();
         setData({ dashboard });
@@ -97,12 +96,12 @@ export default function App() {
 }
 
 function AdminDashboard({ data, onUpdate }) {
-  const { reports, workers, payouts } = data;
+  const { summary, workers, payouts } = data;
   return (
     <>
       <section>
         <h2>Resumen</h2>
-        <SummaryCards summary={reports.summary} />
+        <SummaryCards summary={summary} />
       </section>
 
       <section>
@@ -114,11 +113,6 @@ function AdminDashboard({ data, onUpdate }) {
         <h2>Trabajadores</h2>
         <WorkerForm onCreated={onUpdate} />
         <WorkersList workers={workers} onUpdate={onUpdate} />
-      </section>
-
-      <section>
-        <h2>Reportes</h2>
-        <ReportsTable reports={reports.reports} />
       </section>
     </>
   );
