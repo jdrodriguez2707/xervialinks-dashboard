@@ -21,17 +21,23 @@ body {
 .app-header {
   background: #1a1a2e;
   color: #fff;
-  padding: 1rem 2rem;
+  padding: 0.85rem 1.5rem;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 1rem;
+  flex-wrap: nowrap;
+  overflow: hidden;
 }
 
 .app-header h1 {
-  font-size: 1.4rem;
+  font-size: 1.2rem;
   font-weight: 600;
   letter-spacing: 0.3px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
 }
 
 .header-user {
@@ -39,13 +45,26 @@ body {
   align-items: center;
   gap: 0.75rem;
   font-size: 0.875rem;
+  flex-shrink: 0;
+}
+
+.header-user-info {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.1rem;
+}
+
+.header-user-name {
+  font-weight: 500;
+  font-size: 0.875rem;
 }
 
 .role-badge {
   background: rgba(255, 255, 255, 0.15);
-  padding: 0.2rem 0.6rem;
+  padding: 0.15rem 0.55rem;
   border-radius: 20px;
-  font-size: 0.75rem;
+  font-size: 0.7rem;
   font-weight: 600;
 }
 
@@ -144,10 +163,12 @@ body {
 .app-main {
   max-width: 1100px;
   margin: 2rem auto;
-  padding: 0 1.5rem;
+  padding: 0 1rem;
   display: flex;
   flex-direction: column;
   gap: 2rem;
+  /* prevent any child from causing horizontal overflow */
+  overflow-x: hidden;
 }
 
 .app-main h2 {
@@ -308,7 +329,7 @@ body {
 /* Workers list */
 .workers-list {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 280px), 1fr));
   gap: 1rem;
   margin-top: 1rem;
 }
@@ -414,43 +435,28 @@ body {
 /* Property form (add domain) */
 .property-form {
   display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  flex-wrap: wrap;
+  flex-direction: column;
+  gap: 0.45rem;
   border-top: 1px solid #f0f2f5;
   padding-top: 0.75rem;
 }
 
 .property-form-label {
-  font-size: 0.82rem;
+  font-size: 0.78rem;
   font-weight: 600;
-  color: #555;
-  white-space: nowrap;
+  color: #888;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
 }
 
 .property-form-select {
-  flex: 1;
+  width: 100%;
   min-width: 0;
 }
 
 .btn-add-domain {
+  align-self: flex-start;
   white-space: nowrap;
-}
-
-@media (max-width: 400px) {
-  .property-form {
-    flex-direction: column;
-    align-items: stretch;
-  }
-
-  .property-form-label {
-    display: none;
-  }
-
-  .btn-add-domain {
-    width: 100%;
-    text-align: center;
-  }
 }
 
 /* Forms */
@@ -660,7 +666,7 @@ body {
 
 .adsense-cards {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  grid-template-columns: repeat(4, 1fr);
   gap: 1rem;
 }
 
@@ -763,4 +769,17 @@ body {
   font-family: "Courier New", monospace;
   font-size: 0.875rem;
   color: #444;
+}
+
+/* ─── Responsive: adsense cards ─────────────────────────────────────────────── */
+@media (max-width: 750px) {
+  .adsense-cards {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 420px) {
+  .adsense-cards {
+    grid-template-columns: 1fr;
+  }
 }

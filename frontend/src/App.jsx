@@ -62,10 +62,12 @@ export default function App() {
       <header className="app-header">
         <h1>Dashboard de Ad Manager</h1>
         <div className="header-user">
-          <span>{user.name}</span>
-          <span className="role-badge">
-            {user.role === "admin" ? "Administrador" : "Trabajador"}
-          </span>
+          <div className="header-user-info">
+            <span className="header-user-name">{user.name}</span>
+            <span className="role-badge">
+              {user.role === "admin" ? "Administrador" : "Trabajador"}
+            </span>
+          </div>
           <button className="btn-logout" onClick={handleLogout}>
             Cerrar sesión
           </button>
