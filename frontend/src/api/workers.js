@@ -34,3 +34,14 @@ export async function addProperty(workerId, { type, value }) {
   const json = await res.json();
   return json.data;
 }
+
+export async function deleteWorker(workerId) {
+  const res = await fetch(`/api/workers/${workerId}`, {
+    method: "DELETE",
+    headers: getAuthHeaders(),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error || `Error ${res.status}`);
+  }
+}

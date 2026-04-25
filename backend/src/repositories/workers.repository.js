@@ -49,6 +49,24 @@ function createWithUser({ name, email, percentage }, { passwordHash }) {
   })();
 }
 
+/**
+ * Deletes a worker along with their properties and user account in a single
+ * atomic transaction. Returns true if the worker existed, false otherwise.
+ */
+function deleteById(id) {
+  const db = getDb();
+  const worker = findById(id);
+  if (!worker) return false;
+
+  db.transaction(() => {
+    db.prepare("DELETE FROM properties WHERE worker_id = ?").run(id);
+    db.prepare("DELETE FROM users WHERE email = ?").run(worker.email);
+    db.prepare("DELETE FROM workers WHERE id = ?").run(id);
+  })();
+
+  return true;
+}
+
 function addProperty(workerId, { type, value }) {
   const db = getDb();
   const result = db
@@ -72,4 +90,12 @@ function attachProperties(worker) {
   return { ...worker, properties: getProperties(worker.id) };
 }
 
-module.exports = { findAll, findById, findByEmail, create, createWithUser, addProperty };
+module.exports = {
+  findAll,
+  findById,
+  findByEmail,
+  create,
+  createWithUser,
+  deleteById,
+  addProperty,
+};

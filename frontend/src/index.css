@@ -315,18 +315,38 @@ body {
 
 .worker-card {
   background: #fff;
-  border-radius: 8px;
+  border-radius: 10px;
   padding: 1.25rem;
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
   display: flex;
   flex-direction: column;
-  gap: 0.75rem;
+  gap: 0.85rem;
+  border-top: 3px solid #1a1a2e;
 }
 
 .worker-card-header {
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
+  gap: 0.5rem;
+}
+
+.worker-card-info {
+  min-width: 0;
+}
+
+.worker-card-info .worker-name,
+.worker-card-info .worker-email {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.worker-card-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-shrink: 0;
 }
 
 .percentage-badge {
@@ -339,10 +359,37 @@ body {
   white-space: nowrap;
 }
 
-.worker-properties {
+.btn-icon {
+  border: none;
+  background: none;
+  cursor: pointer;
+  border-radius: 6px;
+  width: 28px;
+  height: 28px;
   display: flex;
-  flex-direction: column;
-  gap: 0.4rem;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.75rem;
+  transition: background 0.15s, color 0.15s;
+  padding: 0;
+}
+
+.btn-delete {
+  color: #aaa;
+}
+
+.btn-delete:hover:not(:disabled) {
+  background: #fef2f2;
+  color: #e53e3e;
+}
+
+.btn-delete:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.worker-properties {
+  min-height: 1.8rem;
 }
 
 .property-group {
@@ -357,6 +404,53 @@ body {
   letter-spacing: 0.4px;
   color: #999;
   font-weight: 600;
+}
+
+.tag-domain {
+  background: #e8f4fd;
+  color: #2980b9;
+}
+
+/* Property form (add domain) */
+.property-form {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  border-top: 1px solid #f0f2f5;
+  padding-top: 0.75rem;
+}
+
+.property-form-label {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: #555;
+  white-space: nowrap;
+}
+
+.property-form-select {
+  flex: 1;
+  min-width: 0;
+}
+
+.btn-add-domain {
+  white-space: nowrap;
+}
+
+@media (max-width: 400px) {
+  .property-form {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .property-form-label {
+    display: none;
+  }
+
+  .btn-add-domain {
+    width: 100%;
+    text-align: center;
+  }
 }
 
 /* Forms */

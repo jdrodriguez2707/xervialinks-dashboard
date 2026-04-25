@@ -69,6 +69,11 @@ async function createWorker({ name, email, percentage, password }) {
   return workersRepo.create({ name, email, percentage });
 }
 
+function deleteWorker(id) {
+  const deleted = workersRepo.deleteById(Number(id));
+  if (!deleted) throw new NotFoundError(`Worker ${id} not found`);
+}
+
 function addPropertyToWorker(workerId, { type, value }) {
   const VALID_TYPES = ["domain", "ad_unit"];
   if (!VALID_TYPES.includes(type)) {
@@ -95,5 +100,6 @@ module.exports = {
   getWorkerById,
   getWorkerByEmail,
   createWorker,
+  deleteWorker,
   addPropertyToWorker,
 };

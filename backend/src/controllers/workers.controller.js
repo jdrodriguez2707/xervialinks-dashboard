@@ -30,4 +30,9 @@ async function addProperty(req, res) {
   res.status(201).json({ data: property });
 }
 
-module.exports = { listWorkers, getWorker, getMe, createWorker, addProperty };
+async function deleteWorker(req, res) {
+  workersService.deleteWorker(req.params.id);
+  res.status(204).end();
+}
+
+module.exports = { listWorkers, getWorker, getMe, createWorker, deleteWorker, addProperty };

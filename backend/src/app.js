@@ -8,6 +8,7 @@ const { authenticate, requireAdmin } = require("./middleware/authenticate");
 const healthRoutes = require("./routes/health.routes");
 const authRoutes = require("./routes/auth.routes");
 const summaryRoutes = require("./routes/summary.routes");
+const sitesRoutes   = require("./routes/sites.routes");
 const workersRoutes = require("./routes/workers.routes");
 const payoutsRoutes = require("./routes/payouts.routes");
 const workerRoutes = require("./routes/worker.routes");
@@ -25,6 +26,7 @@ app.use("/api/auth", authRoutes);
 
 // Protected routes (require valid JWT)
 app.use("/api/summary", authenticate, requireAdmin, summaryRoutes);
+app.use("/api/sites",   authenticate, requireAdmin, sitesRoutes);
 app.get("/api/workers/me", authenticate, require("./controllers/workers.controller").getMe);
 app.use("/api/workers", authenticate, requireAdmin, workersRoutes);
 app.use("/api/payouts", authenticate, payoutsRoutes);

@@ -1,5 +1,6 @@
-import { useState } from "react";
-import { addProperty } from "../api/workers";
+import { useState, useEffect } from "react";
+import { addProperty, deleteWorker } from "../api/workers";
+import { fetchSites } from "../api/sites";
 
 /**
  * @param {{
@@ -8,10 +9,18 @@ import { addProperty } from "../api/workers";
  * }} props
  */
 export default function WorkersList({ workers, onUpdate }) {
+  const [sites, setSites] = useState([]);
+
+  useEffect(() => {
+    fetchSites()
+      .then(setSites)
+      .catch(() => {});
+  }, []);
+
   if (workers.length === 0) {
     return (
       <p className="empty-state">
-        Aún no hay trabajadores. Usa el formulario de arriba para agregar uno.
+        Aún no hay trabajadores. Usa el botón de arriba para agregar uno.
       </p>
     );
   }
@@ -19,26 +28,37 @@ export default function WorkersList({ workers, onUpdate }) {
   return (
     <div className="workers-list">
       {workers.map((worker) => (
-        <WorkerCard key={worker.id} worker={worker} onUpdate={onUpdate} />
+        <WorkerCard
+          key={worker.id}
+          worker={worker}
+          sites={sites}
+          onUpdate={onUpdate}
+        />
       ))}
     </div>
   );
 }
 
-function WorkerCard({ worker, onUpdate }) {
-  const [type, setType] = useState("domain");
-  const [value, setValue] = useState("");
+function WorkerCard({ worker, sites, onUpdate }) {
+  const [selectedSite, setSelectedSite] = useState("");
   const [error, setError] = useState(null);
   const [submitting, setSubmitting] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
-  async function handleAddProperty(e) {
+  const domains = worker.properties.filter((p) => p.type === "domain");
+
+  // Sites not yet assigned to this worker
+  const assignedValues = new Set(domains.map((p) => p.value));
+  const availableSites = sites.filter((s) => !assignedValues.has(s));
+
+  async function handleAddDomain(e) {
     e.preventDefault();
-    if (!value.trim()) return;
+    if (!selectedSite) return;
     setError(null);
     setSubmitting(true);
     try {
-      await addProperty(worker.id, { type, value: value.trim() });
-      setValue("");
+      await addProperty(worker.id, { type: "domain", value: selectedSite });
+      setSelectedSite("");
       onUpdate();
     } catch (err) {
       setError(err.message);
@@ -47,69 +67,79 @@ function WorkerCard({ worker, onUpdate }) {
     }
   }
 
-  const domains = worker.properties.filter((p) => p.type === "domain");
-  const adUnits = worker.properties.filter((p) => p.type === "ad_unit");
+  async function handleDelete() {
+    if (!confirm(`¿Eliminar a ${worker.name}? Esta acción no se puede deshacer.`))
+      return;
+    setDeleting(true);
+    try {
+      await deleteWorker(worker.id);
+      onUpdate();
+    } catch (err) {
+      setError(err.message);
+      setDeleting(false);
+    }
+  }
 
   return (
     <div className="worker-card">
+      {/* ── Header ── */}
       <div className="worker-card-header">
-        <div>
+        <div className="worker-card-info">
           <p className="worker-name">{worker.name}</p>
           <p className="worker-email">{worker.email}</p>
         </div>
-        <span className="percentage-badge">{worker.percentage}%</span>
+        <div className="worker-card-actions">
+          <span className="percentage-badge">{worker.percentage}%</span>
+          <button
+            className="btn-icon btn-delete"
+            aria-label={`Eliminar a ${worker.name}`}
+            onClick={handleDelete}
+            disabled={deleting}
+            title="Eliminar trabajador"
+          >
+            {deleting ? "…" : "✕"}
+          </button>
+        </div>
       </div>
 
+      {/* ── Assigned domains ── */}
       <div className="worker-properties">
-        {domains.length > 0 && (
-          <div className="property-group">
-            <span className="property-group-label">Dominios</span>
-            <div className="domain-tags">
-              {domains.map((p) => (
-                <span key={p.id} className="tag">
-                  {p.value}
-                </span>
-              ))}
-            </div>
+        {domains.length > 0 ? (
+          <div className="domain-tags">
+            {domains.map((p) => (
+              <span key={p.id} className="tag tag-domain">
+                {p.value}
+              </span>
+            ))}
           </div>
-        )}
-
-        {adUnits.length > 0 && (
-          <div className="property-group">
-            <span className="property-group-label">Ad Units</span>
-            <div className="domain-tags">
-              {adUnits.map((p) => (
-                <span key={p.id} className="tag tag-adunit">
-                  {p.value}
-                </span>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {worker.properties.length === 0 && (
-          <p className="no-domains">Sin propiedades asignadas.</p>
+        ) : (
+          <p className="no-domains">Sin dominios asignados.</p>
         )}
       </div>
 
-      <form className="property-form" onSubmit={handleAddProperty}>
+      {/* ── Add domain form ── */}
+      <form className="property-form" onSubmit={handleAddDomain}>
+        <span className="property-form-label">Dominio</span>
         <select
-          value={type}
-          onChange={(e) => setType(e.target.value)}
-          className="form-select"
-        >
-          <option value="domain">Dominio</option>
-          <option value="ad_unit">Ad Unit</option>
-        </select>
-        <input
-          type="text"
-          className="form-input"
-          placeholder={type === "domain" ? "ej. sports.example.com" : "ej. /12345/homepage"}
-          value={value}
-          onChange={(e) => setValue(e.target.value)}
+          className="form-select property-form-select"
+          value={selectedSite}
+          onChange={(e) => setSelectedSite(e.target.value)}
           required
-        />
-        <button type="submit" className="btn btn-sm" disabled={submitting}>
+        >
+          <option value="" disabled>
+            Seleccionar sitio…
+          </option>
+          {availableSites.map((s) => (
+            <option key={s} value={s}>
+              {s}
+            </option>
+          ))}
+        </select>
+        <button
+          type="submit"
+          className="btn btn-sm btn-add-domain"
+          disabled={submitting || availableSites.length === 0}
+        >
           {submitting ? "Agregando…" : "Agregar"}
         </button>
       </form>
