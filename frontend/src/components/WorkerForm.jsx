@@ -5,12 +5,18 @@ import { createWorker } from "../api/workers";
  * @param {{ onCreated: () => void }} props
  */
 export default function WorkerForm({ onCreated }) {
+  const [open, setOpen] = useState(false);
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [percentage, setPercentage] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState(null);
   const [submitting, setSubmitting] = useState(false);
+
+  function handleClose() {
+    setOpen(false);
+    setError(null);
+  }
 
   async function handleSubmit(e) {
     e.preventDefault();
@@ -27,6 +33,7 @@ export default function WorkerForm({ onCreated }) {
       setEmail("");
       setPercentage("");
       setPassword("");
+      handleClose();
       onCreated();
     } catch (err) {
       setError(err.message);
@@ -36,45 +43,85 @@ export default function WorkerForm({ onCreated }) {
   }
 
   return (
-    <form className="worker-form" onSubmit={handleSubmit}>
-      <input
-        type="text"
-        className="form-input"
-        placeholder="Nombre"
-        value={name}
-        onChange={(e) => setName(e.target.value)}
-        required
-      />
-      <input
-        type="email"
-        className="form-input"
-        placeholder="Email"
-        value={email}
-        onChange={(e) => setEmail(e.target.value)}
-        required
-      />
-      <input
-        type="number"
-        className="form-input form-input-short"
-        placeholder="% (ej. 70)"
-        min="0.01"
-        max="100"
-        step="0.01"
-        value={percentage}
-        onChange={(e) => setPercentage(e.target.value)}
-        required
-      />
-      <input
-        type="password"
-        className="form-input"
-        placeholder="Contraseña (para acceso al sistema)"
-        value={password}
-        onChange={(e) => setPassword(e.target.value)}
-      />
-      <button type="submit" className="btn" disabled={submitting}>
-        {submitting ? "Creando…" : "Agregar trabajador"}
+    <>
+      <button className="btn btn-add-worker" onClick={() => setOpen(true)}>
+        + Agregar trabajador
       </button>
-      {error && <p className="form-error">{error}</p>}
-    </form>
+
+      {open && (
+        <div className="modal-overlay" onClick={handleClose}>
+          <div
+            className="modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="modal-title"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="modal-header">
+              <h3 id="modal-title" className="modal-title">
+                Nuevo trabajador
+              </h3>
+              <button
+                className="modal-close"
+                aria-label="Cerrar"
+                onClick={handleClose}
+              >
+                ✕
+              </button>
+            </div>
+
+            <form className="worker-form" onSubmit={handleSubmit}>
+              <input
+                type="text"
+                className="form-input"
+                placeholder="Nombre"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                required
+              />
+              <input
+                type="email"
+                className="form-input"
+                placeholder="Email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+              />
+              <input
+                type="number"
+                className="form-input form-input-short"
+                placeholder="% (ej. 70)"
+                min="0.01"
+                max="100"
+                step="0.01"
+                value={percentage}
+                onChange={(e) => setPercentage(e.target.value)}
+                required
+              />
+              <input
+                type="password"
+                className="form-input"
+                placeholder="Contraseña (para acceso al sistema)"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+              />
+              {error && <p className="form-error">{error}</p>}
+              <div className="modal-actions">
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  onClick={handleClose}
+                >
+                  Cancelar
+                </button>
+                <button type="submit" className="btn" disabled={submitting}>
+                  {submitting ? "Creando…" : "Guardar trabajador"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+    </>
   );
 }
