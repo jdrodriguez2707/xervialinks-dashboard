@@ -28,6 +28,12 @@ function currentMonthStartISO() {
  * @param {string[]|null} domains  null = all domains
  */
 async function aggregateForRange(startDate, endDate, domains = null) {
+  // An empty array means the worker exists but has no assigned domains yet —
+  // return zeros immediately to avoid leaking global stats.
+  if (Array.isArray(domains) && domains.length === 0) {
+    return { revenue: 0, impressions: 0, ecpm: 0 };
+  }
+
   const reports = await reportsRepo.findAll({ startDate, endDate });
 
   const filtered =

@@ -74,35 +74,54 @@ export default function WorkerDashboard({ dashboard, loading, error }) {
   const domains = properties.filter((p) => p.type === "domain");
   const adUnits = properties.filter((p) => p.type === "ad_unit");
 
+  const hasDomains = domains.length > 0;
+
   return (
     <div className="worker-dashboard">
-      <MetricSection
-        title="Ingresos estimados"
-        colorClass="card--revenue"
-        loading={loading}
-        data={dashboard}
-        getValue={(d, period) => d?.[period]?.revenue}
-        format={fmtCurrency}
-        highlight
-      />
+      {!loading && !hasDomains ? (
+        <div className="no-domains-notice">
+          <span className="no-domains-icon">📊</span>
+          <h2 className="no-domains-title">Panel no disponible aún</h2>
+          <p className="no-domains-text">
+            Tu cuenta no tiene dominios asignados. Una vez que el administrador
+            configure tu acceso, aquí verás tus ingresos, eCPM e impresiones
+            en tiempo real.
+          </p>
+          <p className="no-domains-hint">
+            Si crees que esto es un error, comunícate con el administrador.
+          </p>
+        </div>
+      ) : (
+        <>
+          <MetricSection
+            title="Ingresos estimados"
+            colorClass="card--revenue"
+            loading={loading}
+            data={dashboard}
+            getValue={(d, period) => d?.[period]?.revenue}
+            format={fmtCurrency}
+            highlight
+          />
 
-      <MetricSection
-        title="CPM promedio"
-        colorClass="card--ecpm"
-        loading={loading}
-        data={dashboard}
-        getValue={(d, period) => d?.[period]?.ecpm}
-        format={fmtEcpm}
-      />
+          <MetricSection
+            title="eCPM promedio"
+            colorClass="card--ecpm"
+            loading={loading}
+            data={dashboard}
+            getValue={(d, period) => d?.[period]?.ecpm}
+            format={fmtEcpm}
+          />
 
-      <MetricSection
-        title="Impresiones"
-        colorClass="card--impressions"
-        loading={loading}
-        data={dashboard}
-        getValue={(d, period) => d?.[period]?.impressions}
-        format={fmtImpressions}
-      />
+          <MetricSection
+            title="Impresiones"
+            colorClass="card--impressions"
+            loading={loading}
+            data={dashboard}
+            getValue={(d, period) => d?.[period]?.impressions}
+            format={fmtImpressions}
+          />
+        </>
+      )}
 
       <section className="adsense-section">
         <h2 className="section-title">Propiedades asignadas</h2>
