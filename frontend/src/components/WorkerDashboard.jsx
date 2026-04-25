@@ -87,7 +87,7 @@ export default function WorkerDashboard({ dashboard, loading, error }) {
       />
 
       <MetricSection
-        title="eCPM promedio"
+        title="CPM promedio"
         colorClass="card--ecpm"
         loading={loading}
         data={dashboard}

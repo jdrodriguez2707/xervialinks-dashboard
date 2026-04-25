@@ -72,15 +72,14 @@ function findAllFromMock(filters) {
   return results;
 }
 
-// ─── Date helpers ─────────────────────────────────────────────────────────────
-
+// Both helpers use UTC to stay consistent with toISOString().
 function todayISO() {
   return new Date().toISOString().slice(0, 10);
 }
 
 function daysAgoISO(days) {
   const d = new Date();
-  d.setDate(d.getDate() - days);
+  d.setUTCDate(d.getUTCDate() - days);
   return d.toISOString().slice(0, 10);
 }
 
