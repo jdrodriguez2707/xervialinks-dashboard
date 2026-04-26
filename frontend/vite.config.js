@@ -5,6 +5,8 @@ export default defineConfig({
   plugins: [react()],
   server: {
     port: 5173,
+    host: true,        // listen on 0.0.0.0 so Ngrok can reach Vite
+    allowedHosts: true, // accept the Ngrok *.ngrok-free.app hostname
     proxy: {
       "/api": {
         target: "http://localhost:3001",
