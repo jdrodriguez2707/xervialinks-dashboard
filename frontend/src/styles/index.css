@@ -232,6 +232,17 @@ body {
   margin-bottom: 0.75rem;
 }
 
+.admin-range-row {
+  display: flex;
+  justify-content: flex-start;
+  margin-bottom: 0.65rem;
+}
+
+.admin-range-select {
+  min-width: 180px;
+  max-width: 260px;
+}
+
 /* Summary Cards */
 .summary-cards {
   display: grid;
@@ -624,6 +635,15 @@ body {
   .modal-actions .btn {
     width: 100%;
     text-align: center;
+  }
+
+  .admin-range-row {
+    justify-content: stretch;
+  }
+
+  .admin-range-select {
+    width: 100%;
+    max-width: none;
   }
 }
 

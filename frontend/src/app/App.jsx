@@ -12,11 +12,49 @@ import WorkersList from "../features/admin/components/WorkersList";
 import WorkerForm from "../features/admin/components/WorkerForm";
 import WorkerDashboard from "../features/worker/components/WorkerDashboard";
 
+const ADMIN_RANGE_LABELS = {
+  today: "Hoy",
+  yesterday: "Ayer",
+  last7Days: "Últimos 7 días",
+  currentMonth: "Este mes",
+};
+
+function todayISO() {
+  return new Date().toISOString().slice(0, 10);
+}
+
+function daysAgoISO(days) {
+  const d = new Date();
+  d.setUTCDate(d.getUTCDate() - days);
+  return d.toISOString().slice(0, 10);
+}
+
+function currentMonthStartISO() {
+  const d = new Date();
+  return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}-01`;
+}
+
+function getAdminDateRange(rangeKey) {
+  switch (rangeKey) {
+    case "today":
+      return { startDate: todayISO(), endDate: todayISO() };
+    case "yesterday":
+      return { startDate: daysAgoISO(1), endDate: daysAgoISO(1) };
+    case "last7Days":
+      return { startDate: daysAgoISO(7), endDate: daysAgoISO(1) };
+    case "currentMonth":
+    default:
+      return { startDate: currentMonthStartISO(), endDate: todayISO() };
+  }
+}
+
 export default function App() {
   const [user, setUser] = useState(() => getStoredUser());
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(false);
   const [refreshingAdmin, setRefreshingAdmin] = useState(false);
+  const [adminRange, setAdminRange] = useState("today");
+  const [adminReady, setAdminReady] = useState(false);
   const [error, setError] = useState(null);
 
   const loadInitial = useCallback(async () => {
@@ -25,13 +63,15 @@ export default function App() {
     setError(null);
     try {
       if (user.role === "admin") {
+        const range = getAdminDateRange("currentMonth");
         const [summary, workers, payouts, sites] = await Promise.all([
-          fetchSummary(),
+          fetchSummary(range),
           fetchWorkers(),
-          fetchPayouts(),
+          fetchPayouts(range),
           fetchSites(),
         ]);
         setData({ summary, workers, payouts, sites });
+        setAdminReady(true);
       } else {
         const dashboard = await fetchWorkerDashboard();
         setData({ dashboard });
@@ -48,20 +88,47 @@ export default function App() {
     loadInitial();
   }, [loadInitial]);
 
+  useEffect(() => {
+    async function refreshAdminByRange() {
+      if (!user || user.role !== "admin" || !adminReady) return;
+      setRefreshingAdmin(true);
+      setError(null);
+      try {
+        const range = getAdminDateRange(adminRange);
+        const [summary, payouts] = await Promise.all([
+          fetchSummary(range),
+          fetchPayouts(range),
+        ]);
+        setData((prev) => ({ ...prev, summary, payouts }));
+      } catch (err) {
+        if (err.message === "401") handleLogout();
+        else setError(err.message);
+      } finally {
+        setRefreshingAdmin(false);
+      }
+    }
+    refreshAdminByRange();
+  }, [adminRange, user, adminReady]);
+
   const refreshAdminWorkersAndPayouts = useCallback(async () => {
     if (!user || user.role !== "admin") return;
     setRefreshingAdmin(true);
     setError(null);
     try {
-      const [workers, payouts] = await Promise.all([fetchWorkers(), fetchPayouts()]);
-      setData((prev) => ({ ...prev, workers, payouts }));
+      const range = getAdminDateRange(adminRange);
+      const [workers, payouts, summary] = await Promise.all([
+        fetchWorkers(),
+        fetchPayouts(range),
+        fetchSummary(range),
+      ]);
+      setData((prev) => ({ ...prev, workers, payouts, summary }));
     } catch (err) {
       if (err.message === "401") handleLogout();
       else setError(err.message);
     } finally {
       setRefreshingAdmin(false);
     }
-  }, [user]);
+  }, [user, adminRange]);
 
   function handleLogin(loggedUser) {
     setUser(loggedUser);
@@ -71,6 +138,7 @@ export default function App() {
     logout();
     setUser(null);
     setData(null);
+    setAdminReady(false);
   }
 
   if (!user) return <LoginForm onLogin={handleLogin} />;
@@ -99,7 +167,12 @@ export default function App() {
             {refreshingAdmin && <p className="status-msg">Actualizando trabajadores…</p>}
             {error && <p className="status-msg error">Error: {error}</p>}
             {!loading && data && (
-              <AdminDashboard data={data} onWorkersUpdate={refreshAdminWorkersAndPayouts} />
+              <AdminDashboard
+                data={data}
+                onWorkersUpdate={refreshAdminWorkersAndPayouts}
+                adminRange={adminRange}
+                onChangeAdminRange={setAdminRange}
+              />
             )}
           </>
         )}
@@ -116,11 +189,24 @@ export default function App() {
   );
 }
 
-function AdminDashboard({ data, onWorkersUpdate }) {
+function AdminDashboard({ data, onWorkersUpdate, adminRange, onChangeAdminRange }) {
   const { summary, workers, payouts, sites } = data;
   return (
     <>
       <section>
+        <div className="admin-range-row">
+          <select
+            className="form-select admin-range-select"
+            value={adminRange}
+            onChange={(e) => onChangeAdminRange(e.target.value)}
+          >
+            {Object.entries(ADMIN_RANGE_LABELS).map(([key, label]) => (
+              <option key={key} value={key}>
+                {label}
+              </option>
+            ))}
+          </select>
+        </div>
         <h2>Resumen</h2>
         <SummaryCards summary={summary} />
       </section>
