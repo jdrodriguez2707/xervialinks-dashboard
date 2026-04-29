@@ -1,284 +1,234 @@
-# PROYECTO: Dashboard de Ingresos con Ad Manager (MVP)
+# PROJECT: Ad Revenue Dashboard (POST-MVP → PRODUCTION READY)
+
+---
 
 ## 🎯 OBJETIVO
 
-Desarrollar una plataforma web privada que se integre con Google Ad Manager para:
+Evolucionar el MVP a un sistema estable, mantenible y escalable que:
 
-- Obtener métricas publicitarias (ingresos, impresiones, eCPM)
-- Visualizarlas en un dashboard
-- Asignar ingresos a trabajadores según propiedades (dominios / ad units)
-- Calcular ganancias según porcentajes
-- Permitir vista de administrador y trabajadores
-
-Este es un MVP interno, no un SaaS completo.
+- Integra Google Ad Manager API
+- Calcula ingresos correctamente
+- Asigna ganancias a workers según porcentaje
+- Muestra métricas tipo AdSense (today, yesterday, 7 days, month)
+- Garantiza aislamiento de datos (workers solo ven su ganancia)
+- Listo para agregar nuevas features que te vaya pidiendo
 
 ---
 
 ## 🧠 PRINCIPIOS CLAVE
 
-- Mantenerlo SIMPLE (evitar sobreingeniería)
-- Desarrollo ITERATIVO (paso a paso)
-- Priorizar la lógica de negocio sobre la UI
-- Garantizar exactitud en cálculos financieros
-- Código limpio y mantenible
-- Evitar abstracciones innecesarias
+- Mantener simplicidad (NO sobreingeniería)
+- Desarrollo iterativo
+- Backend responsable de TODA la lógica
+- Separación clara de responsabilidades
+- Exactitud de datos financieros es PRIORIDAD
+- No romper comportamiento existente
 
 ---
 
-## 🏗️ ARQUITECTURA
+## 🚫 REGLAS CRÍTICAS
 
-Usar una arquitectura en capas simple:
-
-- Controllers → manejan requests HTTP
-- Services → lógica de negocio (CRÍTICO)
-- Repositories / Data Layer → acceso a base de datos
-- Models → definición de estructuras de datos
-
-Evitar:
-
-- patrones innecesarios
-- microservicios
-- complejidad prematura
+- NO reescribir lógica existente sin motivo
+- NO cambiar contratos de API sin necesidad
+- NO mover archivos fuera de la arquitectura definida
+- NO mezclar capas
+- NO agregar dependencias sin justificación clara
 
 ---
 
-## 🧩 MÓDULOS PRINCIPALES
+## 🏗️ ARQUITECTURA OFICIAL (OBLIGATORIA)
 
-### 1. Autenticación (Básica)
+### Backend (Arquitectura por capas)
 
-- Usuario administrador
-- Usuario trabajador
-- Control por roles
-
----
-
-### 2. Integración con Ad Manager
-
-- Conexión a API
-- Obtener:
-  - ingresos
-  - impresiones
-  - eCPM
-- Inicialmente usar datos mock
-
----
-
-### 3. Gestión de Trabajadores
-
-- Crear workers
-- Asignar porcentaje
-- Asignar propiedades (dominio / ad unit)
+backend/src/
+├── server.js
+├── app.js
+├── api/
+│ ├── routes/
+│ ├── controllers/
+│ └── middleware/
+├── application/
+│ └── services/
+├── domain/
+│ └── repositories/
+├── infrastructure/
+│ ├── config/
+│ ├── database/
+│ └── integrations/
+└── shared/
+└── errors/
 
 ---
 
-### 4. Sistema de Ingresos (CRÍTICO)
+## 📌 RESPONSABILIDADES POR CAPA
 
-Responsabilidades:
+### api/
 
-- Asignar ingresos a trabajadores
-- Calcular pagos
+- routes → definen endpoints
+- controllers → manejan request/response
+- middleware → auth, validación, etc.
 
-Fórmula base:
+❌ NO lógica de negocio aquí
+
+---
+
+### application/services/
+
+- lógica de negocio (CRÍTICO)
+- cálculos de ingresos
+- orquestación de datos
+
+✔ aquí vive el corazón del sistema
+
+---
+
+### domain/repositories/
+
+- acceso a base de datos
+- queries
+- abstracción de persistencia
+
+❌ NO lógica de negocio
+
+---
+
+### infrastructure/
+
+- config (env, variables)
+- database (setup, conexión)
+- integrations (Ad Manager API)
+
+---
+
+### shared/
+
+- errores comunes
+- utilidades compartidas
+
+---
+
+## 🔁 FLUJO DE DATOS (OBLIGATORIO)
+
+Client → Frontend → API Routes → Controllers → Services → Repositories → Database
+↓
+Integrations (Ad Manager)
+
+---
+
+## 💰 LÓGICA DE NEGOCIO (CRÍTICA)
+
+- Los workers NO ven datos brutos
+- Los workers SOLO ven su ganancia
+
+Fórmula:
 
 worker_payout = revenue * percentage
 
-En el futuro:
+---
 
-- soportar ajustes
-- soportar net vs gross revenue
+## 📊 DASHBOARD (WORKER)
+
+Mostrar únicamente:
+
+- Ingresos hoy (estimado)
+- Ingresos ayer
+- Últimos 7 días
+- Este mes
+
+❌ Nunca mostrar:
+
+- ingresos totales del subdominio
+- ingresos globales de la red
+- cálculos intermedios
 
 ---
 
-### 5. Dashboard
+## 🌐 INTEGRACIÓN AD MANAGER
 
-Administrador:
+- network code ≠ subdominio
+- un network contiene múltiples subdominios
 
-- ingresos totales
-- desglose por worker
-- métricas generales
+Flujo:
 
-Worker:
-
-- ingresos personales
-- monto a recibir
-- propiedades asignadas
+1. Obtener métricas externas
+2. Mapear subdominios de la red desde Ad Manager API
+3. Aplicar lógica de negocio
+4. Devolver datos agregados
 
 ---
 
-## 🗃️ ESTRUCTURA DE BASE DE DATOS (INICIAL)
+## 🧪 TESTING
 
-Users:
+Tests obligatorios:
 
-- id
-- name
-- email
-- password
-- role
+- cálculo de ingresos
+- porcentaje
+- agregación por fechas
 
-Workers:
+Ejecutar siempre:
 
-- id
-- user_id
-- percentage
+- backend: `npm test`
+- frontend: `npm run build`
 
-Properties:
+---
 
-- id
-- worker_id
-- type (domain, ad_unit)
-- value
+## 🎨 FRONTEND (ARQUITECTURA)
 
-Reports:
+frontend/src/
+├── main.jsx
+├── app/
+│ └── App.jsx
+├── features/
+│ ├── auth/
+│ ├── admin/
+│ └── worker/
+├── shared/
+│ └── api/
+└── styles/
 
-- id
-- date
-- property
-- impressions
-- revenue
-- ecpm
+---
+
+## 📌 REGLAS FRONTEND
+
+- features = lógica de UI por subdominio
+- shared = código reutilizable
+- NO lógica de negocio compleja en frontend
+- consumir datos ya procesados del backend
 
 ---
 
 ## 🔁 ESTRATEGIA DE DESARROLLO
 
-Trabajar en iteraciones:
-
-### Iteración 1
-
-- Backend básico
-- Endpoint de salud
-- Datos mock
-
-### Iteración 2
-
-- Sistema de workers
-- Lógica de porcentajes
-
-### Iteración 3
-
-- Cálculo de ingresos
-
-### Iteración 4
-
-- Dashboard frontend básico
-
-### Iteración 5
-
-- Integración con API real
-
-### Iteración 6
-
-- Mejoras (filtros, UI, etc.)
+1. NO romper funcionalidad existente
+2. Cambios pequeños e iterativos
+3. Validar después de cada cambio
+4. Refactorizar solo cuando sea necesario
 
 ---
 
-## 🧪 ESTRATEGIA DE TESTING
+## ✅ CRITERIOS DE CALIDAD
 
-Testear SOLO lo crítico.
-
-### TESTS OBLIGATORIOS
-
-1. Cálculo de ingresos
-2. Lógica de porcentajes
-3. Asignación de workers
-
-Ejemplo:
-
-Entrada:
-
-- revenue: 1000
-- porcentaje: 70%
-
-Salida esperada:
-
-- payout: 700
+- arquitectura respetada
+- servicios limpios
+- controllers simples
+- datos correctos
+- código mantenible
 
 ---
 
-### NO NECESARIO POR AHORA
+## 🧠 MENTALIDAD FINAL
 
-- testing completo de UI
-- edge cases complejos
-- cobertura total
+Este proyecto es:
 
----
-
-## ⚠️ PARTES CRÍTICAS / RIESGOS
-
-1. Integración con Google Ad Manager
-2. Consistencia de datos
-3. Asignación correcta de ingresos
+- un sistema real
+- una base para escalar
+- un producto, no un experimento
 
 ---
 
-## 🧰 STACK TECNOLÓGICO
+## 🚀 REGLA FINAL
 
-Frontend:
-
-- React o Next.js
-
-Backend:
-
-- Node.js
-- Express
-
-Base de datos:
-
-- PostgreSQL
-
-Testing:
-
-- Jest
-
-Opcional:
-
-- Supertest
-
----
-
-## 🧹 REGLAS DE CALIDAD DE CÓDIGO
-
-- Nombres claros en variables y funciones
-- Funciones pequeñas y simples
-- Evitar lógica anidada compleja
-- Lógica de negocio en services
-- Evitar duplicación de código
-
----
-
-## 🚫 EVITAR
-
-- Sobreingeniería
-- Funcionalidades innecesarias
-- Arquitectura compleja prematura
-- Optimización prematura
-
----
-
-## ✅ CRITERIOS DE ÉXITO
-
-El MVP está completo cuando:
-
-- Se obtienen datos (mock o reales)
-- Se pueden asignar workers
-- Los ingresos se calculan correctamente
-- El dashboard muestra la información
-- Cada usuario ve sus datos correctamente
-
----
-
-## 🧠 NOTA FINAL
-
-Este proyecto es para:
-
-- aprender backend real
-- manejar lógica financiera
-- construir una herramienta útil
-
-NO es para:
-
-- perfección absoluta
-- UI avanzada
-- sistemas complejos
-
-Construir simple. Construir bien.
+Construir simple.
+Respetar arquitectura.
+No romper lo que ya funciona.
+Iterar constantemente.
