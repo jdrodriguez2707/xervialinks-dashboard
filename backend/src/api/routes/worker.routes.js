@@ -3,6 +3,7 @@ const worker = require("../controllers/worker.controller");
 
 const router = Router();
 
+router.get("/context", worker.getContext);
 router.get("/dashboard", worker.getDashboard);
 router.put("/payment-info", worker.upsertPaymentInfo);
 

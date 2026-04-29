@@ -71,27 +71,34 @@ function MetricSection({ title, colorClass, loading, data, getValue, format, hig
   );
 }
 
-export default function WorkerDashboard({ dashboard, loading, error }) {
+export default function WorkerDashboard({
+  workerContext,
+  workerMetrics,
+  contextLoading,
+  metricsLoading,
+  metricsError,
+  error,
+  onContextRefresh,
+}) {
   const [activeTab, setActiveTab] = useState(() => {
     if (typeof window === "undefined") return "stats";
     const saved = window.localStorage.getItem(WORKER_TAB_STORAGE_KEY);
     return saved || "stats";
   });
   const [selectedRange, setSelectedRange] = useState("today");
-  const [paymentInfo, setPaymentInfo] = useState(() => dashboard?.paymentInfo ?? null);
-  const [openPaymentModal, setOpenPaymentModal] = useState(false);
-  const [paymentMethodType, setPaymentMethodType] = useState("");
-  const [paymentDetails, setPaymentDetails] = useState("");
-  const [savingPaymentInfo, setSavingPaymentInfo] = useState(false);
-  const [paymentError, setPaymentError] = useState(null);
+  const [paymentInfo, setPaymentInfo] = useState(
+    () => workerContext?.paymentInfo ?? null
+  );
 
-  if (error) {
-    return <p className="status-msg error">Error al cargar los ingresos.</p>;
-  }
+  const mergedDashboard = useMemo(() => {
+    if (!workerContext && !workerMetrics) return null;
+    return {
+      ...(workerMetrics || {}),
+      properties: workerContext?.properties ?? [],
+      paymentInfo: workerContext?.paymentInfo ?? null,
+    };
+  }, [workerContext, workerMetrics]);
 
-  const { properties = [] } = dashboard ?? {};
-  const domains = properties.filter((p) => p.type === "domain");
-  const hasDomains = domains.length > 0;
   const tabs = useMemo(
     () => [
       { id: "stats", label: "Estadísticas", icon: BarChart3 },
@@ -101,14 +108,32 @@ export default function WorkerDashboard({ dashboard, loading, error }) {
     []
   );
 
+  const [openPaymentModal, setOpenPaymentModal] = useState(false);
+  const [paymentMethodType, setPaymentMethodType] = useState("");
+  const [paymentDetails, setPaymentDetails] = useState("");
+  const [savingPaymentInfo, setSavingPaymentInfo] = useState(false);
+  const [paymentError, setPaymentError] = useState(null);
+
   useEffect(() => {
-    setPaymentInfo(dashboard?.paymentInfo ?? null);
-  }, [dashboard?.paymentInfo]);
+    setPaymentInfo(workerContext?.paymentInfo ?? null);
+  }, [workerContext?.paymentInfo]);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
     window.localStorage.setItem(WORKER_TAB_STORAGE_KEY, activeTab);
   }, [activeTab]);
+
+  if (error) {
+    return <p className="status-msg error">Error al cargar los ingresos.</p>;
+  }
+
+  if (contextLoading && !workerContext) {
+    return <p className="status-msg">Cargando tu perfil…</p>;
+  }
+
+  const { properties = [] } = workerContext ?? {};
+  const domains = properties.filter((p) => p.type === "domain");
+  const hasDomains = domains.length > 0;
 
   function openPaymentDialog() {
     setPaymentMethodType(paymentInfo?.methodType || "");
@@ -132,6 +157,9 @@ export default function WorkerDashboard({ dashboard, loading, error }) {
         paymentDetails,
       });
       setPaymentInfo(saved);
+      if (typeof onContextRefresh === "function") {
+        await onContextRefresh();
+      }
       closePaymentDialog();
     } catch (err) {
       setPaymentError(err.message || "No se pudo guardar la información de pago");
@@ -163,7 +191,7 @@ export default function WorkerDashboard({ dashboard, loading, error }) {
         </nav>
       )}
 
-      {!loading && !hasDomains ? (
+      {!hasDomains ? (
         <div className="no-domains-notice">
           <span className="no-domains-icon">📊</span>
           <h2 className="no-domains-title">Panel no disponible aún</h2>
@@ -178,11 +206,16 @@ export default function WorkerDashboard({ dashboard, loading, error }) {
         </div>
       ) : activeTab === "stats" ? (
         <>
+          {metricsError && (
+            <p className="status-msg error" role="alert">
+              {metricsError}
+            </p>
+          )}
           <MetricSection
             title="Ingresos estimados"
             colorClass="card--revenue"
-            loading={loading}
-            data={dashboard}
+            loading={metricsLoading}
+            data={mergedDashboard}
             getValue={(d, period) => d?.[period]?.revenue}
             format={fmtCurrency}
             highlight
@@ -203,7 +236,7 @@ export default function WorkerDashboard({ dashboard, loading, error }) {
             <div className="metric-header-row">
               <h2 className="section-title">eCPM promedio</h2>
             </div>
-            {loading ? (
+            {metricsLoading ? (
               <div className="adsense-cards adsense-cards--single">
                 <div className="adsense-card adsense-card--skeleton" />
               </div>
@@ -212,7 +245,7 @@ export default function WorkerDashboard({ dashboard, loading, error }) {
                 <div className="adsense-card card--ecpm">
                   <span className="adsense-label">{PERIOD_LABELS[selectedRange]}</span>
                   <span className="adsense-value">
-                    {fmtEcpm(dashboard?.[selectedRange]?.ecpm)}
+                    {fmtEcpm(mergedDashboard?.[selectedRange]?.ecpm)}
                   </span>
                 </div>
               </div>
@@ -223,7 +256,7 @@ export default function WorkerDashboard({ dashboard, loading, error }) {
             <div className="metric-header-row">
               <h2 className="section-title">Impresiones</h2>
             </div>
-            {loading ? (
+            {metricsLoading ? (
               <div className="adsense-cards adsense-cards--single">
                 <div className="adsense-card adsense-card--skeleton" />
               </div>
@@ -232,7 +265,7 @@ export default function WorkerDashboard({ dashboard, loading, error }) {
                 <div className="adsense-card card--impressions">
                   <span className="adsense-label">{PERIOD_LABELS[selectedRange]}</span>
                   <span className="adsense-value">
-                    {fmtImpressions(dashboard?.[selectedRange]?.impressions)}
+                    {fmtImpressions(mergedDashboard?.[selectedRange]?.impressions)}
                   </span>
                 </div>
               </div>
@@ -245,13 +278,7 @@ export default function WorkerDashboard({ dashboard, loading, error }) {
         <section className="adsense-section">
           <h2 className="section-title">Subdominios asignados</h2>
 
-          {loading ? (
-            <div className="table-wrapper table-wrapper--skeleton">
-              <div className="table-skeleton-row" />
-              <div className="table-skeleton-row" />
-              <div className="table-skeleton-row" />
-            </div>
-          ) : domains.length === 0 ? (
+          {domains.length === 0 ? (
             <p className="empty-state">
               Sin subdominios asignados. Contacta al administrador.
             </p>
@@ -286,9 +313,7 @@ export default function WorkerDashboard({ dashboard, loading, error }) {
         <section className="adsense-section">
           <h2 className="section-title">Información de pago</h2>
 
-          {loading ? (
-            <div className="payment-info-card payment-info-card--skeleton" />
-          ) : paymentInfo ? (
+          {paymentInfo ? (
             <div className="payment-info-card">
               <p className="payment-info-label">Tipo de método</p>
               <p className="payment-info-value">{paymentInfo.methodType}</p>
@@ -305,7 +330,7 @@ export default function WorkerDashboard({ dashboard, loading, error }) {
             </div>
           )}
 
-          <button type="button" className="btn" onClick={openPaymentDialog} disabled={loading}>
+          <button type="button" className="btn" onClick={openPaymentDialog}>
             {paymentInfo ? "Editar información de pago" : "Agregar información de pago"}
           </button>
         </section>

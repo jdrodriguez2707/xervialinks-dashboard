@@ -1,5 +1,14 @@
 import { getAuthHeaders } from "./auth";
 
+/** Solo BD: subdominios + info de pago (rápido, sin GAM). */
+export async function fetchWorkerContext() {
+  const res = await fetch("/api/worker/context", { headers: getAuthHeaders() });
+  if (!res.ok) throw new Error(`${res.status}`);
+  const json = await res.json();
+  return json.data;
+}
+
+/** Métricas por periodos (puede tardar por GAM / caché). */
 export async function fetchWorkerDashboard() {
   const res = await fetch("/api/worker/dashboard", { headers: getAuthHeaders() });
   if (!res.ok) throw new Error(`${res.status}`);

@@ -3,7 +3,7 @@ import { getStoredUser, logout } from "../shared/api/auth";
 import { fetchSummary } from "../shared/api/summary";
 import { fetchWorkers } from "../shared/api/workers";
 import { fetchPayouts } from "../shared/api/payouts";
-import { fetchWorkerDashboard } from "../shared/api/worker";
+import { fetchWorkerContext, fetchWorkerDashboard } from "../shared/api/worker";
 import { fetchSites } from "../shared/api/sites";
 import LoginForm from "../features/auth/components/LoginForm";
 import SummaryCards from "../features/admin/components/SummaryCards";
@@ -57,6 +57,8 @@ export default function App() {
   const [adminRange, setAdminRange] = useState("today");
   const [adminReady, setAdminReady] = useState(false);
   const [error, setError] = useState(null);
+  const [workerMetricsLoading, setWorkerMetricsLoading] = useState(false);
+  const [workerMetricsError, setWorkerMetricsError] = useState(null);
   const adminMetricsCacheRef = useRef(new Map());
 
   function getCachedAdminMetrics(rangeKey) {
@@ -104,8 +106,19 @@ export default function App() {
             .catch(() => {});
         });
       } else {
-        const dashboard = await fetchWorkerDashboard();
-        setData({ dashboard });
+        const context = await fetchWorkerContext();
+        setData({ workerContext: context, workerMetrics: null });
+        setWorkerMetricsError(null);
+        setWorkerMetricsLoading(true);
+        fetchWorkerDashboard()
+          .then((metrics) => {
+            setData((prev) => ({ ...prev, workerMetrics: metrics }));
+          })
+          .catch((err) => {
+            if (err.message === "401") handleLogout();
+            else setWorkerMetricsError(err.message || "Error al cargar métricas");
+          })
+          .finally(() => setWorkerMetricsLoading(false));
       }
     } catch (err) {
       if (err.message === "401") handleLogout();
@@ -181,6 +194,8 @@ export default function App() {
     setUser(null);
     setData(null);
     setAdminReady(false);
+    setWorkerMetricsLoading(false);
+    setWorkerMetricsError(null);
     adminMetricsCacheRef.current.clear();
   }
 
@@ -224,9 +239,20 @@ export default function App() {
 
         {user.role === "worker" && (
           <WorkerDashboard
-            dashboard={data?.dashboard ?? null}
-            loading={loading}
+            workerContext={data?.workerContext ?? null}
+            workerMetrics={data?.workerMetrics ?? null}
+            contextLoading={loading}
+            metricsLoading={workerMetricsLoading}
+            metricsError={workerMetricsError}
             error={error}
+            onContextRefresh={async () => {
+              try {
+                const ctx = await fetchWorkerContext();
+                setData((prev) => ({ ...prev, workerContext: ctx }));
+              } catch {
+                /* ignore refresh errors */
+              }
+            }}
           />
         )}
       </main>

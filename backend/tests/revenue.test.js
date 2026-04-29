@@ -123,6 +123,51 @@ describe("getCurrentMonthRevenue", () => {
   });
 });
 
+// ─── Integration: GET /api/worker/context ───────────────────────────────────
+
+describe("GET /api/worker/context", () => {
+  let workerToken;
+
+  beforeAll(async () => {
+    const workerRes = await request(app)
+      .post("/api/workers")
+      .set("Authorization", `Bearer ${adminToken}`)
+      .send({
+        name: "Context Worker",
+        email: "contextworker@example.com",
+        percentage: 50,
+        password: "pass123",
+      });
+    const workerId = workerRes.body.data.id;
+
+    await request(app)
+      .post(`/api/workers/${workerId}/properties`)
+      .set("Authorization", `Bearer ${adminToken}`)
+      .send({ type: "domain", value: "plez.barbacoadicto.com" });
+
+    const loginRes = await request(app)
+      .post("/api/auth/login")
+      .send({ email: "contextworker@example.com", password: "pass123" });
+
+    workerToken = loginRes.body.data.token;
+  });
+
+  it("returns 401 without token", async () => {
+    const res = await request(app).get("/api/worker/context");
+    expect(res.status).toBe(401);
+  });
+
+  it("returns properties and paymentInfo without metrics", async () => {
+    const res = await request(app)
+      .get("/api/worker/context")
+      .set("Authorization", `Bearer ${workerToken}`);
+
+    expect(res.status).toBe(200);
+    expect(Array.isArray(res.body.data.properties)).toBe(true);
+    expect(res.body.data).toHaveProperty("paymentInfo");
+  });
+});
+
 // ─── Integration: GET /api/worker/dashboard ───────────────────────────────────
 
 describe("GET /api/worker/dashboard", () => {
