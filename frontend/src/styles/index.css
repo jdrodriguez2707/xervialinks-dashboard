@@ -158,6 +158,58 @@ body {
   display: flex;
   flex-direction: column;
   gap: 2rem;
+  padding-bottom: 5.5rem;
+  align-items: center;
+}
+
+.worker-nav {
+  position: fixed;
+  left: 50%;
+  transform: translateX(-50%);
+  width: calc(100% - 1.5rem);
+  max-width: 520px;
+  bottom: 0.75rem;
+  z-index: 40;
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 0.55rem;
+  background: rgba(255, 255, 255, 0.95);
+  border: 1px solid #dde1e7;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
+  border-radius: 16px;
+  padding: 0.45rem;
+  backdrop-filter: blur(10px);
+}
+
+.worker-nav-btn {
+  border: none;
+  background: transparent;
+  border-radius: 12px;
+  color: #7a818c;
+  font-weight: 600;
+  font-size: 0.83rem;
+  min-height: 52px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.18rem;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s, transform 0.15s;
+}
+
+.worker-nav-btn.active {
+  background: #e8f0fe;
+  color: #1a56db;
+}
+
+.worker-nav-btn:active {
+  transform: scale(0.98);
+}
+
+.worker-dashboard > .adsense-section,
+.worker-dashboard > .no-domains-notice {
+  width: 100%;
 }
 
 .app-main {
@@ -819,5 +871,25 @@ body {
 @media (max-width: 420px) {
   .adsense-cards {
     grid-template-columns: 1fr;
+  }
+}
+
+@media (min-width: 900px) {
+  .worker-dashboard {
+    padding-bottom: 6.25rem;
+  }
+
+  .worker-nav {
+    width: min(560px, calc(100% - 2rem));
+    border-radius: 14px;
+    padding: 0.5rem;
+  }
+
+  .worker-nav-btn {
+    min-height: 62px;
+    min-width: 0;
+    font-size: 0.95rem;
+    flex-direction: row;
+    gap: 0.45rem;
   }
 }

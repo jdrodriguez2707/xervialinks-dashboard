@@ -1,3 +1,6 @@
+import { useMemo, useState } from "react";
+import { BarChart3, Globe } from "lucide-react";
+
 const PERIODS = ["today", "yesterday", "last7Days", "currentMonth"];
 
 const PERIOD_LABELS = {
@@ -66,18 +69,43 @@ function MetricSection({ title, colorClass, loading, data, getValue, format, hig
 }
 
 export default function WorkerDashboard({ dashboard, loading, error }) {
+  const [activeTab, setActiveTab] = useState("stats");
+
   if (error) {
     return <p className="status-msg error">Error al cargar los ingresos.</p>;
   }
 
   const { properties = [] } = dashboard ?? {};
   const domains = properties.filter((p) => p.type === "domain");
-  const adUnits = properties.filter((p) => p.type === "ad_unit");
-
   const hasDomains = domains.length > 0;
+  const tabs = useMemo(
+    () => [
+      { id: "stats", label: "Estadísticas", icon: BarChart3 },
+      { id: "domains", label: "Subdominios", icon: Globe },
+    ],
+    []
+  );
 
   return (
     <div className="worker-dashboard">
+      <nav className="worker-nav" aria-label="Secciones del panel">
+        {tabs.map((tab) => {
+          const Icon = tab.icon;
+          const isActive = activeTab === tab.id;
+          return (
+            <button
+              key={tab.id}
+              type="button"
+              className={`worker-nav-btn ${isActive ? "active" : ""}`}
+              onClick={() => setActiveTab(tab.id)}
+            >
+              <Icon size={18} />
+              <span>{tab.label}</span>
+            </button>
+          );
+        })}
+      </nav>
+
       {!loading && !hasDomains ? (
         <div className="no-domains-notice">
           <span className="no-domains-icon">📊</span>
@@ -91,7 +119,7 @@ export default function WorkerDashboard({ dashboard, loading, error }) {
             Si crees que esto es un error, comunícate con el administrador.
           </p>
         </div>
-      ) : (
+      ) : activeTab === "stats" ? (
         <>
           <MetricSection
             title="Ingresos estimados"
@@ -121,50 +149,42 @@ export default function WorkerDashboard({ dashboard, loading, error }) {
             format={fmtImpressions}
           />
         </>
+      ) : null}
+
+      {activeTab === "domains" && (
+        <section className="adsense-section">
+          <h2 className="section-title">Subdominios asignados</h2>
+
+          {!loading && domains.length === 0 ? (
+            <p className="empty-state">
+              Sin subdominios asignados. Contacta al administrador.
+            </p>
+          ) : (
+            <div className="table-wrapper">
+              <table className="reports-table">
+                <thead>
+                  <tr>
+                    <th>Tipo</th>
+                    <th>Valor</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {domains.map((p) => (
+                    <tr key={p.id}>
+                      <td>
+                        <span className="prop-badge prop-domain">
+                          {PROPERTY_LABELS[p.type]}
+                        </span>
+                      </td>
+                      <td className="prop-value">{p.value}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </section>
       )}
-
-      <section className="adsense-section">
-        <h2 className="section-title">Subdominios asignados</h2>
-
-        {!loading && properties.length === 0 ? (
-          <p className="empty-state">
-            Sin subdominios asignados. Contacta al administrador.
-          </p>
-        ) : (
-          <div className="table-wrapper">
-            <table className="reports-table">
-              <thead>
-                <tr>
-                  <th>Tipo</th>
-                  <th>Valor</th>
-                </tr>
-              </thead>
-              <tbody>
-                {domains.map((p) => (
-                  <tr key={p.id}>
-                    <td>
-                      <span className="prop-badge prop-domain">
-                        {PROPERTY_LABELS[p.type]}
-                      </span>
-                    </td>
-                    <td className="prop-value">{p.value}</td>
-                  </tr>
-                ))}
-                {adUnits.map((p) => (
-                  <tr key={p.id}>
-                    <td>
-                      <span className="prop-badge prop-adunit">
-                        {PROPERTY_LABELS[p.type]}
-                      </span>
-                    </td>
-                    <td className="prop-value">{p.value}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </section>
     </div>
   );
 }
