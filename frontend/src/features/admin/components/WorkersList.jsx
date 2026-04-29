@@ -1,21 +1,14 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { addProperty, deleteWorker } from "../../../shared/api/workers";
-import { fetchSites } from "../../../shared/api/sites";
 
 /**
  * @param {{
  *   workers: Array<{ id: number, name: string, email: string, percentage: number, properties: Array }>,
+ *   sites: string[],
  *   onUpdate: () => void
  * }} props
  */
-export default function WorkersList({ workers, onUpdate }) {
-  const [sites, setSites] = useState([]);
-
-  useEffect(() => {
-    fetchSites()
-      .then(setSites)
-      .catch(() => {});
-  }, []);
+export default function WorkersList({ workers, sites = [], onUpdate }) {
 
   if (workers.length === 0) {
     return (

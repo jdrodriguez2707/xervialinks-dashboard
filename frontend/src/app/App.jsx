@@ -4,6 +4,7 @@ import { fetchSummary } from "../shared/api/summary";
 import { fetchWorkers } from "../shared/api/workers";
 import { fetchPayouts } from "../shared/api/payouts";
 import { fetchWorkerDashboard } from "../shared/api/worker";
+import { fetchSites } from "../shared/api/sites";
 import LoginForm from "../features/auth/components/LoginForm";
 import SummaryCards from "../features/admin/components/SummaryCards";
 import PayoutsTable from "../features/admin/components/PayoutsTable";
@@ -15,20 +16,22 @@ export default function App() {
   const [user, setUser] = useState(() => getStoredUser());
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [refreshingAdmin, setRefreshingAdmin] = useState(false);
   const [error, setError] = useState(null);
 
-  const loadAll = useCallback(async () => {
+  const loadInitial = useCallback(async () => {
     if (!user) return;
     setLoading(true);
     setError(null);
     try {
       if (user.role === "admin") {
-        const [summary, workers, payouts] = await Promise.all([
+        const [summary, workers, payouts, sites] = await Promise.all([
           fetchSummary(),
           fetchWorkers(),
           fetchPayouts(),
+          fetchSites(),
         ]);
-        setData({ summary, workers, payouts });
+        setData({ summary, workers, payouts, sites });
       } else {
         const dashboard = await fetchWorkerDashboard();
         setData({ dashboard });
@@ -42,8 +45,23 @@ export default function App() {
   }, [user]);
 
   useEffect(() => {
-    loadAll();
-  }, [loadAll]);
+    loadInitial();
+  }, [loadInitial]);
+
+  const refreshAdminWorkersAndPayouts = useCallback(async () => {
+    if (!user || user.role !== "admin") return;
+    setRefreshingAdmin(true);
+    setError(null);
+    try {
+      const [workers, payouts] = await Promise.all([fetchWorkers(), fetchPayouts()]);
+      setData((prev) => ({ ...prev, workers, payouts }));
+    } catch (err) {
+      if (err.message === "401") handleLogout();
+      else setError(err.message);
+    } finally {
+      setRefreshingAdmin(false);
+    }
+  }, [user]);
 
   function handleLogin(loggedUser) {
     setUser(loggedUser);
@@ -78,9 +96,10 @@ export default function App() {
         {user.role === "admin" && (
           <>
             {loading && <p className="status-msg">Cargando dashboard…</p>}
+            {refreshingAdmin && <p className="status-msg">Actualizando trabajadores…</p>}
             {error && <p className="status-msg error">Error: {error}</p>}
-            {!loading && !error && data && (
-              <AdminDashboard data={data} onUpdate={loadAll} />
+            {!loading && data && (
+              <AdminDashboard data={data} onWorkersUpdate={refreshAdminWorkersAndPayouts} />
             )}
           </>
         )}
@@ -97,8 +116,8 @@ export default function App() {
   );
 }
 
-function AdminDashboard({ data, onUpdate }) {
-  const { summary, workers, payouts } = data;
+function AdminDashboard({ data, onWorkersUpdate }) {
+  const { summary, workers, payouts, sites } = data;
   return (
     <>
       <section>
@@ -113,8 +132,8 @@ function AdminDashboard({ data, onUpdate }) {
 
       <section>
         <h2>Trabajadores</h2>
-        <WorkerForm onCreated={onUpdate} />
-        <WorkersList workers={workers} onUpdate={onUpdate} />
+        <WorkerForm onCreated={onWorkersUpdate} />
+        <WorkersList workers={workers} sites={sites} onUpdate={onWorkersUpdate} />
       </section>
     </>
   );

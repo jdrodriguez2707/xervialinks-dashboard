@@ -103,12 +103,31 @@ async function getWorkerDashboardPeriods(worker) {
     .filter((p) => p.type === "domain")
     .map((p) => p.value);
 
-  const [rawToday, rawYesterday, rawLast7, rawMonth] = await Promise.all([
-    aggregateForRange(todayISO(),            todayISO(),            assignedDomains),
-    aggregateForRange(daysAgoISO(1),         daysAgoISO(1),         assignedDomains),
-    aggregateForRange(daysAgoISO(7),         daysAgoISO(1),         assignedDomains),
-    aggregateForRange(currentMonthStartISO(), todayISO(),           assignedDomains),
-  ]);
+  if (assignedDomains.length === 0) {
+    const empty = { revenue: 0, ecpm: 0, impressions: 0 };
+    return {
+      today: empty,
+      yesterday: empty,
+      last7Days: empty,
+      currentMonth: empty,
+    };
+  }
+
+  const monthStart = currentMonthStartISO();
+  const today = todayISO();
+  const yesterday = daysAgoISO(1);
+  const last7Start = daysAgoISO(7);
+
+  const reports = await reportsRepo.findAll({
+    startDate: monthStart,
+    endDate: today,
+  });
+  const workerReports = reports.filter((r) => assignedDomains.includes(r.domain));
+
+  const rawToday = aggregateReports(workerReports, today, today);
+  const rawYesterday = aggregateReports(workerReports, yesterday, yesterday);
+  const rawLast7 = aggregateReports(workerReports, last7Start, yesterday);
+  const rawMonth = aggregateReports(workerReports, monthStart, today);
 
   const pct = worker.percentage;
   const build = (raw) => ({
@@ -123,6 +142,18 @@ async function getWorkerDashboardPeriods(worker) {
     last7Days:    build(rawLast7),
     currentMonth: build(rawMonth),
   };
+}
+
+function aggregateReports(reports, startDate, endDate) {
+  const filtered = reports.filter((r) => r.date >= startDate && r.date <= endDate);
+  const revenue = parseFloat(
+    filtered.reduce((sum, r) => sum + r.revenue, 0).toFixed(6)
+  );
+  const impressions = filtered.reduce((sum, r) => sum + r.impressions, 0);
+  const ecpm = impressions > 0
+    ? parseFloat(((revenue / impressions) * 1000).toFixed(4))
+    : 0;
+  return { revenue, impressions, ecpm };
 }
 
 module.exports = {

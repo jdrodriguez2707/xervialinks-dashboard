@@ -30,6 +30,9 @@ function buildMockReports() {
 }
 
 const DEFAULT_DATE_RANGE_DAYS = 30;
+const CACHE_TTL_MS = 60 * 1000;
+const reportsCache = new Map();
+const inflightRequests = new Map();
 
 /**
  * Returns reports from GAM or from mock data depending on USE_REAL_GAM_API.
@@ -48,12 +51,31 @@ async function findAllFromGam(filters) {
   const today = todayISO();
   const startDate = filters.startDate || daysAgoISO(DEFAULT_DATE_RANGE_DAYS);
   const endDate = filters.endDate || today;
+  const cacheKey = buildCacheKey({ startDate, endDate, domain: filters.domain });
 
-  const reports = await fetchReports({ startDate, endDate });
+  const cached = getCache(cacheKey);
+  if (cached) return cached;
 
-  return filters.domain
-    ? reports.filter((r) => r.domain === filters.domain)
-    : reports;
+  if (inflightRequests.has(cacheKey)) {
+    return inflightRequests.get(cacheKey);
+  }
+
+  const request = fetchReports({ startDate, endDate })
+    .then((reports) =>
+      filters.domain
+        ? reports.filter((r) => r.domain === filters.domain)
+        : reports
+    )
+    .then((result) => {
+      setCache(cacheKey, result);
+      return result;
+    })
+    .finally(() => {
+      inflightRequests.delete(cacheKey);
+    });
+
+  inflightRequests.set(cacheKey, request);
+  return request;
 }
 
 function findAllFromMock(filters) {
@@ -81,6 +103,27 @@ function daysAgoISO(days) {
   const d = new Date();
   d.setUTCDate(d.getUTCDate() - days);
   return d.toISOString().slice(0, 10);
+}
+
+function buildCacheKey({ startDate, endDate, domain }) {
+  return `${startDate}|${endDate}|${domain || "*"}`;
+}
+
+function getCache(key) {
+  const entry = reportsCache.get(key);
+  if (!entry) return null;
+  if (entry.expiresAt <= Date.now()) {
+    reportsCache.delete(key);
+    return null;
+  }
+  return entry.value;
+}
+
+function setCache(key, value) {
+  reportsCache.set(key, {
+    value,
+    expiresAt: Date.now() + CACHE_TTL_MS,
+  });
 }
 
 module.exports = { findAll };

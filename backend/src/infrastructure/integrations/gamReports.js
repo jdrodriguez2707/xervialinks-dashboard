@@ -3,6 +3,7 @@ const { getAccessToken, networkUrl } = require("./gamClient");
 
 const POLL_INTERVAL_MS = 3000;
 const MAX_POLL_ATTEMPTS = 20; // ~60 seconds max
+const RETRY_DELAYS_MS = [500, 1200, 2500];
 
 /**
  * Fetches reports from the Google Ad Manager REST API v1.
@@ -42,12 +43,13 @@ async function fetchReports({ startDate, endDate }) {
  */
 async function step(name, fn) {
   try {
-    return await fn();
+    return await withRetry(fn);
   } catch (err) {
     if (err.response) {
+      const status = err.response.status;
       // Log the full response so we can see every detail from Google
       console.error(
-        `[GAM] ${name} failed — status: ${err.response.status}\n`,
+        `[GAM] ${name} failed — status: ${status}\n`,
         JSON.stringify(err.response.data, null, 2)
       );
       const gamError = err.response.data?.error || err.response.data;
@@ -55,11 +57,16 @@ async function step(name, fn) {
         gamError?.message ||
         gamError?.details?.map((d) => d.description || d.reason).join("; ") ||
         JSON.stringify(gamError);
-      throw new Error(
-        `GAM API error at ${name} (${err.response.status}): ${message}`
+      throw createGamHttpError(
+        status,
+        `GAM API error at ${name}: ${message}`
       );
     }
-    throw err;
+    if (err.statusCode) throw err;
+    throw createGamHttpError(
+      503,
+      `GAM API error at ${name}: ${err.message || "Service unavailable"}`
+    );
   }
 }
 
@@ -111,9 +118,8 @@ async function runReport(headers, reportId) {
 
 async function pollOperation(headers, operationId) {
   for (let attempt = 0; attempt < MAX_POLL_ATTEMPTS; attempt++) {
-    const res = await axios.get(
-      networkUrl(`/operations/reports/runs/${operationId}`),
-      { headers }
+    const res = await withRetry(() =>
+      axios.get(networkUrl(`/operations/reports/runs/${operationId}`), { headers })
     );
 
     if (res.data.done) {
@@ -126,15 +132,21 @@ async function pollOperation(headers, operationId) {
     }
 
     if (res.data.error) {
-      throw new Error(
-        `GAM operation failed: ${res.data.error.message || JSON.stringify(res.data.error)}`
+      throw createGamHttpError(
+        502,
+        `GAM operation failed: ${
+          res.data.error.message || JSON.stringify(res.data.error)
+        }`
       );
     }
 
-    await sleep(POLL_INTERVAL_MS);
+    await sleep(POLL_INTERVAL_MS + attempt * 200);
   }
 
-  throw new Error("Google Ad Manager report timed out");
+  throw createGamHttpError(
+    504,
+    "Google Ad Manager tardó demasiado en responder. Intenta nuevamente en unos segundos."
+  );
 }
 
 async function fetchAllRows(headers, reportId, resultId) {
@@ -209,6 +221,39 @@ function lastSegment(resourceName) {
 
 function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function createGamHttpError(statusCode, message) {
+  const err = new Error(message);
+  err.statusCode = statusCode;
+  return err;
+}
+
+function isRetryableStatus(status) {
+  return status === 429 || status === 502 || status === 503 || status === 504;
+}
+
+function backoffMs(attempt) {
+  const base = RETRY_DELAYS_MS[attempt] ?? RETRY_DELAYS_MS[RETRY_DELAYS_MS.length - 1];
+  const jitter = Math.floor(Math.random() * 200);
+  return base + jitter;
+}
+
+async function withRetry(fn) {
+  let lastError;
+  for (let attempt = 0; attempt <= RETRY_DELAYS_MS.length; attempt++) {
+    try {
+      return await fn();
+    } catch (err) {
+      lastError = err;
+      const status = err?.response?.status;
+      if (!isRetryableStatus(status) || attempt === RETRY_DELAYS_MS.length) {
+        break;
+      }
+      await sleep(backoffMs(attempt));
+    }
+  }
+  throw lastError;
 }
 
 module.exports = { fetchReports };
