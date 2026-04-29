@@ -34,6 +34,8 @@ const fmtEcpm = (n) =>
 const fmtImpressions = (n) =>
   new Intl.NumberFormat("es-MX").format(n ?? 0);
 
+const WORKER_TAB_STORAGE_KEY = "workerDashboardActiveTab";
+
 function SkeletonCards() {
   return (
     <div className="adsense-cards">
@@ -70,7 +72,11 @@ function MetricSection({ title, colorClass, loading, data, getValue, format, hig
 }
 
 export default function WorkerDashboard({ dashboard, loading, error }) {
-  const [activeTab, setActiveTab] = useState("stats");
+  const [activeTab, setActiveTab] = useState(() => {
+    if (typeof window === "undefined") return "stats";
+    const saved = window.localStorage.getItem(WORKER_TAB_STORAGE_KEY);
+    return saved || "stats";
+  });
   const [selectedRange, setSelectedRange] = useState("today");
   const [paymentInfo, setPaymentInfo] = useState(() => dashboard?.paymentInfo ?? null);
   const [openPaymentModal, setOpenPaymentModal] = useState(false);
@@ -98,6 +104,11 @@ export default function WorkerDashboard({ dashboard, loading, error }) {
   useEffect(() => {
     setPaymentInfo(dashboard?.paymentInfo ?? null);
   }, [dashboard?.paymentInfo]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    window.localStorage.setItem(WORKER_TAB_STORAGE_KEY, activeTab);
+  }, [activeTab]);
 
   function openPaymentDialog() {
     setPaymentMethodType(paymentInfo?.methodType || "");
@@ -233,7 +244,13 @@ export default function WorkerDashboard({ dashboard, loading, error }) {
         <section className="adsense-section">
           <h2 className="section-title">Subdominios asignados</h2>
 
-          {!loading && domains.length === 0 ? (
+          {loading ? (
+            <div className="table-wrapper table-wrapper--skeleton">
+              <div className="table-skeleton-row" />
+              <div className="table-skeleton-row" />
+              <div className="table-skeleton-row" />
+            </div>
+          ) : domains.length === 0 ? (
             <p className="empty-state">
               Sin subdominios asignados. Contacta al administrador.
             </p>
@@ -268,7 +285,9 @@ export default function WorkerDashboard({ dashboard, loading, error }) {
         <section className="adsense-section">
           <h2 className="section-title">Información de pago</h2>
 
-          {paymentInfo ? (
+          {loading ? (
+            <div className="payment-info-card payment-info-card--skeleton" />
+          ) : paymentInfo ? (
             <div className="payment-info-card">
               <p className="payment-info-label">Tipo de método</p>
               <p className="payment-info-value">{paymentInfo.methodType}</p>
@@ -285,7 +304,7 @@ export default function WorkerDashboard({ dashboard, loading, error }) {
             </div>
           )}
 
-          <button type="button" className="btn" onClick={openPaymentDialog}>
+          <button type="button" className="btn" onClick={openPaymentDialog} disabled={loading}>
             {paymentInfo ? "Editar información de pago" : "Agregar información de pago"}
           </button>
         </section>
