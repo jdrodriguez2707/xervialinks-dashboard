@@ -1,12 +1,12 @@
 const request = require("supertest");
 const app = require("../src/app");
-const { closeDb, resetDb } = require("../src/config/database");
+const { closeDb, resetDb } = require("../src/infrastructure/database/database");
 const { getAdminToken, ADMIN_EMAIL } = require("./helpers/auth");
 const {
   computePayout,
   getAssignedDomains,
   sumRevenue,
-} = require("../src/services/payouts.service");
+} = require("../src/application/services/payouts.service");
 
 let token;
 

@@ -1,6 +1,6 @@
 const request = require("supertest");
 const app = require("../src/app");
-const { closeDb, resetDb } = require("../src/config/database");
+const { closeDb, resetDb } = require("../src/infrastructure/database/database");
 const { getAdminToken } = require("./helpers/auth");
 
 let token;
