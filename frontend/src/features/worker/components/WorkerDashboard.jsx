@@ -131,23 +131,25 @@ export default function WorkerDashboard({ dashboard, loading, error }) {
 
   return (
     <div className="worker-dashboard">
-      <nav className="worker-nav" aria-label="Secciones del panel">
-        {tabs.map((tab) => {
-          const Icon = tab.icon;
-          const isActive = activeTab === tab.id;
-          return (
-            <button
-              key={tab.id}
-              type="button"
-              className={`worker-nav-btn ${isActive ? "active" : ""}`}
-              onClick={() => setActiveTab(tab.id)}
-            >
-              <Icon size={18} />
-              <span>{tab.label}</span>
-            </button>
-          );
-        })}
-      </nav>
+      {hasDomains && (
+        <nav className="worker-nav" aria-label="Secciones del panel">
+          {tabs.map((tab) => {
+            const Icon = tab.icon;
+            const isActive = activeTab === tab.id;
+            return (
+              <button
+                key={tab.id}
+                type="button"
+                className={`worker-nav-btn ${isActive ? "active" : ""}`}
+                onClick={() => setActiveTab(tab.id)}
+              >
+                <Icon size={18} />
+                <span>{tab.label}</span>
+              </button>
+            );
+          })}
+        </nav>
+      )}
 
       {!loading && !hasDomains ? (
         <div className="no-domains-notice">
