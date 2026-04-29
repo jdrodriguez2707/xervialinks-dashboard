@@ -15,8 +15,18 @@ async function getDashboard(req, res) {
     data: {
       ...periods,
       properties: worker.properties,
+      paymentInfo: worker.paymentInfo || null,
     },
   });
 }
 
-module.exports = { getDashboard };
+async function upsertPaymentInfo(req, res) {
+  const { methodType, paymentDetails } = req.body || {};
+  const paymentInfo = workersService.updateWorkerPaymentInfoByEmail(req.user.email, {
+    methodType,
+    paymentDetails,
+  });
+  res.json({ data: paymentInfo });
+}
+
+module.exports = { getDashboard, upsertPaymentInfo };

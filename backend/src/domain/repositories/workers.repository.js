@@ -86,8 +86,38 @@ function getProperties(workerId) {
     .all(workerId);
 }
 
+function getPaymentInfo(workerId) {
+  const db = getDb();
+  return (
+    db
+      .prepare(
+        `SELECT method_type AS methodType, payment_details AS paymentDetails, updated_at AS updatedAt
+         FROM worker_payment_info
+         WHERE worker_id = ?`
+      )
+      .get(workerId) || null
+  );
+}
+
+function upsertPaymentInfo(workerId, { methodType, paymentDetails }) {
+  const db = getDb();
+  db.prepare(
+    `INSERT INTO worker_payment_info (worker_id, method_type, payment_details, updated_at)
+     VALUES (?, ?, ?, datetime('now'))
+     ON CONFLICT(worker_id) DO UPDATE SET
+       method_type = excluded.method_type,
+       payment_details = excluded.payment_details,
+       updated_at = datetime('now')`
+  ).run(workerId, methodType, paymentDetails);
+  return getPaymentInfo(workerId);
+}
+
 function attachProperties(worker) {
-  return { ...worker, properties: getProperties(worker.id) };
+  return {
+    ...worker,
+    properties: getProperties(worker.id),
+    paymentInfo: getPaymentInfo(worker.id),
+  };
 }
 
 module.exports = {
@@ -98,4 +128,5 @@ module.exports = {
   createWithUser,
   deleteById,
   addProperty,
+  upsertPaymentInfo,
 };

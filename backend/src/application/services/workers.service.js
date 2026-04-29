@@ -95,6 +95,24 @@ function addPropertyToWorker(workerId, { type, value }) {
   }
 }
 
+function updateWorkerPaymentInfoByEmail(email, { methodType, paymentDetails }) {
+  const worker = getWorkerByEmail(email);
+  if (!worker) {
+    throw new NotFoundError("No tienes un perfil de trabajador asignado");
+  }
+  if (!methodType || typeof methodType !== "string" || !methodType.trim()) {
+    throw new ValidationError("El tipo de método de pago es requerido");
+  }
+  if (!paymentDetails || typeof paymentDetails !== "string" || !paymentDetails.trim()) {
+    throw new ValidationError("La información de pago es requerida");
+  }
+
+  return workersRepo.upsertPaymentInfo(worker.id, {
+    methodType: methodType.trim(),
+    paymentDetails: paymentDetails.trim(),
+  });
+}
+
 module.exports = {
   getAllWorkers,
   getWorkerById,
@@ -102,4 +120,5 @@ module.exports = {
   createWorker,
   deleteWorker,
   addPropertyToWorker,
+  updateWorkerPaymentInfoByEmail,
 };

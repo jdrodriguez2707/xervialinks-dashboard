@@ -1,5 +1,6 @@
-import { useMemo, useState } from "react";
-import { BarChart3, Globe } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { BarChart3, Globe, CreditCard } from "lucide-react";
+import { upsertWorkerPaymentInfo } from "../../../shared/api/worker";
 
 const PERIODS = ["today", "yesterday", "last7Days", "currentMonth"];
 
@@ -71,6 +72,12 @@ function MetricSection({ title, colorClass, loading, data, getValue, format, hig
 export default function WorkerDashboard({ dashboard, loading, error }) {
   const [activeTab, setActiveTab] = useState("stats");
   const [selectedRange, setSelectedRange] = useState("today");
+  const [paymentInfo, setPaymentInfo] = useState(() => dashboard?.paymentInfo ?? null);
+  const [openPaymentModal, setOpenPaymentModal] = useState(false);
+  const [paymentMethodType, setPaymentMethodType] = useState("");
+  const [paymentDetails, setPaymentDetails] = useState("");
+  const [savingPaymentInfo, setSavingPaymentInfo] = useState(false);
+  const [paymentError, setPaymentError] = useState(null);
 
   if (error) {
     return <p className="status-msg error">Error al cargar los ingresos.</p>;
@@ -83,9 +90,44 @@ export default function WorkerDashboard({ dashboard, loading, error }) {
     () => [
       { id: "stats", label: "Estadísticas", icon: BarChart3 },
       { id: "domains", label: "Subdominios", icon: Globe },
+      { id: "payment", label: "Pago", icon: CreditCard },
     ],
     []
   );
+
+  useEffect(() => {
+    setPaymentInfo(dashboard?.paymentInfo ?? null);
+  }, [dashboard?.paymentInfo]);
+
+  function openPaymentDialog() {
+    setPaymentMethodType(paymentInfo?.methodType || "");
+    setPaymentDetails(paymentInfo?.paymentDetails || "");
+    setPaymentError(null);
+    setOpenPaymentModal(true);
+  }
+
+  function closePaymentDialog() {
+    setOpenPaymentModal(false);
+    setPaymentError(null);
+  }
+
+  async function handleSavePaymentInfo(e) {
+    e.preventDefault();
+    setPaymentError(null);
+    setSavingPaymentInfo(true);
+    try {
+      const saved = await upsertWorkerPaymentInfo({
+        methodType: paymentMethodType,
+        paymentDetails,
+      });
+      setPaymentInfo(saved);
+      closePaymentDialog();
+    } catch (err) {
+      setPaymentError(err.message || "No se pudo guardar la información de pago");
+    } finally {
+      setSavingPaymentInfo(false);
+    }
+  }
 
   return (
     <div className="worker-dashboard">
@@ -218,6 +260,91 @@ export default function WorkerDashboard({ dashboard, loading, error }) {
             </div>
           )}
         </section>
+      )}
+
+      {activeTab === "payment" && (
+        <section className="adsense-section">
+          <h2 className="section-title">Información de pago</h2>
+
+          {paymentInfo ? (
+            <div className="payment-info-card">
+              <p className="payment-info-label">Tipo de método</p>
+              <p className="payment-info-value">{paymentInfo.methodType}</p>
+              <p className="payment-info-label">Información</p>
+              <p className="payment-info-value">{paymentInfo.paymentDetails}</p>
+            </div>
+          ) : (
+            <div className="payment-empty">
+              <p className="payment-empty-title">Información de pago pendiente 💳</p>
+              <p className="payment-empty-text">
+                Aún no has agregado tu método de pago. Completa esta información para
+                facilitar la gestión de tus próximos pagos.
+              </p>
+            </div>
+          )}
+
+          <button type="button" className="btn" onClick={openPaymentDialog}>
+            {paymentInfo ? "Editar información de pago" : "Agregar información de pago"}
+          </button>
+        </section>
+      )}
+
+      {openPaymentModal && (
+        <div className="modal-overlay" onClick={closePaymentDialog}>
+          <div
+            className="modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="worker-payment-modal-title"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="modal-header">
+              <h3 id="worker-payment-modal-title" className="modal-title">
+                Información de pago
+              </h3>
+              <button className="modal-close" aria-label="Cerrar" onClick={closePaymentDialog}>
+                ✕
+              </button>
+            </div>
+
+            <form className="worker-form" onSubmit={handleSavePaymentInfo}>
+              <label className="form-label">
+                <span>Tipo de método de pago</span>
+                <input
+                  type="text"
+                  className="form-input"
+                  placeholder="Ej: PayPal, Nequi, Banco"
+                  value={paymentMethodType}
+                  onChange={(e) => setPaymentMethodType(e.target.value)}
+                  required
+                />
+              </label>
+
+              <label className="form-label">
+                <span>Información de pago</span>
+                <input
+                  type="text"
+                  className="form-input"
+                  placeholder="Ej: correo, número o cuenta"
+                  value={paymentDetails}
+                  onChange={(e) => setPaymentDetails(e.target.value)}
+                  required
+                />
+              </label>
+
+              {paymentError && <p className="form-error">{paymentError}</p>}
+
+              <div className="modal-actions">
+                <button type="button" className="btn btn-secondary" onClick={closePaymentDialog}>
+                  Cancelar
+                </button>
+                <button type="submit" className="btn" disabled={savingPaymentInfo}>
+                  {savingPaymentInfo ? "Guardando…" : "Confirmar"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
       )}
     </div>
   );
