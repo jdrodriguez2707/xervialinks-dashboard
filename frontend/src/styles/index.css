@@ -195,45 +195,63 @@ body {
   position: fixed;
   left: 50%;
   transform: translateX(-50%);
-  width: calc(100% - 1.5rem);
-  max-width: 520px;
-  bottom: 0.75rem;
+  width: min(92vw, 420px);
+  max-width: 420px;
+  bottom: 0.85rem;
   z-index: 40;
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 0.55rem;
-  background: rgba(255, 255, 255, 0.95);
-  border: 1px solid #dde1e7;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
-  border-radius: 16px;
-  padding: 0.45rem;
-  backdrop-filter: blur(10px);
+  display: flex;
+  align-items: center;
+  justify-content: space-evenly;
+  gap: 0.25rem;
+  background: #ffffff;
+  border: 1px solid #e8eaed;
+  box-shadow:
+    0 4px 24px rgba(0, 0, 0, 0.08),
+    0 1px 3px rgba(0, 0, 0, 0.06);
+  border-radius: 9999px;
+  padding: 0.5rem 0.65rem;
 }
 
 .worker-nav-btn {
+  flex: 1;
+  max-width: 4.5rem;
   border: none;
   background: transparent;
-  border-radius: 12px;
-  color: #7a818c;
-  font-weight: 600;
-  font-size: 0.83rem;
-  min-height: 52px;
+  border-radius: 9999px;
+  color: #6b7280;
+  min-height: 0;
+  min-width: 0;
+  aspect-ratio: 1;
+  max-height: 3.25rem;
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
   align-items: center;
   justify-content: center;
-  gap: 0.18rem;
+  padding: 0.5rem;
   cursor: pointer;
-  transition: background 0.15s, color 0.15s, transform 0.15s;
+  transition:
+    background 0.18s ease,
+    color 0.18s ease,
+    transform 0.12s ease;
+}
+
+.worker-nav-btn .worker-nav-icon {
+  width: 24px;
+  height: 24px;
 }
 
 .worker-nav-btn.active {
-  background: #e8f0fe;
-  color: #1a56db;
+  background: #f3f4f6;
+  color: #111827;
 }
 
 .worker-nav-btn:active {
-  transform: scale(0.98);
+  transform: scale(0.96);
+}
+
+.worker-nav-btn:focus-visible {
+  outline: 2px solid #1a56db;
+  outline-offset: 2px;
 }
 
 .worker-dashboard > .adsense-section,
@@ -1024,16 +1042,20 @@ body {
   }
 
   .worker-nav {
-    width: min(560px, calc(100% - 2rem));
-    border-radius: 14px;
-    padding: 0.5rem;
+    width: min(340px, calc(100% - 2rem));
+    max-width: 340px;
+    padding: 0.55rem 0.85rem;
+    bottom: 1rem;
   }
 
   .worker-nav-btn {
-    min-height: 62px;
-    min-width: 0;
-    font-size: 0.95rem;
-    flex-direction: row;
-    gap: 0.45rem;
+    max-width: 3.75rem;
+    max-height: 3.75rem;
+    padding: 0.55rem;
+  }
+
+  .worker-nav-btn .worker-nav-icon {
+    width: 26px;
+    height: 26px;
   }
 }

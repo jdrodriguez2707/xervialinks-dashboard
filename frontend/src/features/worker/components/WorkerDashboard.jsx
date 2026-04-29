@@ -153,9 +153,10 @@ export default function WorkerDashboard({ dashboard, loading, error }) {
                 type="button"
                 className={`worker-nav-btn ${isActive ? "active" : ""}`}
                 onClick={() => setActiveTab(tab.id)}
+                aria-label={tab.label}
+                aria-current={isActive ? "page" : undefined}
               >
-                <Icon size={18} />
-                <span>{tab.label}</span>
+                <Icon className="worker-nav-icon" strokeWidth={2} aria-hidden />
               </button>
             );
           })}
