@@ -8,7 +8,7 @@ const PERIOD_LABELS = {
 };
 
 const PROPERTY_LABELS = {
-  domain:  "Dominio",
+  domain:  "Subdominio",
   ad_unit: "Ad Unit",
 };
 
@@ -83,7 +83,7 @@ export default function WorkerDashboard({ dashboard, loading, error }) {
           <span className="no-domains-icon">📊</span>
           <h2 className="no-domains-title">Panel no disponible aún</h2>
           <p className="no-domains-text">
-            Tu cuenta no tiene dominios asignados. Una vez que el administrador
+            Tu cuenta no tiene subdominios asignados. Una vez que el administrador
             configure tu acceso, aquí verás tus ingresos, eCPM e impresiones
             en tiempo real.
           </p>
@@ -124,11 +124,11 @@ export default function WorkerDashboard({ dashboard, loading, error }) {
       )}
 
       <section className="adsense-section">
-        <h2 className="section-title">Propiedades asignadas</h2>
+        <h2 className="section-title">Subdominios asignados</h2>
 
         {!loading && properties.length === 0 ? (
           <p className="empty-state">
-            Sin propiedades asignadas. Contacta al administrador.
+            Sin subdominios asignados. Contacta al administrador.
           </p>
         ) : (
           <div className="table-wrapper">

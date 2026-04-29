@@ -12,8 +12,8 @@ export default function PayoutsTable({ payouts, totalPayout }) {
   if (payouts.length === 0) {
     return (
       <p className="empty-state">
-        Aún no hay trabajadores configurados. Agrega uno y asígnale dominios para ver sus ganancias.
-      </p>
+        Aún no hay trabajadores configurados. Agrega uno y asígnale subdominios para ver sus ganancias.
+      </p>  
     );
   }
 
@@ -23,7 +23,7 @@ export default function PayoutsTable({ payouts, totalPayout }) {
         <thead>
           <tr>
             <th>Trabajador</th>
-            <th>Dominios asignados</th>
+            <th>Subdominios asignados</th>
             <th>Impresiones</th>
             <th>Ingresos asignados</th>
             <th>%</th>

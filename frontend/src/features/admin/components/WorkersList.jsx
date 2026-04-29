@@ -113,13 +113,13 @@ function WorkerCard({ worker, sites, onUpdate }) {
             ))}
           </div>
         ) : (
-          <p className="no-domains">Sin dominios asignados.</p>
+          <p className="no-domains">Sin subdominios asignados.</p>
         )}
       </div>
 
       {/* ── Add domain form ── */}
       <form className="property-form" onSubmit={handleAddDomain}>
-        <span className="property-form-label">Dominio</span>
+        <span className="property-form-label">Subdominio</span>
         <select
           className="form-select property-form-select"
           value={selectedSite}
