@@ -746,6 +746,18 @@ body {
   gap: 1rem;
 }
 
+.metric-header-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.metric-range-select {
+  min-width: 170px;
+  max-width: 240px;
+}
+
 .section-title {
   font-size: 1rem;
   font-weight: 600;
@@ -758,6 +770,10 @@ body {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
   gap: 1rem;
+}
+
+.adsense-cards--single {
+  grid-template-columns: minmax(220px, 340px);
 }
 
 .adsense-card {
@@ -871,6 +887,16 @@ body {
 @media (max-width: 420px) {
   .adsense-cards {
     grid-template-columns: 1fr;
+  }
+
+  .metric-header-row {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .metric-range-select {
+    width: 100%;
+    max-width: none;
   }
 }
 

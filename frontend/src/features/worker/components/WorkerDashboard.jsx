@@ -70,6 +70,7 @@ function MetricSection({ title, colorClass, loading, data, getValue, format, hig
 
 export default function WorkerDashboard({ dashboard, loading, error }) {
   const [activeTab, setActiveTab] = useState("stats");
+  const [selectedRange, setSelectedRange] = useState("today");
 
   if (error) {
     return <p className="status-msg error">Error al cargar los ingresos.</p>;
@@ -131,23 +132,56 @@ export default function WorkerDashboard({ dashboard, loading, error }) {
             highlight
           />
 
-          <MetricSection
-            title="eCPM promedio"
-            colorClass="card--ecpm"
-            loading={loading}
-            data={dashboard}
-            getValue={(d, period) => d?.[period]?.ecpm}
-            format={fmtEcpm}
-          />
+          <section className="adsense-section">
+              <select
+                className="form-select metric-range-select"
+                value={selectedRange}
+                onChange={(e) => setSelectedRange(e.target.value)}
+              >
+                {PERIODS.map((period) => (
+                  <option key={period} value={period}>
+                    {PERIOD_LABELS[period]}
+                  </option>
+                ))}
+              </select>
+            <div className="metric-header-row">
+              <h2 className="section-title">eCPM promedio</h2>
+            </div>
+            {loading ? (
+              <div className="adsense-cards adsense-cards--single">
+                <div className="adsense-card adsense-card--skeleton" />
+              </div>
+            ) : (
+              <div className="adsense-cards adsense-cards--single">
+                <div className="adsense-card card--ecpm">
+                  <span className="adsense-label">{PERIOD_LABELS[selectedRange]}</span>
+                  <span className="adsense-value">
+                    {fmtEcpm(dashboard?.[selectedRange]?.ecpm)}
+                  </span>
+                </div>
+              </div>
+            )}
+          </section>
 
-          <MetricSection
-            title="Impresiones"
-            colorClass="card--impressions"
-            loading={loading}
-            data={dashboard}
-            getValue={(d, period) => d?.[period]?.impressions}
-            format={fmtImpressions}
-          />
+          <section className="adsense-section">
+            <div className="metric-header-row">
+              <h2 className="section-title">Impresiones</h2>
+            </div>
+            {loading ? (
+              <div className="adsense-cards adsense-cards--single">
+                <div className="adsense-card adsense-card--skeleton" />
+              </div>
+            ) : (
+              <div className="adsense-cards adsense-cards--single">
+                <div className="adsense-card card--impressions">
+                  <span className="adsense-label">{PERIOD_LABELS[selectedRange]}</span>
+                  <span className="adsense-value">
+                    {fmtImpressions(dashboard?.[selectedRange]?.impressions)}
+                  </span>
+                </div>
+              </div>
+            )}
+          </section>
         </>
       ) : null}
 
