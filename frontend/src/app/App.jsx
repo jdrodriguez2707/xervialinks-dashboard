@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { getStoredUser, logout } from "../shared/api/auth";
 import { fetchSummary } from "../shared/api/summary";
 import { fetchWorkers } from "../shared/api/workers";
@@ -18,6 +18,7 @@ const ADMIN_RANGE_LABELS = {
   last7Days: "Últimos 7 días",
   currentMonth: "Este mes",
 };
+const ADMIN_CACHE_TTL_MS = 60 * 1000;
 
 function todayISO() {
   return new Date().toISOString().slice(0, 10);
@@ -56,6 +57,25 @@ export default function App() {
   const [adminRange, setAdminRange] = useState("today");
   const [adminReady, setAdminReady] = useState(false);
   const [error, setError] = useState(null);
+  const adminMetricsCacheRef = useRef(new Map());
+
+  function getCachedAdminMetrics(rangeKey) {
+    const entry = adminMetricsCacheRef.current.get(rangeKey);
+    if (!entry) return null;
+    if (Date.now() - entry.cachedAt > ADMIN_CACHE_TTL_MS) {
+      adminMetricsCacheRef.current.delete(rangeKey);
+      return null;
+    }
+    return entry;
+  }
+
+  function setCachedAdminMetrics(rangeKey, summary, payouts) {
+    adminMetricsCacheRef.current.set(rangeKey, {
+      summary,
+      payouts,
+      cachedAt: Date.now(),
+    });
+  }
 
   const loadInitial = useCallback(async () => {
     if (!user) return;
@@ -63,15 +83,26 @@ export default function App() {
     setError(null);
     try {
       if (user.role === "admin") {
-        const range = getAdminDateRange("currentMonth");
+        const range = getAdminDateRange("today");
         const [summary, workers, payouts, sites] = await Promise.all([
           fetchSummary(range),
           fetchWorkers(),
           fetchPayouts(range),
           fetchSites(),
         ]);
+        setCachedAdminMetrics("today", summary, payouts);
         setData({ summary, workers, payouts, sites });
         setAdminReady(true);
+
+        // Warm up all remaining ranges in background so any selector switch is instant.
+        const remainingRanges = ["yesterday", "last7Days", "currentMonth"];
+        remainingRanges.forEach((rangeKey) => {
+          if (getCachedAdminMetrics(rangeKey)) return;
+          const r = getAdminDateRange(rangeKey);
+          Promise.all([fetchSummary(r), fetchPayouts(r)])
+            .then(([s, p]) => setCachedAdminMetrics(rangeKey, s, p))
+            .catch(() => {});
+        });
       } else {
         const dashboard = await fetchWorkerDashboard();
         setData({ dashboard });
@@ -91,6 +122,15 @@ export default function App() {
   useEffect(() => {
     async function refreshAdminByRange() {
       if (!user || user.role !== "admin" || !adminReady) return;
+      const cached = getCachedAdminMetrics(adminRange);
+      if (cached) {
+        setData((prev) => ({
+          ...prev,
+          summary: cached.summary,
+          payouts: cached.payouts,
+        }));
+        return;
+      }
       setRefreshingAdmin(true);
       setError(null);
       try {
@@ -99,6 +139,7 @@ export default function App() {
           fetchSummary(range),
           fetchPayouts(range),
         ]);
+        setCachedAdminMetrics(adminRange, summary, payouts);
         setData((prev) => ({ ...prev, summary, payouts }));
       } catch (err) {
         if (err.message === "401") handleLogout();
@@ -121,6 +162,7 @@ export default function App() {
         fetchPayouts(range),
         fetchSummary(range),
       ]);
+      setCachedAdminMetrics(adminRange, summary, payouts);
       setData((prev) => ({ ...prev, workers, payouts, summary }));
     } catch (err) {
       if (err.message === "401") handleLogout();
@@ -139,6 +181,7 @@ export default function App() {
     setUser(null);
     setData(null);
     setAdminReady(false);
+    adminMetricsCacheRef.current.clear();
   }
 
   if (!user) return <LoginForm onLogin={handleLogin} />;
@@ -158,13 +201,15 @@ export default function App() {
             Cerrar sesión
           </button>
         </div>
+        {user.role === "admin" && (loading || refreshingAdmin) && (
+          <div className="header-progress" aria-hidden="true" />
+        )}
       </header>
 
       <main className="app-main">
         {user.role === "admin" && (
           <>
             {loading && <p className="status-msg">Cargando dashboard…</p>}
-            {refreshingAdmin && <p className="status-msg">Actualizando trabajadores…</p>}
             {error && <p className="status-msg error">Error: {error}</p>}
             {!loading && data && (
               <AdminDashboard
