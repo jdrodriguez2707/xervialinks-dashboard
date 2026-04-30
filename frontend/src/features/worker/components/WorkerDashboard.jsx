@@ -5,7 +5,7 @@ import { upsertWorkerPaymentInfo } from "../../../shared/api/worker";
 const PERIODS = ["today", "yesterday", "last7Days", "currentMonth"];
 
 const PERIOD_LABELS = {
-  today:        "Hoy (estimado)",
+  today:        "Hoy",
   yesterday:    "Ayer",
   last7Days:    "Últimos 7 días",
   currentMonth: "Este mes",

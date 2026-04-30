@@ -273,7 +273,6 @@ body {
 .app-main h2 {
   font-size: 1rem;
   font-weight: 600;
-  text-transform: uppercase;
   letter-spacing: 0.5px;
   color: #555;
   margin-bottom: 0.75rem;
@@ -829,7 +828,6 @@ body {
   font-size: 1rem;
   font-weight: 600;
   color: #444;
-  text-transform: uppercase;
   letter-spacing: 0.05em;
 }
 
