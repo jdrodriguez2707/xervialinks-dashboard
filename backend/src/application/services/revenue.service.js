@@ -1,21 +1,10 @@
 const reportsRepo = require("../../domain/repositories/reports.repository");
-
-// ─── Date helpers (pure — easy to unit-test) ──────────────────────────────────
-
-function todayISO() {
-  return new Date().toISOString().slice(0, 10);
-}
-
-function daysAgoISO(n) {
-  const d = new Date();
-  d.setUTCDate(d.getUTCDate() - n);
-  return d.toISOString().slice(0, 10);
-}
-
-function currentMonthStartISO() {
-  const d = new Date();
-  return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}-01`;
-}
+const {
+  getDefaultTimeZone,
+  todayISO,
+  daysAgoISO,
+  currentMonthStartISO,
+} = require("./clientTimezone");
 
 // ─── Revenue aggregation ──────────────────────────────────────────────────────
 
@@ -26,15 +15,16 @@ function currentMonthStartISO() {
  * @param {string} startDate
  * @param {string} endDate
  * @param {string[]|null} domains  null = all domains
+ * @param {string} [timeZone]  IANA — aligns mock rows with calendar boundaries
  */
-async function aggregateForRange(startDate, endDate, domains = null) {
-  // An empty array means the worker exists but has no assigned domains yet —
-  // return zeros immediately to avoid leaking global stats.
+async function aggregateForRange(startDate, endDate, domains = null, timeZone) {
+  const tz = timeZone || getDefaultTimeZone();
+
   if (Array.isArray(domains) && domains.length === 0) {
     return { revenue: 0, impressions: 0, ecpm: 0 };
   }
 
-  const reports = await reportsRepo.findAll({ startDate, endDate });
+  const reports = await reportsRepo.findAll({ startDate, endDate, timeZone: tz });
 
   const filtered =
     domains && domains.length > 0
@@ -52,36 +42,40 @@ async function aggregateForRange(startDate, endDate, domains = null) {
   return { revenue, impressions, ecpm };
 }
 
-async function getTodayRevenue(domains = null) {
-  const today = todayISO();
-  return aggregateForRange(today, today, domains);
+async function getTodayRevenue(domains = null, timeZone) {
+  const tz = timeZone || getDefaultTimeZone();
+  const today = todayISO(tz);
+  return aggregateForRange(today, today, domains, tz);
 }
 
-async function getYesterdayRevenue(domains = null) {
-  const yesterday = daysAgoISO(1);
-  return aggregateForRange(yesterday, yesterday, domains);
+async function getYesterdayRevenue(domains = null, timeZone) {
+  const tz = timeZone || getDefaultTimeZone();
+  const yesterday = daysAgoISO(1, tz);
+  return aggregateForRange(yesterday, yesterday, domains, tz);
 }
 
-async function getLast7DaysRevenue(domains = null) {
-  // Use complete days only (yesterday back 7 days) so today's incomplete data
-  // doesn't skew the result and the range matches GAM's "last 7 days" preset.
-  return aggregateForRange(daysAgoISO(7), daysAgoISO(1), domains);
+async function getLast7DaysRevenue(domains = null, timeZone) {
+  const tz = timeZone || getDefaultTimeZone();
+  return aggregateForRange(
+    daysAgoISO(7, tz),
+    daysAgoISO(1, tz),
+    domains,
+    tz
+  );
 }
 
-async function getCurrentMonthRevenue(domains = null) {
-  return aggregateForRange(currentMonthStartISO(), todayISO(), domains);
+async function getCurrentMonthRevenue(domains = null, timeZone) {
+  const tz = timeZone || getDefaultTimeZone();
+  return aggregateForRange(
+    currentMonthStartISO(tz),
+    todayISO(tz),
+    domains,
+    tz
+  );
 }
 
 // ─── Worker calculation ───────────────────────────────────────────────────────
 
-/**
- * Applies a worker's percentage to a gross revenue value.
- * payout = revenue * (percentage / 100)
- *
- * @param {number} revenue
- * @param {number} percentage  (0 < percentage <= 100)
- * @returns {number} rounded to 2 decimal places
- */
 function applyPercentage(revenue, percentage) {
   return parseFloat(((revenue * percentage) / 100).toFixed(2));
 }
@@ -90,15 +84,12 @@ function applyPercentage(revenue, percentage) {
  * Returns all 4 dashboard periods for a worker, each with revenue (net),
  * eCPM (gross — reflects site performance), and impressions.
  *
- * Periods:
- *   today        → current day (may be incomplete)
- *   yesterday    → previous complete day
- *   last7Days    → 7 complete days ending yesterday
- *   currentMonth → 1st of month → today
- *
  * @param {{ percentage: number, properties: Array }} worker
+ * @param {string} timeZone  IANA timezone from the client (X-Client-Timezone)
  */
-async function getWorkerDashboardPeriods(worker) {
+async function getWorkerDashboardPeriods(worker, timeZone) {
+  const tz = timeZone || getDefaultTimeZone();
+
   const assignedDomains = worker.properties
     .filter((p) => p.type === "domain")
     .map((p) => p.value);
@@ -113,14 +104,15 @@ async function getWorkerDashboardPeriods(worker) {
     };
   }
 
-  const monthStart = currentMonthStartISO();
-  const today = todayISO();
-  const yesterday = daysAgoISO(1);
-  const last7Start = daysAgoISO(7);
+  const monthStart = currentMonthStartISO(tz);
+  const today = todayISO(tz);
+  const yesterday = daysAgoISO(1, tz);
+  const last7Start = daysAgoISO(7, tz);
 
   const reports = await reportsRepo.findAll({
     startDate: monthStart,
     endDate: today,
+    timeZone: tz,
   });
   const workerReports = reports.filter((r) => assignedDomains.includes(r.domain));
 
@@ -163,7 +155,6 @@ module.exports = {
   getCurrentMonthRevenue,
   applyPercentage,
   getWorkerDashboardPeriods,
-  // exported for testing
   todayISO,
   daysAgoISO,
   currentMonthStartISO,

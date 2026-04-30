@@ -1,5 +1,6 @@
 const workersService = require("../../application/services/workers.service");
 const revenueService = require("../../application/services/revenue.service");
+const { clientTimeZoneFromRequest } = require("../utils/clientTz");
 
 async function getContext(req, res) {
   const worker = workersService.getWorkerByEmail(req.user.email);
@@ -27,7 +28,8 @@ async function getDashboard(req, res) {
       .json({ error: "No tienes un perfil de trabajador asignado" });
   }
 
-  const periods = await revenueService.getWorkerDashboardPeriods(worker);
+  const timeZone = clientTimeZoneFromRequest(req);
+  const periods = await revenueService.getWorkerDashboardPeriods(worker, timeZone);
   res.json({ data: periods });
 }
 

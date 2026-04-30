@@ -1,18 +1,22 @@
 const env = require("../../infrastructure/config/env");
 const { fetchReports } = require("../../infrastructure/integrations/gamReports");
+const {
+  getDefaultTimeZone,
+  todayISO,
+  daysAgoISO,
+} = require("../../application/services/clientTimezone");
 
 /**
  * Mock data with dynamic dates so revenue ranges (today, yesterday, last 7
  * days, current month) always return meaningful values in development.
  *
  * Revenue is in USD (floating point, 6 decimal precision as GAM returns it).
+ *
+ * @param {string} timeZone  IANA zone (must match the client's calendar for filters).
  */
-function buildMockReports() {
-  const date = (daysAgo) => {
-    const d = new Date();
-    d.setDate(d.getDate() - daysAgo);
-    return d.toISOString().slice(0, 10);
-  };
+function buildMockReports(timeZone) {
+  const tz = timeZone || getDefaultTimeZone();
+  const date = (daysAgo) => daysAgoISO(daysAgo, tz);
 
   return [
     { date: date(0), domain: "elvalerobux.barbacoadicto.com",    impressions: 29714, revenue: 279.42, ecpm: 9.40 },
@@ -38,7 +42,7 @@ const inflightRequests = new Map();
  * Returns reports from GAM or from mock data depending on USE_REAL_GAM_API.
  * Always async so callers don't need to change when switching to real API.
  *
- * @param {{ domain?: string, startDate?: string, endDate?: string }} filters
+ * @param {{ domain?: string, startDate?: string, endDate?: string, timeZone?: string }} filters
  */
 async function findAll(filters = {}) {
   if (env.USE_REAL_GAM_API) {
@@ -48,8 +52,10 @@ async function findAll(filters = {}) {
 }
 
 async function findAllFromGam(filters) {
-  const today = todayISO();
-  const startDate = filters.startDate || daysAgoISO(DEFAULT_DATE_RANGE_DAYS);
+  const tz = filters.timeZone || getDefaultTimeZone();
+  const today = todayISO(tz);
+  const startDate =
+    filters.startDate || daysAgoISO(DEFAULT_DATE_RANGE_DAYS, tz);
   const endDate = filters.endDate || today;
   const cacheKey = buildCacheKey({ startDate, endDate, domain: filters.domain });
 
@@ -79,7 +85,8 @@ async function findAllFromGam(filters) {
 }
 
 function findAllFromMock(filters) {
-  let results = buildMockReports();
+  const tz = filters.timeZone || getDefaultTimeZone();
+  let results = buildMockReports(tz);
 
   if (filters.domain) {
     results = results.filter((r) => r.domain === filters.domain);
@@ -92,17 +99,6 @@ function findAllFromMock(filters) {
   }
 
   return results;
-}
-
-// Both helpers use UTC to stay consistent with toISOString().
-function todayISO() {
-  return new Date().toISOString().slice(0, 10);
-}
-
-function daysAgoISO(days) {
-  const d = new Date();
-  d.setUTCDate(d.getUTCDate() - days);
-  return d.toISOString().slice(0, 10);
 }
 
 function buildCacheKey({ startDate, endDate, domain }) {

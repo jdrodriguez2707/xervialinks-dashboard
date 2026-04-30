@@ -1,23 +1,18 @@
 const payoutsService = require("../../application/services/payouts.service");
-
-function todayISO() {
-  return new Date().toISOString().slice(0, 10);
-}
-
-function currentMonthStartISO() {
-  const now = new Date();
-  return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1))
-    .toISOString()
-    .slice(0, 10);
-}
+const {
+  todayISO,
+  currentMonthStartISO,
+} = require("../../application/services/clientTimezone");
+const { clientTimeZoneFromRequest } = require("../utils/clientTz");
 
 async function getPayouts(req, res) {
+  const timeZone = clientTimeZoneFromRequest(req);
   const { startDate: queryStartDate, endDate: queryEndDate } = req.query;
-  const startDate = queryStartDate || currentMonthStartISO();
-  const endDate = queryEndDate || todayISO();
+  const startDate = queryStartDate || currentMonthStartISO(timeZone);
+  const endDate = queryEndDate || todayISO(timeZone);
   const requesterEmail = req.user.role === "worker" ? req.user.email : null;
   const result = await payoutsService.calculatePayouts(
-    { startDate, endDate },
+    { startDate, endDate, timeZone },
     requesterEmail
   );
   res.json({ data: result });

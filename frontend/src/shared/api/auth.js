@@ -33,7 +33,20 @@ export function getStoredUser() {
   return raw ? JSON.parse(raw) : null;
 }
 
+/** IANA timezone from the browser (used by the API for calendar-day boundaries). */
+export function getClientTimeZone() {
+  try {
+    return Intl.DateTimeFormat().resolvedOptions().timeZone || "";
+  } catch {
+    return "";
+  }
+}
+
 export function getAuthHeaders() {
   const token = getToken();
-  return token ? { Authorization: `Bearer ${token}` } : {};
+  const headers = {};
+  if (token) headers.Authorization = `Bearer ${token}`;
+  const tz = getClientTimeZone();
+  if (tz) headers["X-Client-Timezone"] = tz;
+  return headers;
 }

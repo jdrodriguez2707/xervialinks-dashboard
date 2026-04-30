@@ -7,7 +7,7 @@ const workersRepo = require("../../domain/repositories/workers.repository");
  *
  * Formula: payout = assignedRevenue * (percentage / 100)
  *
- * @param {{ startDate?: string, endDate?: string }} filters
+ * @param {{ startDate?: string, endDate?: string, timeZone?: string }} filters
  * @param {string|null} requesterEmail  When set (worker role), only returns that worker's payout.
  */
 async function calculatePayouts(filters = {}, requesterEmail = null) {

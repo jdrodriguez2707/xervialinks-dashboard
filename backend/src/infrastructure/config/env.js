@@ -14,6 +14,9 @@ const env = {
   GAM_NETWORK_CODE: process.env.GAM_NETWORK_CODE || "",
   GAM_CREDENTIALS_JSON: process.env.GAM_CREDENTIALS_JSON || "",
   GAM_KEY_FILE: process.env.GAM_KEY_FILE || "",
+
+  /** Fallback IANA zone when the client does not send X-Client-Timezone */
+  DEFAULT_REPORT_TIMEZONE: process.env.DEFAULT_REPORT_TIMEZONE || "",
 };
 
 module.exports = env;

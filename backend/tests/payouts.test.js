@@ -139,7 +139,7 @@ describe("GET /api/payouts", () => {
   });
 
   it("respects date filters (today only)", async () => {
-    const today = new Date().toISOString().slice(0, 10);
+    const today = new Date().toLocaleDateString("en-CA", { timeZone: "America/Bogota" });
     const res = await request(app)
       .get(`/api/payouts?startDate=${today}&endDate=${today}`)
       .set("Authorization", `Bearer ${token}`);

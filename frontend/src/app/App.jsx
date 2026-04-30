@@ -1,5 +1,6 @@
 import { useEffect, useState, useCallback, useRef } from "react";
 import { getStoredUser, logout } from "../shared/api/auth";
+import { getAdminDateRange } from "../shared/lib/reportCalendar";
 import { fetchSummary } from "../shared/api/summary";
 import { fetchWorkers } from "../shared/api/workers";
 import { fetchPayouts } from "../shared/api/payouts";
@@ -19,35 +20,6 @@ const ADMIN_RANGE_LABELS = {
   currentMonth: "Este mes",
 };
 const ADMIN_CACHE_TTL_MS = 60 * 1000;
-
-function todayISO() {
-  return new Date().toISOString().slice(0, 10);
-}
-
-function daysAgoISO(days) {
-  const d = new Date();
-  d.setUTCDate(d.getUTCDate() - days);
-  return d.toISOString().slice(0, 10);
-}
-
-function currentMonthStartISO() {
-  const d = new Date();
-  return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}-01`;
-}
-
-function getAdminDateRange(rangeKey) {
-  switch (rangeKey) {
-    case "today":
-      return { startDate: todayISO(), endDate: todayISO() };
-    case "yesterday":
-      return { startDate: daysAgoISO(1), endDate: daysAgoISO(1) };
-    case "last7Days":
-      return { startDate: daysAgoISO(7), endDate: daysAgoISO(1) };
-    case "currentMonth":
-    default:
-      return { startDate: currentMonthStartISO(), endDate: todayISO() };
-  }
-}
 
 export default function App() {
   const [user, setUser] = useState(() => getStoredUser());

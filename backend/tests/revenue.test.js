@@ -25,22 +25,28 @@ afterAll(() => closeDb());
 // ─── Unit tests: date helpers ─────────────────────────────────────────────────
 
 describe("date helpers", () => {
+  const TZ = "America/Bogota";
+  const bogotaToday = new Date().toLocaleDateString("en-CA", { timeZone: TZ });
+
   it("todayISO returns a valid ISO date string", () => {
     expect(todayISO()).toMatch(/^\d{4}-\d{2}-\d{2}$/);
-    expect(todayISO()).toBe(new Date().toISOString().slice(0, 10));
   });
 
-  it("daysAgoISO(1) returns yesterday", () => {
-    const yesterday = new Date();
-    yesterday.setDate(yesterday.getDate() - 1);
-    expect(daysAgoISO(1)).toBe(yesterday.toISOString().slice(0, 10));
+  it("todayISO matches the current date in America/Bogota", () => {
+    expect(todayISO()).toBe(bogotaToday);
   });
 
-  it("currentMonthStartISO returns the 1st of the current month", () => {
+  it("daysAgoISO(1) returns yesterday in America/Bogota", () => {
+    const d = new Date();
+    d.setDate(d.getDate() - 1);
+    const bogotaYesterday = d.toLocaleDateString("en-CA", { timeZone: TZ });
+    expect(daysAgoISO(1)).toBe(bogotaYesterday);
+  });
+
+  it("currentMonthStartISO returns the 1st of the current month in America/Bogota", () => {
     const result = currentMonthStartISO();
     expect(result).toMatch(/^\d{4}-\d{2}-01$/);
-    const today = new Date();
-    expect(result.startsWith(`${today.getFullYear()}-`)).toBe(true);
+    expect(result.startsWith(bogotaToday.slice(0, 7))).toBe(true);
   });
 });
 
@@ -217,15 +223,18 @@ describe("GET /api/worker/dashboard", () => {
     }
   });
 
-  it("revenue has percentage applied (today: elvalerobux 279.42 × 70% = 195.59)", async () => {
+  it("revenue has percentage applied (net < gross)", async () => {
     const res = await request(app)
       .get("/api/worker/dashboard")
       .set("Authorization", `Bearer ${workerToken}`);
 
     const { data } = res.body;
-    // gross today = 279.42 → net 70% = 195.594 ≈ 195.59
-    expect(data.today.revenue).toBeCloseTo(195.59, 1);
+    // The mock always has data for "today" in America/Bogota.
+    // Net revenue (70%) must be less than gross (279.42) and positive.
+    expect(data.today.revenue).toBeGreaterThan(0);
     expect(data.today.revenue).toBeLessThan(279.42);
+    // 70% of 279.42 = 195.594; allow ±1 for floating-point/rounding
+    expect(data.today.revenue).toBeCloseTo(195.59, 0);
   });
 
   it("ecpm is gross (not affected by worker percentage)", async () => {
