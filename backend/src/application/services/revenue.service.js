@@ -42,33 +42,33 @@ async function aggregateForRange(startDate, endDate, domains = null, timeZone) {
   return { revenue, impressions, ecpm };
 }
 
-async function getTodayRevenue(domains = null, timeZone) {
+async function getTodayRevenue(domains = null, timeZone, referenceDate) {
   const tz = timeZone || getDefaultTimeZone();
-  const today = todayISO(tz);
+  const today = todayISO(tz, referenceDate);
   return aggregateForRange(today, today, domains, tz);
 }
 
-async function getYesterdayRevenue(domains = null, timeZone) {
+async function getYesterdayRevenue(domains = null, timeZone, referenceDate) {
   const tz = timeZone || getDefaultTimeZone();
-  const yesterday = daysAgoISO(1, tz);
+  const yesterday = daysAgoISO(1, tz, referenceDate);
   return aggregateForRange(yesterday, yesterday, domains, tz);
 }
 
-async function getLast7DaysRevenue(domains = null, timeZone) {
+async function getLast7DaysRevenue(domains = null, timeZone, referenceDate) {
   const tz = timeZone || getDefaultTimeZone();
   return aggregateForRange(
-    daysAgoISO(7, tz),
-    daysAgoISO(1, tz),
+    daysAgoISO(7, tz, referenceDate),
+    daysAgoISO(1, tz, referenceDate),
     domains,
     tz
   );
 }
 
-async function getCurrentMonthRevenue(domains = null, timeZone) {
+async function getCurrentMonthRevenue(domains = null, timeZone, referenceDate) {
   const tz = timeZone || getDefaultTimeZone();
   return aggregateForRange(
-    currentMonthStartISO(tz),
-    todayISO(tz),
+    currentMonthStartISO(tz, referenceDate),
+    todayISO(tz, referenceDate),
     domains,
     tz
   );
@@ -86,10 +86,11 @@ function applyPercentage(revenue, percentage) {
  *
  * @param {{ percentage: number, properties: Array }} worker
  * @param {string} timeZone  IANA timezone from the client (X-Client-Timezone)
- * @param {{ domain?: string }} [filters] Optional domain scope for worker metrics
+ * @param {{ domain?: string, referenceDate?: string }} [filters] Optional worker metric scope
  */
 async function getWorkerDashboardPeriods(worker, timeZone, filters = {}) {
   const tz = timeZone || getDefaultTimeZone();
+  const referenceDate = filters.referenceDate || undefined;
 
   const assignedDomains = worker.properties
     .filter((p) => p.type === "domain")
@@ -111,10 +112,10 @@ async function getWorkerDashboardPeriods(worker, timeZone, filters = {}) {
     };
   }
 
-  const monthStart = currentMonthStartISO(tz);
-  const today = todayISO(tz);
-  const yesterday = daysAgoISO(1, tz);
-  const last7Start = daysAgoISO(7, tz);
+  const monthStart = currentMonthStartISO(tz, referenceDate);
+  const today = todayISO(tz, referenceDate);
+  const yesterday = daysAgoISO(1, tz, referenceDate);
+  const last7Start = daysAgoISO(7, tz, referenceDate);
   const baseStart = monthStart < last7Start ? monthStart : last7Start;
 
   const reports = await reportsRepo.findAll({

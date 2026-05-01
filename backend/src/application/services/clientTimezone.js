@@ -37,25 +37,31 @@ function resolveClientTimeZone(headerValue) {
 }
 
 /** Calendar "today" as YYYY-MM-DD in the given IANA zone. */
-function todayISO(timeZone) {
+function todayISO(timeZone, referenceDateISO) {
   const tz = timeZone || getDefaultTimeZone();
+  if (isValidISODate(referenceDateISO)) return referenceDateISO;
   return new Date().toLocaleDateString("en-CA", { timeZone: tz });
 }
 
 /**
  * Calendar date N days before "today" in the same zone (handles month edges; DST-safe anchor).
  */
-function daysAgoISO(n, timeZone) {
+function daysAgoISO(n, timeZone, referenceDateISO) {
   const tz = timeZone || getDefaultTimeZone();
-  const today = todayISO(tz);
+  const today = todayISO(tz, referenceDateISO);
   const [y, m, d] = today.split("-").map(Number);
   const anchorMs = Date.UTC(y, m - 1, d, 12, 0, 0) - n * 86400000;
   return new Date(anchorMs).toLocaleDateString("en-CA", { timeZone: tz });
 }
 
 /** First day of the calendar month containing "today" in the zone. */
-function currentMonthStartISO(timeZone) {
+function currentMonthStartISO(timeZone, referenceDateISO) {
   const tz = timeZone || getDefaultTimeZone();
+  const ref = todayISO(tz, referenceDateISO);
+  if (ref) {
+    const [year, month] = ref.split("-");
+    return `${year}-${month}-01`;
+  }
   const f = new Intl.DateTimeFormat("en-CA", {
     timeZone: tz,
     year: "numeric",
@@ -67,6 +73,13 @@ function currentMonthStartISO(timeZone) {
   return `${y}-${m}-01`;
 }
 
+function isValidISODate(value) {
+  return (
+    typeof value === "string" &&
+    /^\d{4}-\d{2}-\d{2}$/.test(value)
+  );
+}
+
 module.exports = {
   resolveClientTimeZone,
   getDefaultTimeZone,
@@ -74,4 +87,5 @@ module.exports = {
   todayISO,
   daysAgoISO,
   currentMonthStartISO,
+  isValidISODate,
 };

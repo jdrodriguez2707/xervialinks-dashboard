@@ -1,6 +1,7 @@
 const workersService = require("../../application/services/workers.service");
 const revenueService = require("../../application/services/revenue.service");
 const { clientTimeZoneFromRequest } = require("../utils/clientTz");
+const { isValidISODate } = require("../../application/services/clientTimezone");
 
 async function getContext(req, res) {
   const worker = workersService.getWorkerByEmailIncludingDeleted(req.user.email);
@@ -46,6 +47,10 @@ async function getDashboard(req, res) {
     typeof req.query.domain === "string" && req.query.domain.trim()
       ? req.query.domain.trim()
       : null;
+  const referenceDate =
+    typeof req.query.currentDate === "string" && isValidISODate(req.query.currentDate)
+      ? req.query.currentDate
+      : null;
 
   if (domain) {
     const assignedDomains = worker.properties
@@ -60,6 +65,7 @@ async function getDashboard(req, res) {
 
   const periods = await revenueService.getWorkerDashboardPeriods(worker, timeZone, {
     domain,
+    referenceDate,
   });
   res.json({ data: periods });
 }

@@ -45,6 +45,7 @@ export default function App() {
   const [workerMetricsError, setWorkerMetricsError] = useState(null);
   const [workerSelectedDomain, setWorkerSelectedDomain] = useState(null);
   const adminMetricsCacheRef = useRef(new Map());
+  const workerValidDomainsRef = useRef([]);
 
   function getCachedAdminMetrics(rangeKey) {
     const entry = adminMetricsCacheRef.current.get(rangeKey);
@@ -65,17 +66,42 @@ export default function App() {
   }
 
   const loadWorkerMetrics = useCallback(
-    async (domain) => {
+    async (domain, allowedDomains = null) => {
       if (!user || user.role !== "worker") return;
+      const validDomains = Array.isArray(allowedDomains)
+        ? allowedDomains
+        : workerValidDomainsRef.current;
+      // Sin dominios permitidos nunca pedimos métricas. Si la lista está vacía pero llega
+      // un `domain` residual (otra sesión / estado viejo), antes se enviaba igual → 400.
+      if (validDomains.length === 0) return;
+      let targetDomain = domain;
+      if (!targetDomain || !validDomains.includes(targetDomain)) {
+        targetDomain = validDomains[0];
+      }
+      if (!targetDomain) return;
       setWorkerMetricsError(null);
       setWorkerMetricsLoading(true);
       try {
-        const metrics = await fetchWorkerDashboard({ domain });
+        const metrics = await fetchWorkerDashboard({ domain: targetDomain });
         setData((prev) => ({ ...prev, workerMetrics: metrics }));
       } catch (err) {
         if (err.message === "401") handleLogout();
         else if (err.message.includes("cuenta de trabajador fue eliminada")) {
           handleLogout(err.message);
+        } else if (err.message.includes("subdominio solicitado no está asignado")) {
+          try {
+            const ctx = await fetchWorkerContext();
+            const domains = getWorkerDomains(ctx);
+            const fallbackDomain = domains[0] || null;
+            setData((prev) => ({ ...prev, workerContext: ctx }));
+            setWorkerSelectedDomain(fallbackDomain);
+            if (fallbackDomain) {
+              const metrics = await fetchWorkerDashboard({ domain: fallbackDomain });
+              setData((prev) => ({ ...prev, workerMetrics: metrics }));
+            }
+          } catch {
+            setWorkerMetricsError("No se pudieron cargar métricas del subdominio seleccionado");
+          }
         }
         else setWorkerMetricsError(err.message || "Error al cargar métricas");
       } finally {
@@ -127,7 +153,7 @@ export default function App() {
         setWorkerSelectedDomain(initialDomain);
         setWorkerMetricsError(null);
         if (initialDomain) {
-          await loadWorkerMetrics(initialDomain);
+          await loadWorkerMetrics(initialDomain, domains);
         }
       }
     } catch (err) {
@@ -177,6 +203,12 @@ export default function App() {
     refreshAdminByRange();
   }, [adminRange, user, adminReady]);
 
+  // Keep ref in sync so loadWorkerMetrics always has current valid domains
+  // without needing data in its dependency array (which would cause re-render loops).
+  useEffect(() => {
+    workerValidDomainsRef.current = getWorkerDomains(data?.workerContext);
+  }, [data?.workerContext]);
+
   useEffect(() => {
     if (!user || user.role !== "worker" || typeof window === "undefined") return;
     const workerId = data?.workerContext?.workerId;
@@ -212,18 +244,28 @@ export default function App() {
 
   function handleLogin(loggedUser) {
     setSessionNotice(null);
+    // Reset any worker-specific state from a previous session so stale domains
+    // never leak into the incoming session.
+    setData(null);
+    setWorkerSelectedDomain(null);
+    workerValidDomainsRef.current = [];
     setUser(loggedUser);
   }
 
   function handleLogout(noticeMessage = null) {
+    const notice =
+      typeof noticeMessage === "string" && noticeMessage.trim()
+        ? noticeMessage.trim()
+        : null;
     logout();
-    if (noticeMessage) setSessionNotice(noticeMessage);
+    if (notice) setSessionNotice(notice);
     setUser(null);
     setData(null);
     setAdminReady(false);
     setWorkerMetricsLoading(false);
     setWorkerMetricsError(null);
     setWorkerSelectedDomain(null);
+    workerValidDomainsRef.current = [];
     adminMetricsCacheRef.current.clear();
   }
 
@@ -240,7 +282,11 @@ export default function App() {
               {user.role === "admin" ? "Administrador" : "Trabajador"}
             </span>
           </div>
-          <button className="btn-logout" onClick={handleLogout}>
+          <button
+            type="button"
+            className="btn-logout"
+            onClick={() => handleLogout()}
+          >
             Cerrar sesión
           </button>
         </div>
@@ -272,7 +318,7 @@ export default function App() {
             selectedDomain={workerSelectedDomain}
             onDomainChange={async (nextDomain) => {
               setWorkerSelectedDomain(nextDomain);
-              await loadWorkerMetrics(nextDomain);
+              await loadWorkerMetrics(nextDomain, getWorkerDomains(data?.workerContext));
             }}
             contextLoading={loading}
             metricsLoading={workerMetricsLoading}
@@ -287,7 +333,7 @@ export default function App() {
                 setWorkerSelectedDomain(nextDomain);
                 setData((prev) => ({ ...prev, workerContext: ctx }));
                 if (nextDomain) {
-                  await loadWorkerMetrics(nextDomain);
+                  await loadWorkerMetrics(nextDomain, domains);
                 }
               } catch {
                 /* ignore refresh errors */

@@ -215,6 +215,19 @@ describe("GET /api/worker/dashboard", () => {
     expect(res.status).toBe(400);
   });
 
+  it("returns zeroed metrics when currentDate is in far future", async () => {
+    const res = await request(app)
+      .get("/api/worker/dashboard?currentDate=2099-05-10")
+      .set("Authorization", `Bearer ${workerToken}`);
+    expect(res.status).toBe(200);
+    const { data } = res.body;
+    for (const period of ["today", "yesterday", "last7Days", "currentMonth"]) {
+      expect(data[period].revenue).toBe(0);
+      expect(data[period].impressions).toBe(0);
+      expect(data[period].ecpm).toBe(0);
+    }
+  });
+
   it("returns 4 periods each with revenue, ecpm and impressions", async () => {
     const res = await request(app)
       .get("/api/worker/dashboard")

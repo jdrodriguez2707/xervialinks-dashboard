@@ -29,7 +29,9 @@ export default function LoginForm({ onLogin, notice = null }) {
       <div className="login-card">
         <h1 className="login-title">XerviaLinks Metrics</h1>
         <p className="login-subtitle">Ingresa tus credenciales para continuar</p>
-        {notice && <p className="status-msg">{notice}</p>}
+        {typeof notice === "string" && notice.trim() ? (
+          <p className="status-msg">{notice}</p>
+        ) : null}
 
         <form className="login-form" onSubmit={handleSubmit}>
           <label className="form-label">

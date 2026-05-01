@@ -15,6 +15,13 @@ export async function fetchWorkerContext() {
 export async function fetchWorkerDashboard({ domain } = {}) {
   const params = new URLSearchParams();
   if (domain) params.set("domain", domain);
+  try {
+    const tz = Intl.DateTimeFormat().resolvedOptions().timeZone || "America/Bogota";
+    const currentDate = new Date().toLocaleDateString("en-CA", { timeZone: tz });
+    params.set("currentDate", currentDate);
+  } catch {
+    // ignore if browser cannot resolve timezone
+  }
   const query = params.toString();
   const url = `/api/worker/dashboard${query ? `?${query}` : ""}`;
   const res = await fetch(url, { headers: getAuthHeaders() });
