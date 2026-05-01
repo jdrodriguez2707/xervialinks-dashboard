@@ -3,7 +3,7 @@
  *   payouts: Array<{
  *     workerId: number, name: string, percentage: number,
  *     assignedDomains: string[], assignedRevenue: number,
- *     assignedImpressions: number, payout: number
+ *     assignedImpressions: number, payout: number, deletedAt?: string | null
  *   }>,
  *   totalPayout: number
  * }} props
@@ -36,6 +36,11 @@ export default function PayoutsTable({ payouts, totalPayout }) {
               <td>
                 <span className="worker-name">{w.name}</span>
                 <span className="worker-email">{w.email}</span>
+                <span
+                  className={`worker-activity-badge ${w.deletedAt ? "is-inactive" : "is-active"}`}
+                >
+                  {w.deletedAt ? "Inactivo" : "Activo"}
+                </span>
               </td>
               <td>
                 {w.assignedDomains.length === 0 ? (

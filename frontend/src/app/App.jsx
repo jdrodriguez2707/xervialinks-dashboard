@@ -34,6 +34,7 @@ function getWorkerDomainStorageKey(workerId) {
 
 export default function App() {
   const [user, setUser] = useState(() => getStoredUser());
+  const [sessionNotice, setSessionNotice] = useState(null);
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(false);
   const [refreshingAdmin, setRefreshingAdmin] = useState(false);
@@ -73,6 +74,9 @@ export default function App() {
         setData((prev) => ({ ...prev, workerMetrics: metrics }));
       } catch (err) {
         if (err.message === "401") handleLogout();
+        else if (err.message.includes("cuenta de trabajador fue eliminada")) {
+          handleLogout(err.message);
+        }
         else setWorkerMetricsError(err.message || "Error al cargar métricas");
       } finally {
         setWorkerMetricsLoading(false);
@@ -128,6 +132,9 @@ export default function App() {
       }
     } catch (err) {
       if (err.message === "401") handleLogout();
+      else if (err.message.includes("cuenta de trabajador fue eliminada")) {
+        handleLogout(err.message);
+      }
       else setError(err.message);
     } finally {
       setLoading(false);
@@ -204,11 +211,13 @@ export default function App() {
   }, [user, adminRange]);
 
   function handleLogin(loggedUser) {
+    setSessionNotice(null);
     setUser(loggedUser);
   }
 
-  function handleLogout() {
+  function handleLogout(noticeMessage = null) {
     logout();
+    if (noticeMessage) setSessionNotice(noticeMessage);
     setUser(null);
     setData(null);
     setAdminReady(false);
@@ -218,12 +227,12 @@ export default function App() {
     adminMetricsCacheRef.current.clear();
   }
 
-  if (!user) return <LoginForm onLogin={handleLogin} />;
+  if (!user) return <LoginForm onLogin={handleLogin} notice={sessionNotice} />;
 
   return (
     <div className="app">
       <header className="app-header">
-        <h1>Dashboard de Ad Manager</h1>
+        <h1>XerviaLinks Metrics</h1>
         <div className="header-user">
           <div className="header-user-info">
             <span className="header-user-name">{user.name}</span>

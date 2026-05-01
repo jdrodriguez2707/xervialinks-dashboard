@@ -28,7 +28,8 @@ function applySchema(database) {
       email         TEXT    NOT NULL UNIQUE,
       password_hash TEXT    NOT NULL,
       role          TEXT    NOT NULL CHECK (role IN ('admin', 'worker')) DEFAULT 'worker',
-      created_at    TEXT    DEFAULT (datetime('now'))
+      created_at    TEXT    DEFAULT (datetime('now')),
+      deleted_at    TEXT
     );
 
     CREATE TABLE IF NOT EXISTS workers (
@@ -36,7 +37,8 @@ function applySchema(database) {
       name      TEXT    NOT NULL,
       email     TEXT    NOT NULL UNIQUE,
       percentage REAL   NOT NULL CHECK (percentage > 0 AND percentage <= 100),
-      created_at TEXT   DEFAULT (datetime('now'))
+      created_at TEXT   DEFAULT (datetime('now')),
+      deleted_at TEXT
     );
 
     CREATE TABLE IF NOT EXISTS properties (
@@ -64,8 +66,18 @@ function applySchema(database) {
       updated_at  TEXT    DEFAULT (datetime('now'))
     );
   `);
+  ensureColumn(database, "users", "deleted_at", "TEXT");
+  ensureColumn(database, "workers", "deleted_at", "TEXT");
 
   seedAdminUser(database);
+}
+
+function ensureColumn(database, table, column, ddlType) {
+  const columns = database.prepare(`PRAGMA table_info(${table})`).all();
+  const exists = columns.some((c) => c.name === column);
+  if (!exists) {
+    database.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${ddlType}`);
+  }
 }
 
 function seedAdminUser(database) {

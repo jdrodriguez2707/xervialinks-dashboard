@@ -180,6 +180,37 @@ describe("POST /api/workers/:id/properties", () => {
 
     expect(res.status).toBe(409);
   });
+
+  it("allows reassigning a domain when previous owner is deleted", async () => {
+    const firstRes = await request(app)
+      .post("/api/workers")
+      .set("Authorization", `Bearer ${token}`)
+      .send({ name: "Owner A", email: "ownera@example.com", percentage: 30 });
+    const firstWorkerId = firstRes.body.data.id;
+
+    const secondRes = await request(app)
+      .post("/api/workers")
+      .set("Authorization", `Bearer ${token}`)
+      .send({ name: "Owner B", email: "ownerb@example.com", percentage: 30 });
+    const secondWorkerId = secondRes.body.data.id;
+
+    await request(app)
+      .post(`/api/workers/${firstWorkerId}/properties`)
+      .set("Authorization", `Bearer ${token}`)
+      .send({ type: "domain", value: "reassignable.example.com" });
+
+    await request(app)
+      .delete(`/api/workers/${firstWorkerId}`)
+      .set("Authorization", `Bearer ${token}`);
+
+    const reassign = await request(app)
+      .post(`/api/workers/${secondWorkerId}/properties`)
+      .set("Authorization", `Bearer ${token}`)
+      .send({ type: "domain", value: "reassignable.example.com" });
+
+    expect(reassign.status).toBe(201);
+    expect(reassign.body.data.value).toBe("reassignable.example.com");
+  });
 });
 
 describe("PATCH /api/workers/:id/payment-status", () => {
@@ -208,5 +239,43 @@ describe("PATCH /api/workers/:id/payment-status", () => {
       .set("Authorization", `Bearer ${token}`)
       .send({ status: "invalid" });
     expect(res.status).toBe(400);
+  });
+});
+
+describe("DELETE /api/workers/:id", () => {
+  let workerId;
+
+  beforeAll(async () => {
+    const res = await request(app)
+      .post("/api/workers")
+      .set("Authorization", `Bearer ${token}`)
+      .send({
+        name: "Soft Delete Worker",
+        email: "softdelete@example.com",
+        percentage: 45,
+        password: "pass123",
+      });
+    workerId = res.body.data.id;
+  });
+
+  it("soft deletes worker and hides it from active list", async () => {
+    const del = await request(app)
+      .delete(`/api/workers/${workerId}`)
+      .set("Authorization", `Bearer ${token}`);
+    expect(del.status).toBe(204);
+
+    const list = await request(app)
+      .get("/api/workers")
+      .set("Authorization", `Bearer ${token}`);
+    expect(list.status).toBe(200);
+    const deleted = list.body.data.find((w) => w.id === workerId);
+    expect(deleted).toBeUndefined();
+  });
+
+  it("prevents deleted worker from logging in again", async () => {
+    const res = await request(app)
+      .post("/api/auth/login")
+      .send({ email: "softdelete@example.com", password: "pass123" });
+    expect(res.status).toBe(401);
   });
 });

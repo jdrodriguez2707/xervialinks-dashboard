@@ -3,7 +3,10 @@ import { getAuthHeaders } from "./auth";
 /** Solo BD: subdominios + info de pago (rápido, sin GAM). */
 export async function fetchWorkerContext() {
   const res = await fetch("/api/worker/context", { headers: getAuthHeaders() });
-  if (!res.ok) throw new Error(`${res.status}`);
+  if (!res.ok) {
+    const payload = await res.json().catch(() => ({}));
+    throw new Error(payload.error || `${res.status}`);
+  }
   const json = await res.json();
   return json.data;
 }
@@ -15,7 +18,10 @@ export async function fetchWorkerDashboard({ domain } = {}) {
   const query = params.toString();
   const url = `/api/worker/dashboard${query ? `?${query}` : ""}`;
   const res = await fetch(url, { headers: getAuthHeaders() });
-  if (!res.ok) throw new Error(`${res.status}`);
+  if (!res.ok) {
+    const payload = await res.json().catch(() => ({}));
+    throw new Error(payload.error || `${res.status}`);
+  }
   const json = await res.json();
   return json.data;
 }

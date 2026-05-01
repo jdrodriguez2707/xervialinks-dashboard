@@ -1,13 +1,17 @@
 const { getDb } = require("../../infrastructure/database/database");
 
 function findByEmail(email) {
-  return getDb().prepare("SELECT * FROM users WHERE email = ?").get(email) || null;
+  return (
+    getDb()
+      .prepare("SELECT * FROM users WHERE email = ? AND deleted_at IS NULL")
+      .get(email) || null
+  );
 }
 
 function findById(id) {
   return (
     getDb()
-      .prepare("SELECT id, name, email, role, created_at FROM users WHERE id = ?")
+      .prepare("SELECT id, name, email, role, created_at, deleted_at FROM users WHERE id = ?")
       .get(id) || null
   );
 }

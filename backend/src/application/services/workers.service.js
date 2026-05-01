@@ -35,6 +35,10 @@ function getWorkerByEmail(email) {
   return workersRepo.findByEmail(email) || null;
 }
 
+function getWorkerByEmailIncludingDeleted(email) {
+  return workersRepo.findByEmail(email, { includeDeleted: true }) || null;
+}
+
 function getWorkerById(id) {
   const worker = workersRepo.findById(Number(id));
   if (!worker) throw new NotFoundError(`Worker ${id} not found`);
@@ -56,7 +60,7 @@ async function createWorker({ name, email, percentage, password }) {
     throw new ValidationError("El porcentaje debe ser un número entre 0 y 100 (exclusivo)");
   }
 
-  const existingWorker = workersRepo.findByEmail(email);
+  const existingWorker = workersRepo.findByEmail(email, { includeDeleted: true });
   if (existingWorker) throw new ConflictError(`El email ${email} ya está en uso`);
 
   if (password) {
@@ -143,6 +147,7 @@ module.exports = {
   getAllWorkers,
   getWorkerById,
   getWorkerByEmail,
+  getWorkerByEmailIncludingDeleted,
   createWorker,
   deleteWorker,
   addPropertyToWorker,

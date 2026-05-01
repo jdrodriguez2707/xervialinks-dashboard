@@ -2,9 +2,9 @@ import { useState } from "react";
 import { login } from "../../../shared/api/auth";
 
 /**
- * @param {{ onLogin: (user: object) => void }} props
+ * @param {{ onLogin: (user: object) => void, notice?: string | null }} props
  */
-export default function LoginForm({ onLogin }) {
+export default function LoginForm({ onLogin, notice = null }) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState(null);
@@ -27,8 +27,9 @@ export default function LoginForm({ onLogin }) {
   return (
     <div className="login-wrapper">
       <div className="login-card">
-        <h1 className="login-title">Dashboard de Ad Manager</h1>
+        <h1 className="login-title">XerviaLinks Metrics</h1>
         <p className="login-subtitle">Ingresa tus credenciales para continuar</p>
+        {notice && <p className="status-msg">{notice}</p>}
 
         <form className="login-form" onSubmit={handleSubmit}>
           <label className="form-label">

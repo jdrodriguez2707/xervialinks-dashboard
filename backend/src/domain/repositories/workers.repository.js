@@ -1,21 +1,33 @@
 const { getDb } = require("../../infrastructure/database/database");
 
-function findAll() {
+function findAll({ includeDeleted = false } = {}) {
   const db = getDb();
-  const workers = db.prepare("SELECT * FROM workers ORDER BY name ASC").all();
+  const workers = includeDeleted
+    ? db.prepare("SELECT * FROM workers ORDER BY name ASC").all()
+    : db
+        .prepare("SELECT * FROM workers WHERE deleted_at IS NULL ORDER BY name ASC")
+        .all();
   return workers.map(attachProperties);
 }
 
-function findById(id) {
+function findById(id, { includeDeleted = false } = {}) {
   const db = getDb();
-  const worker = db.prepare("SELECT * FROM workers WHERE id = ?").get(id);
+  const worker = includeDeleted
+    ? db.prepare("SELECT * FROM workers WHERE id = ?").get(id)
+    : db
+        .prepare("SELECT * FROM workers WHERE id = ? AND deleted_at IS NULL")
+        .get(id);
   if (!worker) return null;
   return attachProperties(worker);
 }
 
-function findByEmail(email) {
+function findByEmail(email, { includeDeleted = false } = {}) {
   const db = getDb();
-  const worker = db.prepare("SELECT * FROM workers WHERE email = ?").get(email);
+  const worker = includeDeleted
+    ? db.prepare("SELECT * FROM workers WHERE email = ?").get(email)
+    : db
+        .prepare("SELECT * FROM workers WHERE email = ? AND deleted_at IS NULL")
+        .get(email);
   return worker ? attachProperties(worker) : null;
 }
 
@@ -59,9 +71,8 @@ function deleteById(id) {
   if (!worker) return false;
 
   db.transaction(() => {
-    db.prepare("DELETE FROM properties WHERE worker_id = ?").run(id);
-    db.prepare("DELETE FROM users WHERE email = ?").run(worker.email);
-    db.prepare("DELETE FROM workers WHERE id = ?").run(id);
+    db.prepare("UPDATE users SET deleted_at = datetime('now') WHERE email = ?").run(worker.email);
+    db.prepare("UPDATE workers SET deleted_at = datetime('now') WHERE id = ?").run(id);
   })();
 
   return true;
@@ -83,7 +94,11 @@ function findPropertyByTypeAndValue(type, value) {
   const db = getDb();
   return db
     .prepare(
-      "SELECT id, worker_id, type, value FROM properties WHERE type = ? AND value = ? LIMIT 1"
+      `SELECT p.id, p.worker_id, p.type, p.value
+       FROM properties p
+       INNER JOIN workers w ON w.id = p.worker_id
+       WHERE p.type = ? AND p.value = ? AND w.deleted_at IS NULL
+       LIMIT 1`
     )
     .get(type, value);
 }

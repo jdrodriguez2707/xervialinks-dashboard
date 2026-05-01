@@ -455,6 +455,26 @@ body {
   color: #888;
 }
 
+.worker-activity-badge {
+  display: inline-flex;
+  margin-top: 0.35rem;
+  padding: 0.12rem 0.45rem;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.worker-activity-badge.is-active {
+  background: #e8f7ef;
+  color: #166534;
+}
+
+.worker-activity-badge.is-inactive {
+  background: #f3f4f6;
+  color: #4b5563;
+}
+
 .payout-amount {
   font-weight: 700;
   color: #27ae60;

@@ -154,4 +154,36 @@ describe("GET /api/payouts", () => {
     expect(grace.assignedRevenue).toBe(279.42);
     expect(grace.payout).toBe(195.594);
   });
+
+  it("keeps deleted worker in historical ranges but not in future-only range", async () => {
+    const res = await request(app)
+      .post("/api/workers")
+      .set("Authorization", `Bearer ${token}`)
+      .send({ name: "Deleted Hist", email: "deletedhist@example.com", percentage: 60 });
+    const deletedWorkerId = res.body.data.id;
+
+    await request(app)
+      .post(`/api/workers/${deletedWorkerId}/properties`)
+      .set("Authorization", `Bearer ${token}`)
+      .send({ type: "domain", value: "plez.barbacoadicto.com" });
+
+    await request(app)
+      .delete(`/api/workers/${deletedWorkerId}`)
+      .set("Authorization", `Bearer ${token}`);
+
+    const histStart = daysAgoISO(7, "America/Bogota");
+    const histEnd = todayISO("America/Bogota");
+    const hist = await request(app)
+      .get(`/api/payouts?startDate=${histStart}&endDate=${histEnd}`)
+      .set("Authorization", `Bearer ${token}`);
+    const stillShown = hist.body.data.payouts.find((w) => w.workerId === deletedWorkerId);
+    expect(stillShown).toBeDefined();
+    expect(stillShown.deletedAt).toBeTruthy();
+
+    const future = await request(app)
+      .get("/api/payouts?startDate=9999-12-30&endDate=9999-12-31")
+      .set("Authorization", `Bearer ${token}`);
+    const hidden = future.body.data.payouts.find((w) => w.workerId === deletedWorkerId);
+    expect(hidden).toBeUndefined();
+  });
 });
