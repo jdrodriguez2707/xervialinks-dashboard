@@ -16,6 +16,8 @@ async function getContext(req, res) {
       workerId: worker.id,
       properties: worker.properties,
       paymentInfo: worker.paymentInfo || null,
+      paymentStatus: worker.paymentStatus || "pending",
+      paymentStatusUpdatedAt: worker.paymentStatusUpdatedAt || null,
     },
   });
 }

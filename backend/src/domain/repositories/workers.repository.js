@@ -108,6 +108,30 @@ function getPaymentInfo(workerId) {
   );
 }
 
+function getPaymentStatus(workerId) {
+  const db = getDb();
+  const row = db
+    .prepare(
+      `SELECT status AS paymentStatus, updated_at AS paymentStatusUpdatedAt
+       FROM worker_payment_status
+       WHERE worker_id = ?`
+    )
+    .get(workerId);
+  return row || { paymentStatus: "pending", paymentStatusUpdatedAt: null };
+}
+
+function upsertPaymentStatus(workerId, status) {
+  const db = getDb();
+  db.prepare(
+    `INSERT INTO worker_payment_status (worker_id, status, updated_at)
+     VALUES (?, ?, datetime('now'))
+     ON CONFLICT(worker_id) DO UPDATE SET
+       status = excluded.status,
+       updated_at = datetime('now')`
+  ).run(workerId, status);
+  return getPaymentStatus(workerId);
+}
+
 function upsertPaymentInfo(workerId, { methodType, paymentDetails }) {
   const db = getDb();
   db.prepare(
@@ -122,10 +146,12 @@ function upsertPaymentInfo(workerId, { methodType, paymentDetails }) {
 }
 
 function attachProperties(worker) {
+  const paymentStatus = getPaymentStatus(worker.id);
   return {
     ...worker,
     properties: getProperties(worker.id),
     paymentInfo: getPaymentInfo(worker.id),
+    ...paymentStatus,
   };
 }
 
@@ -138,5 +164,7 @@ module.exports = {
   deleteById,
   addProperty,
   findPropertyByTypeAndValue,
+  getPaymentStatus,
+  upsertPaymentStatus,
   upsertPaymentInfo,
 };

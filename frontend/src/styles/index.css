@@ -584,8 +584,24 @@ body {
   cursor: not-allowed;
 }
 
+.btn-payment {
+  color: #2563eb;
+}
+
+.btn-payment:hover {
+  background: #eff6ff;
+  color: #1d4ed8;
+}
+
 .worker-properties {
   min-height: 1.8rem;
+}
+
+.worker-properties-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.65rem;
 }
 
 .property-group {
@@ -632,6 +648,75 @@ body {
 .btn-add-domain {
   align-self: flex-start;
   white-space: nowrap;
+}
+
+.worker-payment-status-row {
+  margin-top: 0.2rem;
+}
+
+.payment-status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.25rem 0.65rem;
+  border-radius: 999px;
+  font-size: 0.76rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.payment-status-badge.is-paid {
+  background: #e8f7ef;
+  color: #166534;
+}
+
+.payment-status-badge.is-pending {
+  background: #fff7ed;
+  color: #9a3412;
+}
+
+.payment-status-modal {
+  max-width: 500px;
+}
+
+.payment-status-modal-content {
+  display: flex;
+  flex-direction: column;
+  gap: 0.9rem;
+  margin-bottom: 1rem;
+}
+
+.payment-status-summary {
+  display: flex;
+  justify-content: flex-start;
+}
+
+.payment-info-card--admin {
+  margin: 0;
+}
+
+.payment-empty--admin {
+  margin: 0;
+}
+
+.btn-success {
+  background: #16a34a;
+}
+
+.btn-success:hover:not(:disabled) {
+  background: #15803d;
+}
+
+.btn-warning {
+  background: #ea580c;
+}
+
+.btn-warning:hover:not(:disabled) {
+  background: #c2410c;
+}
+
+.worker-payment-status-box {
+  margin-top: 0.8rem;
 }
 
 /* Forms */

@@ -35,4 +35,18 @@ async function deleteWorker(req, res) {
   res.status(204).end();
 }
 
-module.exports = { listWorkers, getWorker, getMe, createWorker, deleteWorker, addProperty };
+async function updatePaymentStatus(req, res) {
+  const { status } = req.body || {};
+  const paymentStatus = workersService.updateWorkerPaymentStatus(req.params.id, status);
+  res.json({ data: paymentStatus });
+}
+
+module.exports = {
+  listWorkers,
+  getWorker,
+  getMe,
+  createWorker,
+  deleteWorker,
+  addProperty,
+  updatePaymentStatus,
+};

@@ -56,6 +56,13 @@ function applySchema(database) {
       created_at      TEXT    DEFAULT (datetime('now')),
       updated_at      TEXT    DEFAULT (datetime('now'))
     );
+
+    CREATE TABLE IF NOT EXISTS worker_payment_status (
+      id          INTEGER PRIMARY KEY AUTOINCREMENT,
+      worker_id   INTEGER NOT NULL UNIQUE REFERENCES workers(id) ON DELETE CASCADE,
+      status      TEXT    NOT NULL CHECK (status IN ('pending', 'paid')) DEFAULT 'pending',
+      updated_at  TEXT    DEFAULT (datetime('now'))
+    );
   `);
 
   seedAdminUser(database);
@@ -89,10 +96,11 @@ function resetDb() {
   const database = getDb();
   database.exec(`
     DELETE FROM worker_payment_info;
+    DELETE FROM worker_payment_status;
     DELETE FROM properties;
     DELETE FROM workers;
     DELETE FROM users;
-    DELETE FROM sqlite_sequence WHERE name IN ('workers', 'properties', 'users', 'worker_payment_info');
+    DELETE FROM sqlite_sequence WHERE name IN ('workers', 'properties', 'users', 'worker_payment_info', 'worker_payment_status');
   `);
   seedAdminUser(database);
 }

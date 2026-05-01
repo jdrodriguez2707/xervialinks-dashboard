@@ -1,5 +1,10 @@
-import { useState } from "react";
-import { addProperty, deleteWorker } from "../../../shared/api/workers";
+import { useMemo, useState } from "react";
+import { WalletCards } from "lucide-react";
+import {
+  addProperty,
+  deleteWorker,
+  updateWorkerPaymentStatus,
+} from "../../../shared/api/workers";
 
 /**
  * @param {{
@@ -45,8 +50,14 @@ function WorkerCard({ worker, sites, globallyAssignedDomains, onUpdate }) {
   const [error, setError] = useState(null);
   const [submitting, setSubmitting] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [openPaymentModal, setOpenPaymentModal] = useState(false);
+  const [updatingPaymentStatus, setUpdatingPaymentStatus] = useState(false);
 
   const domains = worker.properties.filter((p) => p.type === "domain");
+  const paymentInfo = worker.paymentInfo || null;
+  const paymentStatus = worker.paymentStatus || "pending";
+  const isPaid = paymentStatus === "paid";
+  const paymentStatusLabel = isPaid ? "Pagado" : "Pendiente de pago";
 
   // Sites still unassigned to any worker (exclusive ownership per domain).
   const availableSites = sites.filter((s) => !globallyAssignedDomains.has(s));
@@ -80,6 +91,25 @@ function WorkerCard({ worker, sites, globallyAssignedDomains, onUpdate }) {
     }
   }
 
+  async function handleTogglePaymentStatus() {
+    const nextStatus = isPaid ? "pending" : "paid";
+    setError(null);
+    setUpdatingPaymentStatus(true);
+    try {
+      await updateWorkerPaymentStatus(worker.id, nextStatus);
+      onUpdate();
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setUpdatingPaymentStatus(false);
+    }
+  }
+
+  const statusClassName = useMemo(
+    () => `payment-status-badge ${isPaid ? "is-paid" : "is-pending"}`,
+    [isPaid]
+  );
+
   return (
     <div className="worker-card">
       {/* ── Header ── */}
@@ -105,12 +135,23 @@ function WorkerCard({ worker, sites, globallyAssignedDomains, onUpdate }) {
       {/* ── Assigned domains ── */}
       <div className="worker-properties">
         {domains.length > 0 ? (
-          <div className="domain-tags">
-            {domains.map((p) => (
-              <span key={p.id} className="tag tag-domain">
-                {p.value}
-              </span>
-            ))}
+          <div className="worker-properties-row">
+            <div className="domain-tags">
+              {domains.map((p) => (
+                <span key={p.id} className="tag tag-domain">
+                  {p.value}
+                </span>
+              ))}
+            </div>
+            <button
+              type="button"
+              className="btn-icon btn-payment"
+              title="Ver estado e información de pago"
+              aria-label={`Ver información de pago de ${worker.name}`}
+              onClick={() => setOpenPaymentModal(true)}
+            >
+              <WalletCards size={16} />
+            </button>
           </div>
         ) : (
           <p className="no-domains">Sin subdominios asignados.</p>
@@ -144,7 +185,80 @@ function WorkerCard({ worker, sites, globallyAssignedDomains, onUpdate }) {
         </button>
       </form>
 
+      <div className="worker-payment-status-row">
+        <span className={statusClassName}>{paymentStatusLabel}</span>
+      </div>
+
       {error && <p className="form-error">{error}</p>}
+
+      {openPaymentModal && (
+        <div className="modal-overlay" onClick={() => setOpenPaymentModal(false)}>
+          <div
+            className="modal payment-status-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby={`payment-modal-title-${worker.id}`}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="modal-header">
+              <h3 id={`payment-modal-title-${worker.id}`} className="modal-title">
+                Estado de pago de {worker.name}
+              </h3>
+              <button
+                className="modal-close"
+                aria-label="Cerrar"
+                onClick={() => setOpenPaymentModal(false)}
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="payment-status-modal-content">
+              <div className="payment-status-summary">
+                <span className={statusClassName}>{paymentStatusLabel}</span>
+              </div>
+
+              {paymentInfo ? (
+                <div className="payment-info-card payment-info-card--admin">
+                  <p className="payment-info-label">Método</p>
+                  <p className="payment-info-value">{paymentInfo.methodType}</p>
+                  <p className="payment-info-label">Detalle</p>
+                  <p className="payment-info-value">{paymentInfo.paymentDetails}</p>
+                </div>
+              ) : (
+                <div className="payment-empty payment-empty--admin">
+                  <p className="payment-empty-title">Información de pago pendiente</p>
+                  <p className="payment-empty-text">
+                    El trabajador aún no ha registrado su método e información de pago.
+                  </p>
+                </div>
+              )}
+            </div>
+
+            <div className="modal-actions">
+              <button
+                type="button"
+                className="btn btn-secondary"
+                onClick={() => setOpenPaymentModal(false)}
+              >
+                Cerrar
+              </button>
+              <button
+                type="button"
+                className={`btn ${isPaid ? "btn-warning" : "btn-success"}`}
+                onClick={handleTogglePaymentStatus}
+                disabled={updatingPaymentStatus}
+              >
+                {updatingPaymentStatus
+                  ? "Actualizando…"
+                  : isPaid
+                    ? "Marcar como pendiente"
+                    : "Marcar como pagado"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

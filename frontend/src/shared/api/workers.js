@@ -45,3 +45,17 @@ export async function deleteWorker(workerId) {
     throw new Error(err.error || `Error ${res.status}`);
   }
 }
+
+export async function updateWorkerPaymentStatus(workerId, status) {
+  const res = await fetch(`/api/workers/${workerId}/payment-status`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json", ...getAuthHeaders() },
+    body: JSON.stringify({ status }),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error || `Error ${res.status}`);
+  }
+  const json = await res.json();
+  return json.data;
+}

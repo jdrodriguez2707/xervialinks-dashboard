@@ -130,6 +130,15 @@ function updateWorkerPaymentInfoByEmail(email, { methodType, paymentDetails }) {
   });
 }
 
+function updateWorkerPaymentStatus(workerId, status) {
+  const VALID_STATUSES = ["pending", "paid"];
+  if (!VALID_STATUSES.includes(status)) {
+    throw new ValidationError(`El estado debe ser uno de: ${VALID_STATUSES.join(", ")}`);
+  }
+  getWorkerById(workerId);
+  return workersRepo.upsertPaymentStatus(Number(workerId), status);
+}
+
 module.exports = {
   getAllWorkers,
   getWorkerById,
@@ -138,4 +147,5 @@ module.exports = {
   deleteWorker,
   addPropertyToWorker,
   updateWorkerPaymentInfoByEmail,
+  updateWorkerPaymentStatus,
 };

@@ -181,3 +181,32 @@ describe("POST /api/workers/:id/properties", () => {
     expect(res.status).toBe(409);
   });
 });
+
+describe("PATCH /api/workers/:id/payment-status", () => {
+  let workerId;
+
+  beforeAll(async () => {
+    const res = await request(app)
+      .post("/api/workers")
+      .set("Authorization", `Bearer ${token}`)
+      .send({ name: "Helen", email: "helen@example.com", percentage: 55 });
+    workerId = res.body.data.id;
+  });
+
+  it("updates worker payment status to paid", async () => {
+    const res = await request(app)
+      .patch(`/api/workers/${workerId}/payment-status`)
+      .set("Authorization", `Bearer ${token}`)
+      .send({ status: "paid" });
+    expect(res.status).toBe(200);
+    expect(res.body.data.paymentStatus).toBe("paid");
+  });
+
+  it("returns 400 for invalid status", async () => {
+    const res = await request(app)
+      .patch(`/api/workers/${workerId}/payment-status`)
+      .set("Authorization", `Bearer ${token}`)
+      .send({ status: "invalid" });
+    expect(res.status).toBe(400);
+  });
+});

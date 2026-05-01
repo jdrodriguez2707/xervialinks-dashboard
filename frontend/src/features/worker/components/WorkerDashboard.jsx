@@ -130,6 +130,12 @@ export default function WorkerDashboard({
   const { properties = [] } = workerContext ?? {};
   const domains = properties.filter((p) => p.type === "domain");
   const hasDomains = domains.length > 0;
+  const paymentStatus = workerContext?.paymentStatus || "pending";
+  const paymentStatusLabel =
+    paymentStatus === "paid" ? "Pagado" : "Pendiente de pago";
+  const paymentStatusClassName = `payment-status-badge ${
+    paymentStatus === "paid" ? "is-paid" : "is-pending"
+  }`;
   const selectedDomainValue =
     selectedDomain && domains.some((d) => d.value === selectedDomain)
       ? selectedDomain
@@ -400,6 +406,9 @@ export default function WorkerDashboard({
           <button type="button" className="btn" onClick={openPaymentDialog}>
             {paymentInfo ? "Editar información de pago" : "Agregar información de pago"}
           </button>
+          <div className="worker-payment-status-box">
+            <span className={paymentStatusClassName}>{paymentStatusLabel}</span>
+          </div>
         </section>
       )}
 
