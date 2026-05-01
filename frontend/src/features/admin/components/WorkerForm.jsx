@@ -2,9 +2,17 @@ import { useState } from "react";
 import { createWorker } from "../../../shared/api/workers";
 
 /**
- * @param {{ onCreated: () => void }} props
+ * @param {{
+ *   onCreated: () => void,
+ *   triggerClassName?: string,
+ *   triggerLabel?: string,
+ * }} props
  */
-export default function WorkerForm({ onCreated }) {
+export default function WorkerForm({
+  onCreated,
+  triggerClassName = "btn btn-add-worker",
+  triggerLabel = "+ Agregar trabajador",
+}) {
   const [open, setOpen] = useState(false);
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -44,8 +52,8 @@ export default function WorkerForm({ onCreated }) {
 
   return (
     <>
-      <button className="btn btn-add-worker" onClick={() => setOpen(true)}>
-        + Agregar trabajador
+      <button type="button" className={triggerClassName} onClick={() => setOpen(true)}>
+        {triggerLabel}
       </button>
 
       {open && (

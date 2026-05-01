@@ -27,8 +27,8 @@ class ConflictError extends Error {
   }
 }
 
-function getAllWorkers() {
-  return workersRepo.findAll();
+function getAllWorkers(includeDeleted = false) {
+  return workersRepo.findAll({ includeDeleted: !!includeDeleted });
 }
 
 function getWorkerByEmail(email) {

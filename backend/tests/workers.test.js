@@ -277,6 +277,16 @@ describe("DELETE /api/workers/:id", () => {
     expect(deleted).toBeUndefined();
   });
 
+  it("includes soft-deleted workers when includeDeleted=true", async () => {
+    const list = await request(app)
+      .get("/api/workers?includeDeleted=true")
+      .set("Authorization", `Bearer ${token}`);
+    expect(list.status).toBe(200);
+    const found = list.body.data.find((w) => w.id === workerId);
+    expect(found).toBeDefined();
+    expect(found.deleted_at).toBeTruthy();
+  });
+
   it("prevents deleted worker from logging in again", async () => {
     const res = await request(app)
       .post("/api/auth/login")

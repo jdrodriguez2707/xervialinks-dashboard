@@ -1,7 +1,9 @@
 const workersService = require("../../application/services/workers.service");
 
 async function listWorkers(req, res) {
-  const workers = workersService.getAllWorkers();
+  const includeDeleted =
+    req.query.includeDeleted === "true" || req.query.includeDeleted === "1";
+  const workers = workersService.getAllWorkers(includeDeleted);
   res.json({ data: workers });
 }
 

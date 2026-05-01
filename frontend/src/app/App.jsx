@@ -147,7 +147,7 @@ export default function App() {
         const range = getAdminDateRange("today");
         const [summary, workers, payouts, sites] = await Promise.all([
           fetchSummary(range),
-          fetchWorkers(),
+          fetchWorkers({ includeDeleted: true }),
           fetchPayouts(range),
           fetchSites(),
         ]);
@@ -283,7 +283,7 @@ export default function App() {
     try {
       const range = getAdminDateRange(adminRange);
       const [workers, payouts, summary] = await Promise.all([
-        fetchWorkers(),
+        fetchWorkers({ includeDeleted: true }),
         fetchPayouts(range),
         fetchSummary(range),
       ]);
@@ -525,6 +525,14 @@ function AdminDashboard({
 }) {
   const { summary, workers, payouts, sites } = data;
 
+  const activeWorkers = (workers || []).filter((w) => !w.deleted_at);
+
+  if (activeModule === "workers") {
+    return (
+      <WorkersList workers={workers} sites={sites} onUpdate={onWorkersUpdate} mode="management" />
+    );
+  }
+
   if (activeModule === "earnings") {
     return (
       <section>
@@ -543,7 +551,7 @@ function AdminDashboard({
   if (activeModule !== "dashboard") {
     return (
       <section>
-        <h2>{activeModule === "workers" ? "Trabajadores" : activeModule === "network-codes" ? "Codigos de red" : "Perfil"}</h2>
+        <h2>{activeModule === "network-codes" ? "Codigos de red" : "Perfil"}</h2>
         <p className="empty-state">Módulo en construcción.</p>
       </section>
     );
@@ -572,7 +580,7 @@ function AdminDashboard({
       <section>
         <h2>Trabajadores</h2>
         <WorkersList
-          workers={workers}
+          workers={activeWorkers}
           sites={sites}
           onUpdate={onWorkersUpdate}
           mode="dashboard"

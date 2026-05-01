@@ -821,6 +821,266 @@ body {
   margin-top: 1rem;
 }
 
+/* Trabajadores (módulo admin): diseño distinto al dashboard */
+.workers-module {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  margin-top: 0.25rem;
+  max-width: 100%;
+}
+
+.workers-module-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1.1rem 1.25rem;
+  border-radius: 14px;
+  background: linear-gradient(135deg, #f8fafc 0%, #eef2ff 55%, #f1f5f9 100%);
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.06);
+}
+
+.workers-module-copy {
+  margin: 0;
+  flex: 1;
+  min-width: min(100%, 240px);
+  font-size: 0.88rem;
+  line-height: 1.45;
+  color: #475569;
+  max-width: 42rem;
+}
+
+.workers-module-add-btn {
+  border-radius: 10px;
+  padding: 0.55rem 1.15rem;
+  font-size: 0.875rem;
+  box-shadow: 0 2px 8px rgba(26, 26, 46, 0.12);
+}
+
+.workers-mgmt-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+}
+
+.worker-mgmt-panel {
+  position: relative;
+  display: grid;
+  grid-template-columns: 4px 1fr;
+  overflow: hidden;
+  border-radius: 14px;
+  background: #fff;
+  border: 1px solid #e8eaed;
+  box-shadow: 0 2px 12px rgba(15, 23, 42, 0.06);
+  transition: box-shadow 0.2s, border-color 0.2s;
+}
+
+.worker-mgmt-panel:hover {
+  box-shadow: 0 4px 20px rgba(15, 23, 42, 0.08);
+  border-color: #dce3ee;
+}
+
+.worker-mgmt-panel.is-inactive {
+  background: #fafbfc;
+  border-style: dashed;
+  border-color: #d1d5db;
+}
+
+.worker-mgmt-panel.is-inactive .worker-mgmt-accent {
+  background: linear-gradient(180deg, #94a3b8, #cbd5e1);
+}
+
+.worker-mgmt-accent {
+  background: linear-gradient(180deg, #1a1a2e, #3d3d5c);
+}
+
+.worker-mgmt-main {
+  padding: 1rem 1.1rem 1.1rem;
+  min-width: 0;
+}
+
+.worker-mgmt-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 0.75rem 1rem;
+}
+
+.worker-mgmt-avatar {
+  flex-shrink: 0;
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 800;
+  font-size: 1rem;
+  color: #1a1a2e;
+  background: linear-gradient(145deg, #e0e7ff, #f8fafc);
+  border: 1px solid #e2e8f0;
+}
+
+.worker-mgmt-panel.is-inactive .worker-mgmt-avatar {
+  opacity: 0.75;
+  background: #f1f5f9;
+}
+
+.worker-mgmt-identity {
+  flex: 1;
+  min-width: min(100%, 200px);
+}
+
+.worker-mgmt-name-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.45rem;
+}
+
+.worker-mgmt-name {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: #0f172a;
+  letter-spacing: -0.02em;
+}
+
+.worker-mgmt-email {
+  margin: 0.2rem 0 0;
+  font-size: 0.82rem;
+  color: #64748b;
+  word-break: break-all;
+}
+
+.worker-mgmt-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-left: auto;
+}
+
+.worker-mgmt-pct {
+  font-size: 0.8rem;
+  font-weight: 800;
+  padding: 0.25rem 0.65rem;
+  border-radius: 999px;
+  background: #1a1a2e;
+  color: #fff;
+}
+
+.worker-mgmt-panel.is-inactive .worker-mgmt-pct {
+  background: #64748b;
+}
+
+.btn-mgmt-soft-delete {
+  color: #b45309;
+}
+
+.btn-mgmt-soft-delete:hover:not(:disabled) {
+  background: #fffbeb;
+  color: #92400e;
+}
+
+.btn-mgmt-purge {
+  color: #b91c1c;
+}
+
+.btn-mgmt-purge:hover:not(:disabled) {
+  background: #fef2f2;
+  color: #991b1b;
+}
+
+.worker-mgmt-domains-block {
+  margin-top: 0.85rem;
+  padding-top: 0.85rem;
+  border-top: 1px solid #f1f5f9;
+}
+
+.worker-mgmt-field-label {
+  display: block;
+  font-size: 0.68rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #94a3b8;
+  margin-bottom: 0.4rem;
+}
+
+.worker-mgmt-chip-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.worker-mgmt-chip {
+  display: inline-flex;
+  align-items: center;
+  font-size: 0.78rem;
+  font-weight: 600;
+  padding: 0.28rem 0.55rem;
+  border-radius: 8px;
+  background: #f0f9ff;
+  color: #0369a1;
+  border: 1px solid #bae6fd;
+  word-break: break-all;
+}
+
+.worker-mgmt-empty-tags {
+  margin: 0;
+  font-size: 0.82rem;
+  color: #94a3b8;
+  font-style: italic;
+}
+
+.worker-mgmt-assign {
+  margin-top: 0.85rem;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: stretch;
+  gap: 0.5rem;
+}
+
+.worker-mgmt-select {
+  flex: 1;
+  min-width: min(100%, 200px);
+}
+
+.worker-mgmt-assign-btn {
+  align-self: center;
+}
+
+.worker-mgmt-inactive-hint {
+  margin: 0.75rem 0 0;
+  font-size: 0.8rem;
+  line-height: 1.4;
+  color: #64748b;
+}
+
+.worker-mgmt-error {
+  margin-top: 0.65rem;
+}
+
+@media (max-width: 520px) {
+  .worker-mgmt-actions {
+    width: 100%;
+    margin-left: 0;
+    justify-content: flex-end;
+  }
+
+  .worker-mgmt-assign {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .worker-mgmt-assign-btn {
+    align-self: stretch;
+  }
+}
+
 .worker-card {
   background: #fff;
   border-radius: 10px;

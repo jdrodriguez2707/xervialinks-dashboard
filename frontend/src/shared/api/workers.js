@@ -1,7 +1,8 @@
 import { getAuthHeaders } from "./auth";
 
-export async function fetchWorkers() {
-  const res = await fetch("/api/workers", { headers: getAuthHeaders() });
+export async function fetchWorkers({ includeDeleted = false } = {}) {
+  const qs = includeDeleted ? "?includeDeleted=true" : "";
+  const res = await fetch(`/api/workers${qs}`, { headers: getAuthHeaders() });
   if (!res.ok) throw new Error(`${res.status}`);
   const json = await res.json();
   return json.data;
