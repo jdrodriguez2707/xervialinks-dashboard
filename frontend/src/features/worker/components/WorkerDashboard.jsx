@@ -11,11 +11,6 @@ const PERIOD_LABELS = {
   currentMonth: "Este mes",
 };
 
-const PROPERTY_LABELS = {
-  domain:  "Subdominio",
-  ad_unit: "Ad Unit",
-};
-
 const fmtCurrency = (n) =>
   new Intl.NumberFormat("es-MX", {
     style: "currency",
@@ -368,27 +363,13 @@ export default function WorkerDashboard({
               Sin subdominios asignados. Contacta al administrador.
             </p>
           ) : (
-            <div className="table-wrapper">
-              <table className="reports-table">
-                <thead>
-                  <tr>
-                    <th>Tipo</th>
-                    <th>Valor</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {domains.map((p) => (
-                    <tr key={p.id}>
-                      <td>
-                        <span className="prop-badge prop-domain">
-                          {PROPERTY_LABELS[p.type]}
-                        </span>
-                      </td>
-                      <td className="prop-value">{p.value}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+            <div className="worker-domains-grid" role="list" aria-label="Subdominios asignados">
+              {domains.map((domain) => (
+                <article key={domain.id} className="worker-domain-card" role="listitem">
+                  <p className="worker-domain-card-label">Subdominio</p>
+                  <p className="worker-domain-card-value">{domain.value}</p>
+                </article>
+              ))}
             </div>
           )}
         </section>

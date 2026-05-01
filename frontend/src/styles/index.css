@@ -456,6 +456,39 @@ body {
   padding: 2rem;
 }
 
+
+.worker-domains-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 0.75rem;
+  margin-top: 0.6rem;
+}
+
+.worker-domain-card {
+  background: linear-gradient(180deg, #ffffff 0%, #f7faff 100%);
+  border: 1px solid #d9e6ff;
+  border-radius: 12px;
+  padding: 0.75rem 0.85rem;
+  min-width: 0;
+  box-shadow: 0 3px 10px rgba(26, 64, 143, 0.08);
+}
+
+.worker-domain-card-label {
+  font-size: 0.72rem;
+  color: #64748b;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  margin-bottom: 0.3rem;
+}
+
+.worker-domain-card-value {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #0f172a;
+  overflow-wrap: anywhere;
+  line-height: 1.35;
+}
+
 /* Payouts table */
 .worker-name {
   display: block;
