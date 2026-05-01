@@ -89,7 +89,7 @@ function hardDeleteInactiveById(id) {
     db.prepare("DELETE FROM worker_payment_status WHERE worker_id = ?").run(id);
     db.prepare("DELETE FROM properties WHERE worker_id = ?").run(id);
     db.prepare("DELETE FROM workers WHERE id = ?").run(id);
-    db.prepare("DELETE FROM users WHERE email = ?").run(worker.email);
+    db.prepare("DELETE FROM users WHERE email = ? AND role = 'worker'").run(worker.email);
   })();
 
   return true;

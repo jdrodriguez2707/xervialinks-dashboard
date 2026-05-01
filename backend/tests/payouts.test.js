@@ -89,7 +89,7 @@ describe("GET /api/payouts", () => {
     const res = await request(app)
       .post("/api/workers")
       .set("Authorization", `Bearer ${token}`)
-      .send({ name: "Grace", email: "grace@example.com", percentage: 70 });
+      .send({ name: "Grace", email: "grace@example.com", percentage: 70, password: "pass123" });
     workerId = res.body.data.id;
 
     await request(app)
@@ -132,7 +132,7 @@ describe("GET /api/payouts", () => {
     const workerRes = await request(app)
       .post("/api/workers")
       .set("Authorization", `Bearer ${token}`)
-      .send({ name: "Unassigned", email: "unassigned@example.com", percentage: 50 });
+      .send({ name: "Unassigned", email: "unassigned@example.com", percentage: 50, password: "pass123" });
     const unassignedId = workerRes.body.data.id;
 
     const res = await request(app)
@@ -159,7 +159,7 @@ describe("GET /api/payouts", () => {
     const res = await request(app)
       .post("/api/workers")
       .set("Authorization", `Bearer ${token}`)
-      .send({ name: "Deleted Hist", email: "deletedhist@example.com", percentage: 60 });
+      .send({ name: "Deleted Hist", email: "deletedhist@example.com", percentage: 60, password: "pass123" });
     const deletedWorkerId = res.body.data.id;
 
     await request(app)

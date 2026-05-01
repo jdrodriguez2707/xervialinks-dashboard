@@ -50,11 +50,11 @@ function getWorkerById(id) {
  * account atomically in a single SQLite transaction so both records are
  * always in sync.
  *
- * @param {{ name: string, email: string, percentage: number, password?: string }} data
+ * @param {{ name: string, email: string, percentage: number, password: string }} data
  */
 async function createWorker({ name, email, percentage, password }) {
-  if (!name || !email || percentage == null) {
-    throw new ValidationError("Nombre, email y porcentaje son requeridos");
+  if (!name || !email || percentage == null || !password || !String(password).trim()) {
+    throw new ValidationError("Nombre, email, porcentaje y contraseña son requeridos");
   }
   if (typeof percentage !== "number" || percentage <= 0 || percentage > 100) {
     throw new ValidationError("El porcentaje debe ser un número entre 0 y 100 (exclusivo)");
@@ -63,15 +63,11 @@ async function createWorker({ name, email, percentage, password }) {
   const existingWorker = workersRepo.findByEmail(email, { includeDeleted: true });
   if (existingWorker) throw new ConflictError(`El email ${email} ya está en uso`);
 
-  if (password) {
-    const existingUser = authRepo.findByEmail(email);
-    if (existingUser) throw new ConflictError(`Ya existe una cuenta de usuario con el email ${email}`);
+  const existingUser = authRepo.findByEmail(email);
+  if (existingUser) throw new ConflictError(`Ya existe una cuenta de usuario con el email ${email}`);
 
-    const passwordHash = await bcrypt.hash(password, 10);
-    return workersRepo.createWithUser({ name, email, percentage }, { passwordHash });
-  }
-
-  return workersRepo.create({ name, email, percentage });
+  const passwordHash = await bcrypt.hash(String(password).trim(), 10);
+  return workersRepo.createWithUser({ name, email, percentage }, { passwordHash });
 }
 
 function deleteWorker(id) {

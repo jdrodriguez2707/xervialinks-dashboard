@@ -27,7 +27,7 @@ export default function WorkerForm({ onCreated }) {
         name,
         email,
         percentage: parseFloat(percentage),
-        password: password || undefined,
+        password,
       });
       setName("");
       setEmail("");
@@ -104,6 +104,7 @@ export default function WorkerForm({ onCreated }) {
                 placeholder="Contraseña (para acceso al sistema)"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
+                required
               />
               {error && <p className="form-error">{error}</p>}
               <div className="modal-actions">

@@ -16,7 +16,7 @@ describe("POST /api/workers", () => {
     const res = await request(app)
       .post("/api/workers")
       .set("Authorization", `Bearer ${token}`)
-      .send({ name: "Alice", email: "alice@example.com", percentage: 70 });
+      .send({ name: "Alice", email: "alice@example.com", percentage: 70, password: "pass123" });
     expect(res.status).toBe(201);
     expect(res.body.data).toMatchObject({
       name: "Alice",
@@ -30,7 +30,7 @@ describe("POST /api/workers", () => {
   it("returns 401 without token", async () => {
     const res = await request(app)
       .post("/api/workers")
-      .send({ name: "X", email: "x@example.com", percentage: 10 });
+      .send({ name: "X", email: "x@example.com", percentage: 10, password: "pass123" });
     expect(res.status).toBe(401);
   });
 
@@ -38,11 +38,11 @@ describe("POST /api/workers", () => {
     await request(app)
       .post("/api/workers")
       .set("Authorization", `Bearer ${token}`)
-      .send({ name: "Bob", email: "bob@example.com", percentage: 50 });
+      .send({ name: "Bob", email: "bob@example.com", percentage: 50, password: "pass123" });
     const res = await request(app)
       .post("/api/workers")
       .set("Authorization", `Bearer ${token}`)
-      .send({ name: "Bob2", email: "bob@example.com", percentage: 30 });
+      .send({ name: "Bob2", email: "bob@example.com", percentage: 30, password: "pass123" });
     expect(res.status).toBe(409);
   });
 
@@ -50,7 +50,7 @@ describe("POST /api/workers", () => {
     const res = await request(app)
       .post("/api/workers")
       .set("Authorization", `Bearer ${token}`)
-      .send({ name: "Charlie", email: "charlie@example.com", percentage: 0 });
+      .send({ name: "Charlie", email: "charlie@example.com", percentage: 0, password: "pass123" });
     expect(res.status).toBe(400);
   });
 
@@ -81,7 +81,7 @@ describe("GET /api/workers/:id", () => {
     const res = await request(app)
       .post("/api/workers")
       .set("Authorization", `Bearer ${token}`)
-      .send({ name: "Eve", email: "eve@example.com", percentage: 60 });
+      .send({ name: "Eve", email: "eve@example.com", percentage: 60, password: "pass123" });
     workerId = res.body.data.id;
   });
 
@@ -108,7 +108,7 @@ describe("POST /api/workers/:id/properties", () => {
     const res = await request(app)
       .post("/api/workers")
       .set("Authorization", `Bearer ${token}`)
-      .send({ name: "Frank", email: "frank@example.com", percentage: 40 });
+      .send({ name: "Frank", email: "frank@example.com", percentage: 40, password: "pass123" });
     workerId = res.body.data.id;
   });
 
@@ -165,7 +165,7 @@ describe("POST /api/workers/:id/properties", () => {
     const workerRes = await request(app)
       .post("/api/workers")
       .set("Authorization", `Bearer ${token}`)
-      .send({ name: "George", email: "george@example.com", percentage: 35 });
+      .send({ name: "George", email: "george@example.com", percentage: 35, password: "pass123" });
     const secondWorkerId = workerRes.body.data.id;
 
     await request(app)
@@ -185,13 +185,13 @@ describe("POST /api/workers/:id/properties", () => {
     const firstRes = await request(app)
       .post("/api/workers")
       .set("Authorization", `Bearer ${token}`)
-      .send({ name: "Owner A", email: "ownera@example.com", percentage: 30 });
+      .send({ name: "Owner A", email: "ownera@example.com", percentage: 30, password: "pass123" });
     const firstWorkerId = firstRes.body.data.id;
 
     const secondRes = await request(app)
       .post("/api/workers")
       .set("Authorization", `Bearer ${token}`)
-      .send({ name: "Owner B", email: "ownerb@example.com", percentage: 30 });
+      .send({ name: "Owner B", email: "ownerb@example.com", percentage: 30, password: "pass123" });
     const secondWorkerId = secondRes.body.data.id;
 
     await request(app)
@@ -220,7 +220,7 @@ describe("PATCH /api/workers/:id/payment-status", () => {
     const res = await request(app)
       .post("/api/workers")
       .set("Authorization", `Bearer ${token}`)
-      .send({ name: "Helen", email: "helen@example.com", percentage: 55 });
+      .send({ name: "Helen", email: "helen@example.com", percentage: 55, password: "pass123" });
     workerId = res.body.data.id;
   });
 
@@ -285,7 +285,7 @@ describe("DELETE /api/workers/:id/purge-inactive", () => {
     const createRes = await request(app)
       .post("/api/workers")
       .set("Authorization", `Bearer ${token}`)
-      .send({ name: "Purge Worker", email: "purge@example.com", percentage: 35 });
+      .send({ name: "Purge Worker", email: "purge@example.com", percentage: 35, password: "pass123" });
     const workerId = createRes.body.data.id;
 
     const softDelete = await request(app)
@@ -308,12 +308,35 @@ describe("DELETE /api/workers/:id/purge-inactive", () => {
     const createRes = await request(app)
       .post("/api/workers")
       .set("Authorization", `Bearer ${token}`)
-      .send({ name: "Still Active", email: "still.active@example.com", percentage: 25 });
+      .send({ name: "Still Active", email: "still.active@example.com", percentage: 25, password: "pass123" });
     const workerId = createRes.body.data.id;
 
     const purge = await request(app)
       .delete(`/api/workers/${workerId}/purge-inactive`)
       .set("Authorization", `Bearer ${token}`);
     expect(purge.status).toBe(400);
+  });
+  it("allows reusing email after permanent purge", async () => {
+    const createRes = await request(app)
+      .post("/api/workers")
+      .set("Authorization", `Bearer ${token}`)
+      .send({ name: "Reusable Mail", email: "reusable@example.com", percentage: 30, password: "pass123" });
+    const workerId = createRes.body.data.id;
+
+    await request(app)
+      .delete(`/api/workers/${workerId}`)
+      .set("Authorization", `Bearer ${token}`);
+
+    await request(app)
+      .delete(`/api/workers/${workerId}/purge-inactive`)
+      .set("Authorization", `Bearer ${token}`);
+
+    const recreate = await request(app)
+      .post("/api/workers")
+      .set("Authorization", `Bearer ${token}`)
+      .send({ name: "Reusable Mail 2", email: "reusable@example.com", percentage: 40, password: "pass123" });
+
+    expect(recreate.status).toBe(201);
+    expect(recreate.body.data.email).toBe("reusable@example.com");
   });
 });
