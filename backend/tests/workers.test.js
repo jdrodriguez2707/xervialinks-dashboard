@@ -153,6 +153,14 @@ describe("POST /api/workers/:id/properties", () => {
     expect(res.status).toBe(404);
   });
 
+  it("returns 400 when assigning an apex/root domain", async () => {
+    const res = await request(app)
+      .post(`/api/workers/${workerId}/properties`)
+      .set("Authorization", `Bearer ${token}`)
+      .send({ type: "domain", value: "barbacoadicto.com" });
+    expect(res.status).toBe(400);
+  });
+
   it("returns 409 when domain is already assigned to another worker", async () => {
     const workerRes = await request(app)
       .post("/api/workers")

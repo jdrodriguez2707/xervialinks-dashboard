@@ -1,6 +1,7 @@
 const bcrypt = require("bcryptjs");
 const workersRepo = require("../../domain/repositories/workers.repository");
 const authRepo = require("../../domain/repositories/auth.repository");
+const { isAssignableSubdomain } = require("./sites.service");
 
 class ValidationError extends Error {
   constructor(message) {
@@ -88,6 +89,11 @@ function addPropertyToWorker(workerId, { type, value }) {
 
   // Domain ownership is exclusive across workers.
   if (type === "domain") {
+    if (!isAssignableSubdomain(trimmedValue)) {
+      throw new ValidationError(
+        "Solo se permiten subdominios asignables (ej: elvalerobux.barbacoadicto.com)"
+      );
+    }
     const existingDomain = workersRepo.findPropertyByTypeAndValue("domain", trimmedValue);
     if (existingDomain && existingDomain.worker_id !== Number(workerId)) {
       throw new ConflictError(
