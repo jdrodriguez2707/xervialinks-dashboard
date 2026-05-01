@@ -21,6 +21,7 @@ const ADMIN_RANGE_LABELS = {
 };
 const ADMIN_CACHE_TTL_MS = 60 * 1000;
 const WORKER_DOMAIN_STORAGE_PREFIX = "workerDashboardSelectedDomain";
+const WORKER_TAB_STORAGE_PREFIX = "workerDashboardActiveTab";
 
 function getWorkerDomains(context) {
   return (context?.properties || [])
@@ -266,6 +267,15 @@ export default function App() {
     setWorkerMetricsError(null);
     setWorkerSelectedDomain(null);
     workerValidDomainsRef.current = [];
+    if (typeof window !== "undefined") {
+      const tabPrefix = `${WORKER_TAB_STORAGE_PREFIX}:`;
+      for (let i = window.sessionStorage.length - 1; i >= 0; i -= 1) {
+        const key = window.sessionStorage.key(i);
+        if (key && key.startsWith(tabPrefix)) {
+          window.sessionStorage.removeItem(key);
+        }
+      }
+    }
     adminMetricsCacheRef.current.clear();
   }
 
@@ -324,6 +334,7 @@ export default function App() {
             metricsLoading={workerMetricsLoading}
             metricsError={workerMetricsError}
             error={error}
+            workerId={data?.workerContext?.workerId ?? null}
             onContextRefresh={async () => {
               try {
                 const ctx = await fetchWorkerContext();

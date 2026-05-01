@@ -34,7 +34,11 @@ const fmtEcpm = (n) =>
 const fmtImpressions = (n) =>
   new Intl.NumberFormat("es-MX").format(n ?? 0);
 
-const WORKER_TAB_STORAGE_KEY = "workerDashboardActiveTab";
+const WORKER_TAB_STORAGE_PREFIX = "workerDashboardActiveTab";
+
+function getWorkerTabStorageKey(workerId) {
+  return `${WORKER_TAB_STORAGE_PREFIX}:${workerId || "unknown"}`;
+}
 
 function SkeletonCards() {
   return (
@@ -81,12 +85,9 @@ export default function WorkerDashboard({
   metricsError,
   error,
   onContextRefresh,
+  workerId,
 }) {
-  const [activeTab, setActiveTab] = useState(() => {
-    if (typeof window === "undefined") return "stats";
-    const saved = window.localStorage.getItem(WORKER_TAB_STORAGE_KEY);
-    return saved || "stats";
-  });
+  const [activeTab, setActiveTab] = useState("stats");
   const [selectedRange, setSelectedRange] = useState("today");
   const [paymentInfo, setPaymentInfo] = useState(
     () => workerContext?.paymentInfo ?? null
@@ -124,8 +125,19 @@ export default function WorkerDashboard({
 
   useEffect(() => {
     if (typeof window === "undefined") return;
-    window.localStorage.setItem(WORKER_TAB_STORAGE_KEY, activeTab);
-  }, [activeTab]);
+    if (!workerId) {
+      setActiveTab("stats");
+      return;
+    }
+    const saved = window.sessionStorage.getItem(getWorkerTabStorageKey(workerId));
+    setActiveTab(saved || "stats");
+  }, [workerId]);
+
+  function handleTabChange(nextTab) {
+    setActiveTab(nextTab);
+    if (typeof window === "undefined" || !workerId) return;
+    window.sessionStorage.setItem(getWorkerTabStorageKey(workerId), nextTab);
+  }
 
   const { properties = [] } = workerContext ?? {};
   const domains = properties.filter((p) => p.type === "domain");
@@ -253,7 +265,7 @@ export default function WorkerDashboard({
                 key={tab.id}
                 type="button"
                 className={`worker-nav-btn ${isActive ? "active" : ""}`}
-                onClick={() => setActiveTab(tab.id)}
+                onClick={() => handleTabChange(tab.id)}
                 aria-label={tab.label}
                 aria-current={isActive ? "page" : undefined}
               >
