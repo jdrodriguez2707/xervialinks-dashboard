@@ -12,6 +12,7 @@ import PayoutsTable from "../features/admin/components/PayoutsTable";
 import WorkersList from "../features/admin/components/WorkersList";
 import WorkerForm from "../features/admin/components/WorkerForm";
 import WorkerDashboard from "../features/worker/components/WorkerDashboard";
+import { LayoutDashboard, Wallet, Users, Network, UserCircle2, LogOut, Menu, X } from "lucide-react";
 
 const ADMIN_RANGE_LABELS = {
   today: "Hoy",
@@ -22,6 +23,14 @@ const ADMIN_RANGE_LABELS = {
 const ADMIN_CACHE_TTL_MS = 60 * 1000;
 const WORKER_DOMAIN_STORAGE_PREFIX = "workerDashboardSelectedDomain";
 const WORKER_TAB_STORAGE_PREFIX = "workerDashboardActiveTab";
+
+const ADMIN_MENU_OPTIONS = [
+  { id: "dashboard", label: "Dashboard", icon: LayoutDashboard },
+  { id: "earnings", label: "Ganancias", icon: Wallet },
+  { id: "workers", label: "Trabajadores", icon: Users },
+  { id: "network-codes", label: "Codigos de red", icon: Network },
+  { id: "profile", label: "Perfil", icon: UserCircle2 },
+];
 
 function getWorkerDomains(context) {
   return (context?.properties || [])
@@ -60,6 +69,7 @@ export default function App() {
   const [workerMetricsError, setWorkerMetricsError] = useState(null);
   const [workerSelectedDomain, setWorkerSelectedDomain] = useState(null);
   const [currentDateLabel, setCurrentDateLabel] = useState(() => formatUserDateLabel());
+  const [adminMenuOpen, setAdminMenuOpen] = useState(false);
   const adminMetricsCacheRef = useRef(new Map());
   const workerValidDomainsRef = useRef([]);
 
@@ -196,6 +206,17 @@ export default function App() {
   }, []);
 
   useEffect(() => {
+    if (typeof document === "undefined") return;
+    if (user?.role === "admin" && adminMenuOpen) {
+      document.body.style.overflow = "hidden";
+      return () => {
+        document.body.style.overflow = "";
+      };
+    }
+    document.body.style.overflow = "";
+  }, [adminMenuOpen, user?.role]);
+
+  useEffect(() => {
     async function refreshAdminByRange() {
       if (!user || user.role !== "admin" || !adminReady) return;
       const cached = getCachedAdminMetrics(adminRange);
@@ -273,6 +294,8 @@ export default function App() {
     setData(null);
     setWorkerSelectedDomain(null);
     workerValidDomainsRef.current = [];
+    setAdminMenuOpen(false);
+    setAdminMenuOpen(false);
     setUser(loggedUser);
   }
 
@@ -304,36 +327,91 @@ export default function App() {
 
   if (!user) return <LoginForm onLogin={handleLogin} notice={sessionNotice} />;
 
-  return (
-    <div className="app">
-      <header className="app-header">
-        <div className="header-title-group">
-          <h1>XerviaLinks Metrics</h1>
-          <p className="app-current-date">{currentDateLabel}</p>
-        </div>
-        <div className="header-user">
-          <div className="header-user-info">
-            <span className="header-user-name">{user.name}</span>
-            <span className="role-badge">
-              {user.role === "admin" ? "Administrador" : "Trabajador"}
-            </span>
+  if (user.role === "admin") {
+    return (
+      <div className="app app--admin">
+        <aside
+          className={`admin-sidebar ${adminMenuOpen ? "open" : ""}`}
+          aria-label="Navegación de administrador"
+        >
+          <div className="admin-sidebar-mobile-top">
+            <button
+              type="button"
+              className="admin-sidebar-close"
+              aria-label="Cerrar menú"
+              onClick={() => setAdminMenuOpen(false)}
+            >
+              <X size={18} aria-hidden />
+            </button>
           </div>
+
+          <nav className="admin-sidebar-nav">
+            {ADMIN_MENU_OPTIONS.map((item, idx) => {
+              const Icon = item.icon;
+              const isActive = idx === 0;
+              return (
+                <button
+                  key={item.id}
+                  type="button"
+                  className={`admin-sidebar-item ${isActive ? "active" : ""}`}
+                  aria-current={isActive ? "page" : undefined}
+                  onClick={() => setAdminMenuOpen(false)}
+                >
+                  <Icon size={17} aria-hidden />
+                  <span>{item.label}</span>
+                </button>
+              );
+            })}
+          </nav>
+
+          <div className="admin-sidebar-footer">
+            <div className="admin-sidebar-user">
+              <span className="header-user-name">{user.name}</span>
+              <span className="role-badge">Administrador</span>
+            </div>
+            <button
+              type="button"
+              className="admin-sidebar-logout"
+              onClick={() => {
+                setAdminMenuOpen(false);
+                handleLogout();
+              }}
+            >
+              <LogOut size={16} aria-hidden />
+              <span>Cerrar sesión</span>
+            </button>
+          </div>
+        </aside>
+
+        {adminMenuOpen && (
           <button
             type="button"
-            className="btn-logout"
-            onClick={() => handleLogout()}
-          >
-            Cerrar sesión
-          </button>
-        </div>
-        {user.role === "admin" && (loading || refreshingAdmin) && (
-          <div className="header-progress" aria-hidden="true" />
+            className="admin-sidebar-overlay"
+            aria-label="Cerrar menú lateral"
+            onClick={() => setAdminMenuOpen(false)}
+          />
         )}
-      </header>
 
-      <main className="app-main">
-        {user.role === "admin" && (
-          <>
+        <div className="admin-main-shell">
+          <header className="app-header">
+            <button
+              type="button"
+              className="admin-mobile-menu-btn"
+              aria-label="Abrir menú"
+              onClick={() => setAdminMenuOpen(true)}
+            >
+              <Menu size={18} aria-hidden />
+            </button>
+            <div className="header-title-group">
+              <h1>XerviaLinks Metrics</h1>
+              <p className="app-current-date">{currentDateLabel}</p>
+            </div>
+            {(loading || refreshingAdmin) && (
+              <div className="header-progress" aria-hidden="true" />
+            )}
+          </header>
+
+          <main className="app-main">
             {loading && <p className="status-msg">Cargando dashboard…</p>}
             {error && <p className="status-msg error">Error: {error}</p>}
             {!loading && data && (
@@ -344,45 +422,68 @@ export default function App() {
                 onChangeAdminRange={setAdminRange}
               />
             )}
-          </>
-        )}
+          </main>
+        </div>
+      </div>
+    );
+  }
 
-        {user.role === "worker" && (
-          <WorkerDashboard
-            workerContext={data?.workerContext ?? null}
-            workerMetrics={data?.workerMetrics ?? null}
-            selectedDomain={workerSelectedDomain}
-            onDomainChange={async (nextDomain) => {
+  return (
+    <div className="app">
+      <header className="app-header">
+        <div className="header-title-group">
+          <h1>XerviaLinks Metrics</h1>
+          <p className="app-current-date">{currentDateLabel}</p>
+        </div>
+        <div className="header-user">
+          <div className="header-user-info">
+            <span className="header-user-name">{user.name}</span>
+            <span className="role-badge">Trabajador</span>
+          </div>
+          <button
+            type="button"
+            className="btn-logout"
+            onClick={() => handleLogout()}
+          >
+            Cerrar sesión
+          </button>
+        </div>
+      </header>
+
+      <main className="app-main">
+        <WorkerDashboard
+          workerContext={data?.workerContext ?? null}
+          workerMetrics={data?.workerMetrics ?? null}
+          selectedDomain={workerSelectedDomain}
+          onDomainChange={async (nextDomain) => {
+            setWorkerSelectedDomain(nextDomain);
+            await loadWorkerMetrics(nextDomain, getWorkerDomains(data?.workerContext));
+          }}
+          contextLoading={loading}
+          metricsLoading={workerMetricsLoading}
+          metricsError={workerMetricsError}
+          error={error}
+          workerId={data?.workerContext?.workerId ?? null}
+          onContextRefresh={async () => {
+            try {
+              const ctx = await fetchWorkerContext();
+              const domains = getWorkerDomains(ctx);
+              const stillValid = workerSelectedDomain && domains.includes(workerSelectedDomain);
+              const nextDomain = stillValid ? workerSelectedDomain : domains[0] || null;
               setWorkerSelectedDomain(nextDomain);
-              await loadWorkerMetrics(nextDomain, getWorkerDomains(data?.workerContext));
-            }}
-            contextLoading={loading}
-            metricsLoading={workerMetricsLoading}
-            metricsError={workerMetricsError}
-            error={error}
-            workerId={data?.workerContext?.workerId ?? null}
-            onContextRefresh={async () => {
-              try {
-                const ctx = await fetchWorkerContext();
-                const domains = getWorkerDomains(ctx);
-                const stillValid = workerSelectedDomain && domains.includes(workerSelectedDomain);
-                const nextDomain = stillValid ? workerSelectedDomain : domains[0] || null;
-                setWorkerSelectedDomain(nextDomain);
-                setData((prev) => ({ ...prev, workerContext: ctx }));
-                if (nextDomain) {
-                  await loadWorkerMetrics(nextDomain, domains);
-                }
-              } catch {
-                /* ignore refresh errors */
+              setData((prev) => ({ ...prev, workerContext: ctx }));
+              if (nextDomain) {
+                await loadWorkerMetrics(nextDomain, domains);
               }
-            }}
-          />
-        )}
+            } catch {
+              /* ignore refresh errors */
+            }
+          }}
+        />
       </main>
     </div>
   );
 }
-
 function AdminDashboard({ data, onWorkersUpdate, adminRange, onChangeAdminRange }) {
   const { summary, workers, payouts, sites } = data;
   return (
