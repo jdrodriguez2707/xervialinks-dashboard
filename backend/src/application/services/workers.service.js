@@ -71,7 +71,15 @@ async function createWorker({ name, email, percentage, password }) {
 }
 
 function deleteWorker(id) {
-  const deleted = workersRepo.deleteById(Number(id));
+  const numericId = Number(id);
+  const worker = workersRepo.findById(numericId);
+  if (!worker) throw new NotFoundError(`Worker ${id} not found`);
+
+  const hasAssignedDomains = (worker.properties || []).some((p) => p.type === "domain");
+  const deleted = hasAssignedDomains
+    ? workersRepo.deleteById(numericId)
+    : workersRepo.hardDeleteById(numericId);
+
   if (!deleted) throw new NotFoundError(`Worker ${id} not found`);
 }
 

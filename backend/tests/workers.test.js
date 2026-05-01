@@ -256,6 +256,11 @@ describe("DELETE /api/workers/:id", () => {
         password: "pass123",
       });
     workerId = res.body.data.id;
+
+    await request(app)
+      .post(`/api/workers/${workerId}/properties`)
+      .set("Authorization", `Bearer ${token}`)
+      .send({ type: "domain", value: "softdelete.domain.example.com" });
   });
 
   it("soft deletes worker and hides it from active list", async () => {
@@ -278,6 +283,35 @@ describe("DELETE /api/workers/:id", () => {
       .send({ email: "softdelete@example.com", password: "pass123" });
     expect(res.status).toBe(401);
   });
+  it("hard deletes workers without subdomains and frees their email", async () => {
+    const createRes = await request(app)
+      .post("/api/workers")
+      .set("Authorization", `Bearer ${token}`)
+      .send({
+        name: "No Domain Worker",
+        email: "nodomain@example.com",
+        percentage: 35,
+        password: "pass123",
+      });
+    const noDomainWorkerId = createRes.body.data.id;
+
+    const del = await request(app)
+      .delete(`/api/workers/${noDomainWorkerId}`)
+      .set("Authorization", `Bearer ${token}`);
+    expect(del.status).toBe(204);
+
+    const recreate = await request(app)
+      .post("/api/workers")
+      .set("Authorization", `Bearer ${token}`)
+      .send({
+        name: "No Domain Worker 2",
+        email: "nodomain@example.com",
+        percentage: 40,
+        password: "pass123",
+      });
+    expect(recreate.status).toBe(201);
+    expect(recreate.body.data.email).toBe("nodomain@example.com");
+  });
 });
 
 describe("DELETE /api/workers/:id/purge-inactive", () => {
@@ -287,6 +321,11 @@ describe("DELETE /api/workers/:id/purge-inactive", () => {
       .set("Authorization", `Bearer ${token}`)
       .send({ name: "Purge Worker", email: "purge@example.com", percentage: 35, password: "pass123" });
     const workerId = createRes.body.data.id;
+
+    await request(app)
+      .post(`/api/workers/${workerId}/properties`)
+      .set("Authorization", `Bearer ${token}`)
+      .send({ type: "domain", value: "purge.path.example.com" });
 
     const softDelete = await request(app)
       .delete(`/api/workers/${workerId}`)
@@ -322,6 +361,11 @@ describe("DELETE /api/workers/:id/purge-inactive", () => {
       .set("Authorization", `Bearer ${token}`)
       .send({ name: "Reusable Mail", email: "reusable@example.com", percentage: 30, password: "pass123" });
     const workerId = createRes.body.data.id;
+
+    await request(app)
+      .post(`/api/workers/${workerId}/properties`)
+      .set("Authorization", `Bearer ${token}`)
+      .send({ type: "domain", value: "reusable.path.example.com" });
 
     await request(app)
       .delete(`/api/workers/${workerId}`)

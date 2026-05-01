@@ -79,6 +79,23 @@ function deleteById(id) {
 }
 
 
+
+function hardDeleteById(id) {
+  const db = getDb();
+  const worker = findById(id, { includeDeleted: true });
+  if (!worker) return false;
+
+  db.transaction(() => {
+    db.prepare("DELETE FROM worker_payment_info WHERE worker_id = ?").run(id);
+    db.prepare("DELETE FROM worker_payment_status WHERE worker_id = ?").run(id);
+    db.prepare("DELETE FROM properties WHERE worker_id = ?").run(id);
+    db.prepare("DELETE FROM workers WHERE id = ?").run(id);
+    db.prepare("DELETE FROM users WHERE email = ? AND role = 'worker'").run(worker.email);
+  })();
+
+  return true;
+}
+
 function hardDeleteInactiveById(id) {
   const db = getDb();
   const worker = findById(id, { includeDeleted: true });
@@ -194,6 +211,7 @@ module.exports = {
   create,
   createWithUser,
   deleteById,
+  hardDeleteById,
   hardDeleteInactiveById,
   addProperty,
   findPropertyByTypeAndValue,
