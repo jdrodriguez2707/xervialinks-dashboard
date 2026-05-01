@@ -31,6 +31,15 @@ const ADMIN_MENU_OPTIONS = [
   { id: "profile", label: "Perfil", icon: UserCircle2 },
 ];
 
+const ADMIN_ACTIVE_MODULE_STORAGE_KEY = "adminActiveModule";
+
+function readStoredAdminActiveModule() {
+  if (typeof window === "undefined") return "dashboard";
+  const stored = window.sessionStorage.getItem(ADMIN_ACTIVE_MODULE_STORAGE_KEY);
+  if (!stored) return "dashboard";
+  return ADMIN_MENU_OPTIONS.some((o) => o.id === stored) ? stored : "dashboard";
+}
+
 function getWorkerDomains(context) {
   return (context?.properties || [])
     .filter((p) => p.type === "domain")
@@ -70,7 +79,11 @@ export default function App() {
   const [workerSelectedDomain, setWorkerSelectedDomain] = useState(null);
   const [currentDateLabel, setCurrentDateLabel] = useState(() => formatUserDateLabel());
   const [adminMenuOpen, setAdminMenuOpen] = useState(false);
-  const [adminActiveModule, setAdminActiveModule] = useState("dashboard");
+  const [adminActiveModule, setAdminActiveModule] = useState(() => {
+    const u = getStoredUser();
+    if (u?.role !== "admin") return "dashboard";
+    return readStoredAdminActiveModule();
+  });
   const [highlightedEarningsWorkerId, setHighlightedEarningsWorkerId] = useState(null);
   const adminDashboardCacheRef = useRef(new Map());
   const adminEarningsCacheRef = useRef(new Map());
@@ -226,6 +239,11 @@ export default function App() {
   }, [loadInitial]);
 
   useEffect(() => {
+    if (typeof window === "undefined" || user?.role !== "admin") return;
+    window.sessionStorage.setItem(ADMIN_ACTIVE_MODULE_STORAGE_KEY, adminActiveModule);
+  }, [adminActiveModule, user?.role]);
+
+  useEffect(() => {
     setCurrentDateLabel(formatUserDateLabel());
     const timer = window.setInterval(() => {
       setCurrentDateLabel(formatUserDateLabel());
@@ -376,6 +394,7 @@ export default function App() {
     setWorkerSelectedDomain(null);
     workerValidDomainsRef.current = [];
     if (typeof window !== "undefined") {
+      window.sessionStorage.removeItem(ADMIN_ACTIVE_MODULE_STORAGE_KEY);
       const tabPrefix = `${WORKER_TAB_STORAGE_PREFIX}:`;
       for (let i = window.sessionStorage.length - 1; i >= 0; i -= 1) {
         const key = window.sessionStorage.key(i);
