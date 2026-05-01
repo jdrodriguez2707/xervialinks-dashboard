@@ -8,9 +8,7 @@ import { fetchWorkerContext, fetchWorkerDashboard } from "../shared/api/worker";
 import { fetchSites } from "../shared/api/sites";
 import LoginForm from "../features/auth/components/LoginForm";
 import SummaryCards from "../features/admin/components/SummaryCards";
-import PayoutsTable from "../features/admin/components/PayoutsTable";
 import WorkersList from "../features/admin/components/WorkersList";
-import WorkerForm from "../features/admin/components/WorkerForm";
 import WorkerDashboard from "../features/worker/components/WorkerDashboard";
 import { LayoutDashboard, Wallet, Users, Network, UserCircle2, LogOut, Menu, X } from "lucide-react";
 
@@ -70,6 +68,7 @@ export default function App() {
   const [workerSelectedDomain, setWorkerSelectedDomain] = useState(null);
   const [currentDateLabel, setCurrentDateLabel] = useState(() => formatUserDateLabel());
   const [adminMenuOpen, setAdminMenuOpen] = useState(false);
+  const [adminActiveModule, setAdminActiveModule] = useState("dashboard");
   const adminMetricsCacheRef = useRef(new Map());
   const workerValidDomainsRef = useRef([]);
 
@@ -295,7 +294,9 @@ export default function App() {
     setWorkerSelectedDomain(null);
     workerValidDomainsRef.current = [];
     setAdminMenuOpen(false);
+    setAdminActiveModule("dashboard");
     setAdminMenuOpen(false);
+    setAdminActiveModule("dashboard");
     setUser(loggedUser);
   }
 
@@ -327,6 +328,9 @@ export default function App() {
 
   if (!user) return <LoginForm onLogin={handleLogin} notice={sessionNotice} />;
 
+  const activeAdminModule =
+    ADMIN_MENU_OPTIONS.find((item) => item.id === adminActiveModule) || ADMIN_MENU_OPTIONS[0];
+
   if (user.role === "admin") {
     return (
       <div className="app app--admin">
@@ -334,6 +338,8 @@ export default function App() {
           className={`admin-sidebar ${adminMenuOpen ? "open" : ""}`}
           aria-label="Navegación de administrador"
         >
+          <div className="admin-sidebar-brand">XerviaLinks Metrics</div>
+
           <div className="admin-sidebar-mobile-top">
             <button
               type="button"
@@ -346,16 +352,19 @@ export default function App() {
           </div>
 
           <nav className="admin-sidebar-nav">
-            {ADMIN_MENU_OPTIONS.map((item, idx) => {
+            {ADMIN_MENU_OPTIONS.map((item) => {
               const Icon = item.icon;
-              const isActive = idx === 0;
+              const isActive = item.id === adminActiveModule;
               return (
                 <button
                   key={item.id}
                   type="button"
                   className={`admin-sidebar-item ${isActive ? "active" : ""}`}
                   aria-current={isActive ? "page" : undefined}
-                  onClick={() => setAdminMenuOpen(false)}
+                  onClick={() => {
+                    setAdminActiveModule(item.id);
+                    setAdminMenuOpen(false);
+                  }}
                 >
                   <Icon size={17} aria-hidden />
                   <span>{item.label}</span>
@@ -403,7 +412,7 @@ export default function App() {
               <Menu size={18} aria-hidden />
             </button>
             <div className="header-title-group">
-              <h1>XerviaLinks Metrics</h1>
+              <h1>{activeAdminModule.label}</h1>
               <p className="app-current-date">{currentDateLabel}</p>
             </div>
             {(loading || refreshingAdmin) && (
@@ -420,6 +429,7 @@ export default function App() {
                 onWorkersUpdate={refreshAdminWorkersAndPayouts}
                 adminRange={adminRange}
                 onChangeAdminRange={setAdminRange}
+                activeModule={adminActiveModule}
               />
             )}
           </main>
@@ -484,8 +494,17 @@ export default function App() {
     </div>
   );
 }
-function AdminDashboard({ data, onWorkersUpdate, adminRange, onChangeAdminRange }) {
-  const { summary, workers, payouts, sites } = data;
+function AdminDashboard({ data, onWorkersUpdate, adminRange, onChangeAdminRange, activeModule }) {
+  const { summary, workers, sites } = data;
+  if (activeModule !== "dashboard") {
+    return (
+      <section>
+        <h2>{activeModule === "earnings" ? "Ganancias" : activeModule === "workers" ? "Trabajadores" : activeModule === "network-codes" ? "Codigos de red" : "Perfil"}</h2>
+        <p className="empty-state">Módulo en construcción.</p>
+      </section>
+    );
+  }
+
   return (
     <>
       <section>
@@ -507,18 +526,8 @@ function AdminDashboard({ data, onWorkersUpdate, adminRange, onChangeAdminRange 
       </section>
 
       <section>
-        <h2>Ganancias por trabajador</h2>
-        <PayoutsTable
-          payouts={payouts.payouts}
-          totalPayout={payouts.totalPayout}
-          onPurgeInactive={onWorkersUpdate}
-        />
-      </section>
-
-      <section>
         <h2>Trabajadores</h2>
-        <WorkerForm onCreated={onWorkersUpdate} />
-        <WorkersList workers={workers} sites={sites} onUpdate={onWorkersUpdate} />
+        <WorkersList workers={workers} sites={sites} onUpdate={onWorkersUpdate} mode="dashboard" />
       </section>
     </>
   );

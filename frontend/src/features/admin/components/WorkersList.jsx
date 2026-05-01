@@ -13,7 +13,7 @@ import {
  *   onUpdate: () => void
  * }} props
  */
-export default function WorkersList({ workers, sites = [], onUpdate }) {
+export default function WorkersList({ workers, sites = [], onUpdate, mode = "management" }) {
   const globallyAssignedDomains = new Set(
     workers.flatMap((w) =>
       w.properties
@@ -39,13 +39,14 @@ export default function WorkersList({ workers, sites = [], onUpdate }) {
           sites={sites}
           globallyAssignedDomains={globallyAssignedDomains}
           onUpdate={onUpdate}
+          mode={mode}
         />
       ))}
     </div>
   );
 }
 
-function WorkerCard({ worker, sites, globallyAssignedDomains, onUpdate }) {
+function WorkerCard({ worker, sites, globallyAssignedDomains, onUpdate, mode }) {
   const [selectedSite, setSelectedSite] = useState("");
   const [error, setError] = useState(null);
   const [submitting, setSubmitting] = useState(false);
@@ -58,6 +59,7 @@ function WorkerCard({ worker, sites, globallyAssignedDomains, onUpdate }) {
   const paymentStatus = worker.paymentStatus || "pending";
   const isPaid = paymentStatus === "paid";
   const paymentStatusLabel = isPaid ? "Pagado" : "Pendiente de pago";
+  const isDashboardMode = mode === "dashboard";
 
   // Sites still unassigned to any worker (exclusive ownership per domain).
   const availableSites = sites.filter((s) => !globallyAssignedDomains.has(s));
@@ -120,15 +122,17 @@ function WorkerCard({ worker, sites, globallyAssignedDomains, onUpdate }) {
         </div>
         <div className="worker-card-actions">
           <span className="percentage-badge">{worker.percentage}%</span>
-          <button
-            className="btn-icon btn-delete"
-            aria-label={`Eliminar a ${worker.name}`}
-            onClick={handleDelete}
-            disabled={deleting}
-            title="Eliminar trabajador"
-          >
-            {deleting ? "…" : "✕"}
-          </button>
+          {!isDashboardMode && (
+            <button
+              className="btn-icon btn-delete"
+              aria-label={`Eliminar a ${worker.name}`}
+              onClick={handleDelete}
+              disabled={deleting}
+              title="Eliminar trabajador"
+            >
+              {deleting ? "…" : "✕"}
+            </button>
+          )}
         </div>
       </div>
 
@@ -143,15 +147,17 @@ function WorkerCard({ worker, sites, globallyAssignedDomains, onUpdate }) {
                 </span>
               ))}
             </div>
-            <button
-              type="button"
-              className="btn-icon btn-payment"
-              title="Ver estado e información de pago"
-              aria-label={`Ver información de pago de ${worker.name}`}
-              onClick={() => setOpenPaymentModal(true)}
-            >
-              <WalletCards size={16} />
-            </button>
+            {!isDashboardMode && (
+              <button
+                type="button"
+                className="btn-icon btn-payment"
+                title="Ver estado e información de pago"
+                aria-label={`Ver información de pago de ${worker.name}`}
+                onClick={() => setOpenPaymentModal(true)}
+              >
+                <WalletCards size={16} />
+              </button>
+            )}
           </div>
         ) : (
           <p className="no-domains">Sin subdominios asignados.</p>
@@ -159,39 +165,41 @@ function WorkerCard({ worker, sites, globallyAssignedDomains, onUpdate }) {
       </div>
 
       {/* ── Add domain form ── */}
-      <form className="property-form" onSubmit={handleAddDomain}>
-        <span className="property-form-label">Subdominio</span>
-        <select
-          className="form-select property-form-select"
-          value={selectedSite}
-          onChange={(e) => setSelectedSite(e.target.value)}
-          required
-        >
-          <option value="" disabled>
-            Seleccionar sitio…
-          </option>
-          {availableSites.map((s) => (
-            <option key={s} value={s}>
-              {s}
+      {!isDashboardMode && (
+        <form className="property-form" onSubmit={handleAddDomain}>
+          <span className="property-form-label">Subdominio</span>
+          <select
+            className="form-select property-form-select"
+            value={selectedSite}
+            onChange={(e) => setSelectedSite(e.target.value)}
+            required
+          >
+            <option value="" disabled>
+              Seleccionar sitio…
             </option>
-          ))}
-        </select>
-        <button
-          type="submit"
-          className="btn btn-sm btn-add-domain"
-          disabled={submitting || availableSites.length === 0}
-        >
-          {submitting ? "Agregando…" : "Agregar"}
-        </button>
-      </form>
+            {availableSites.map((s) => (
+              <option key={s} value={s}>
+                {s}
+              </option>
+            ))}
+          </select>
+          <button
+            type="submit"
+            className="btn btn-sm btn-add-domain"
+            disabled={submitting || availableSites.length === 0}
+          >
+            {submitting ? "Agregando…" : "Agregar"}
+          </button>
+        </form>
+      )}
 
       <div className="worker-payment-status-row">
         <span className={statusClassName}>{paymentStatusLabel}</span>
       </div>
 
-      {error && <p className="form-error">{error}</p>}
+      {!isDashboardMode && error && <p className="form-error">{error}</p>}
 
-      {openPaymentModal && (
+      {!isDashboardMode && openPaymentModal && (
         <div className="modal-overlay" onClick={() => setOpenPaymentModal(false)}>
           <div
             className="modal payment-status-modal"

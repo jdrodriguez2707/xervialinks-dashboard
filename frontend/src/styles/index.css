@@ -36,9 +36,18 @@ body {
   border-right: 1px solid #1e293b;
   display: flex;
   flex-direction: column;
-  justify-content: space-between;
+  justify-content: flex-start;
   padding: 1rem 0.75rem;
   overflow: hidden;
+}
+
+.admin-sidebar-brand {
+  color: #f8fafc;
+  font-weight: 700;
+  font-size: 1rem;
+  letter-spacing: 0.2px;
+  margin-bottom: 0.45rem;
+  padding: 0 0.35rem;
 }
 
 .admin-sidebar-nav {
@@ -60,6 +69,7 @@ body {
   font-weight: 500;
   text-align: left;
   width: 100%;
+  cursor: pointer;
 }
 
 .admin-sidebar-item.active {
@@ -71,6 +81,7 @@ body {
 .admin-sidebar-footer {
   border-top: 1px solid #1e293b;
   padding-top: 0.75rem;
+  margin-top: auto;
   display: flex;
   flex-direction: column;
   gap: 0.65rem;
@@ -226,7 +237,6 @@ body {
   padding: 0.85rem 1.5rem;
   display: flex;
   align-items: center;
-  justify-content: space-between;
   gap: 1rem;
   flex-wrap: nowrap;
   overflow: hidden;
@@ -431,7 +441,7 @@ body {
   padding: 0.7rem 0.85rem;
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-start;
   font-size: 0.92rem;
   font-weight: 600;
   cursor: pointer;
@@ -550,6 +560,24 @@ body {
   gap: 2rem;
   /* prevent any child from causing horizontal overflow */
   overflow-x: hidden;
+}
+
+
+.app--admin .app-main {
+  max-width: 1360px;
+  width: min(100%, 1360px);
+  padding-left: 1.25rem;
+  padding-right: 1.25rem;
+}
+
+@media (min-width: 1024px) {
+  .app--admin .summary-cards {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .app--admin .workers-list {
+    grid-template-columns: repeat(auto-fill, minmax(min(100%, 320px), 1fr));
+  }
 }
 
 .app-main h2 {
@@ -791,7 +819,7 @@ body {
 
 .worker-card-header {
   display: flex;
-  justify-content: space-between;
+  justify-content: flex-start;
   align-items: flex-start;
   gap: 0.5rem;
 }
@@ -869,7 +897,7 @@ body {
 .worker-properties-row {
   display: flex;
   align-items: flex-start;
-  justify-content: space-between;
+  justify-content: flex-start;
   gap: 0.65rem;
 }
 
@@ -1040,7 +1068,7 @@ body {
 .modal-header {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-start;
   margin-bottom: 1.25rem;
 }
 
@@ -1235,7 +1263,7 @@ body {
 .metric-header-row {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-start;
   gap: 0.75rem;
 }
 
