@@ -79,6 +79,15 @@ function addProperty(workerId, { type, value }) {
     .get(result.lastInsertRowid);
 }
 
+function findPropertyByTypeAndValue(type, value) {
+  const db = getDb();
+  return db
+    .prepare(
+      "SELECT id, worker_id, type, value FROM properties WHERE type = ? AND value = ? LIMIT 1"
+    )
+    .get(type, value);
+}
+
 function getProperties(workerId) {
   const db = getDb();
   return db
@@ -128,5 +137,6 @@ module.exports = {
   createWithUser,
   deleteById,
   addProperty,
+  findPropertyByTypeAndValue,
   upsertPaymentInfo,
 };

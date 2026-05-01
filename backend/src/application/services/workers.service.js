@@ -84,9 +84,20 @@ function addPropertyToWorker(workerId, { type, value }) {
   }
 
   getWorkerById(workerId);
+  const trimmedValue = value.trim();
+
+  // Domain ownership is exclusive across workers.
+  if (type === "domain") {
+    const existingDomain = workersRepo.findPropertyByTypeAndValue("domain", trimmedValue);
+    if (existingDomain && existingDomain.worker_id !== Number(workerId)) {
+      throw new ConflictError(
+        `El subdominio ${trimmedValue} ya está asignado a otro trabajador`
+      );
+    }
+  }
 
   try {
-    return workersRepo.addProperty(Number(workerId), { type, value: value.trim() });
+    return workersRepo.addProperty(Number(workerId), { type, value: trimmedValue });
   } catch (err) {
     if (err.message.includes("UNIQUE")) {
       throw new ConflictError(`La propiedad (${type}: ${value}) ya está asignada a este trabajador`);

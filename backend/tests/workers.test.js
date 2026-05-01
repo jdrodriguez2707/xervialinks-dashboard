@@ -152,4 +152,24 @@ describe("POST /api/workers/:id/properties", () => {
       .send({ type: "domain", value: "test.com" });
     expect(res.status).toBe(404);
   });
+
+  it("returns 409 when domain is already assigned to another worker", async () => {
+    const workerRes = await request(app)
+      .post("/api/workers")
+      .set("Authorization", `Bearer ${token}`)
+      .send({ name: "George", email: "george@example.com", percentage: 35 });
+    const secondWorkerId = workerRes.body.data.id;
+
+    await request(app)
+      .post(`/api/workers/${workerId}/properties`)
+      .set("Authorization", `Bearer ${token}`)
+      .send({ type: "domain", value: "exclusive.example.com" });
+
+    const res = await request(app)
+      .post(`/api/workers/${secondWorkerId}/properties`)
+      .set("Authorization", `Bearer ${token}`)
+      .send({ type: "domain", value: "exclusive.example.com" });
+
+    expect(res.status).toBe(409);
+  });
 });

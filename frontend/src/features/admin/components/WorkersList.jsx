@@ -9,6 +9,13 @@ import { addProperty, deleteWorker } from "../../../shared/api/workers";
  * }} props
  */
 export default function WorkersList({ workers, sites = [], onUpdate }) {
+  const globallyAssignedDomains = new Set(
+    workers.flatMap((w) =>
+      w.properties
+        .filter((p) => p.type === "domain")
+        .map((p) => p.value)
+    )
+  );
 
   if (workers.length === 0) {
     return (
@@ -25,6 +32,7 @@ export default function WorkersList({ workers, sites = [], onUpdate }) {
           key={worker.id}
           worker={worker}
           sites={sites}
+          globallyAssignedDomains={globallyAssignedDomains}
           onUpdate={onUpdate}
         />
       ))}
@@ -32,7 +40,7 @@ export default function WorkersList({ workers, sites = [], onUpdate }) {
   );
 }
 
-function WorkerCard({ worker, sites, onUpdate }) {
+function WorkerCard({ worker, sites, globallyAssignedDomains, onUpdate }) {
   const [selectedSite, setSelectedSite] = useState("");
   const [error, setError] = useState(null);
   const [submitting, setSubmitting] = useState(false);
@@ -40,9 +48,8 @@ function WorkerCard({ worker, sites, onUpdate }) {
 
   const domains = worker.properties.filter((p) => p.type === "domain");
 
-  // Sites not yet assigned to this worker
-  const assignedValues = new Set(domains.map((p) => p.value));
-  const availableSites = sites.filter((s) => !assignedValues.has(s));
+  // Sites still unassigned to any worker (exclusive ownership per domain).
+  const availableSites = sites.filter((s) => !globallyAssignedDomains.has(s));
 
   async function handleAddDomain(e) {
     e.preventDefault();
