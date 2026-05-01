@@ -277,6 +277,15 @@ describe("DELETE /api/workers/:id", () => {
     expect(deleted).toBeUndefined();
   });
 
+  it("returns 400 when PATCH payment-status on inactive worker", async () => {
+    const res = await request(app)
+      .patch(`/api/workers/${workerId}/payment-status`)
+      .set("Authorization", `Bearer ${token}`)
+      .send({ status: "paid" });
+    expect(res.status).toBe(400);
+    expect(String(res.body.error || "").toLowerCase()).toContain("inactiv");
+  });
+
   it("includes soft-deleted workers when includeDeleted=true", async () => {
     const list = await request(app)
       .get("/api/workers?includeDeleted=true")

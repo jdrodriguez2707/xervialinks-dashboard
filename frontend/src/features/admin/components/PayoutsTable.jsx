@@ -33,7 +33,7 @@ export default function PayoutsTable({
   );
 
   async function handleTogglePaymentStatus() {
-    if (!selectedWorker) return;
+    if (!selectedWorker || selectedWorker.deletedAt) return;
     const currentStatus = selectedWorker.paymentStatus || "pending";
     const nextStatus = currentStatus === "paid" ? "pending" : "paid";
     setUpdatingPaymentStatus(true);
@@ -58,6 +58,8 @@ export default function PayoutsTable({
       paymentInfo: workerDetail.paymentInfo || null,
     });
   }
+
+  const isInactivePayoutRow = !!selectedWorker?.deletedAt;
 
   if (payouts.length === 0) {
     return (
@@ -118,19 +120,36 @@ export default function PayoutsTable({
                   <span className="payout-amount">${w.payout.toFixed(2)}</span>
                 </td>
                 <td>
-                  {(() => {
-                    const status = workersById.get(w.workerId)?.paymentStatus || "pending";
-                    const statusLabel = status === "paid" ? "Pagado" : "Pendiente";
-                    const statusClass = `payment-status-badge ${status === "paid" ? "is-paid" : "is-pending"}`;
-                    return <span className={statusClass}>{statusLabel}</span>;
-                  })()}
+                  {w.deletedAt ? (
+                    <span
+                      className="payment-status-na"
+                      title="El estado de pago no aplica a trabajadores inactivos"
+                    >
+                      —
+                    </span>
+                  ) : (
+                    (() => {
+                      const status = workersById.get(w.workerId)?.paymentStatus || "pending";
+                      const statusLabel = status === "paid" ? "Pagado" : "Pendiente";
+                      const statusClass = `payment-status-badge ${status === "paid" ? "is-paid" : "is-pending"}`;
+                      return <span className={statusClass}>{statusLabel}</span>;
+                    })()
+                  )}
                 </td>
                 <td>
                   <button
                     type="button"
                     className="btn-icon btn-payment"
-                    title={`Gestionar estado de pago de ${w.name}`}
-                    aria-label={`Gestionar estado de pago de ${w.name}`}
+                    title={
+                      w.deletedAt
+                        ? `Ver información de pago de ${w.name}`
+                        : `Gestionar estado de pago de ${w.name}`
+                    }
+                    aria-label={
+                      w.deletedAt
+                        ? `Ver información de pago de ${w.name}`
+                        : `Gestionar estado de pago de ${w.name}`
+                    }
                     onClick={() => openPaymentModal(w)}
                   >
                     <WalletCards size={16} />
@@ -163,7 +182,9 @@ export default function PayoutsTable({
           >
             <div className="modal-header">
               <h3 id={`payment-modal-title-${selectedWorker.workerId}`} className="modal-title">
-                Estado de pago de {selectedWorker.name}
+                {isInactivePayoutRow
+                  ? `Información de pago · ${selectedWorker.name}`
+                  : `Estado de pago de ${selectedWorker.name}`}
               </h3>
               <button
                 className="modal-close"
@@ -175,13 +196,21 @@ export default function PayoutsTable({
             </div>
 
             <div className="payment-status-modal-content">
-              <div className="payment-status-summary">
-                <span
-                  className={`payment-status-badge ${selectedWorker.paymentStatus === "paid" ? "is-paid" : "is-pending"}`}
-                >
-                  {selectedWorker.paymentStatus === "paid" ? "Pagado" : "Pendiente de pago"}
-                </span>
-              </div>
+              {isInactivePayoutRow && (
+                <p className="payment-inactive-banner">
+                  Perfil <strong>Inactivo</strong>: puedes revisar método y datos de pago registrados.
+                  El <strong>estado de pago</strong> (pagado/pendiente) no aplica ni se muestra.
+                </p>
+              )}
+              {!isInactivePayoutRow && (
+                <div className="payment-status-summary">
+                  <span
+                    className={`payment-status-badge ${selectedWorker.paymentStatus === "paid" ? "is-paid" : "is-pending"}`}
+                  >
+                    {selectedWorker.paymentStatus === "paid" ? "Pagado" : "Pendiente de pago"}
+                  </span>
+                </div>
+              )}
 
               {selectedWorker.paymentInfo ? (
                 <div className="payment-info-card payment-info-card--admin">
@@ -208,18 +237,20 @@ export default function PayoutsTable({
               >
                 Cerrar
               </button>
-              <button
-                type="button"
-                className={`btn ${selectedWorker.paymentStatus === "paid" ? "btn-warning" : "btn-success"}`}
-                onClick={handleTogglePaymentStatus}
-                disabled={updatingPaymentStatus}
-              >
-                {updatingPaymentStatus
-                  ? "Actualizando…"
-                  : selectedWorker.paymentStatus === "paid"
-                    ? "Marcar como pendiente"
-                    : "Marcar como pagado"}
-              </button>
+              {!isInactivePayoutRow && (
+                <button
+                  type="button"
+                  className={`btn ${selectedWorker.paymentStatus === "paid" ? "btn-warning" : "btn-success"}`}
+                  onClick={handleTogglePaymentStatus}
+                  disabled={updatingPaymentStatus}
+                >
+                  {updatingPaymentStatus
+                    ? "Actualizando…"
+                    : selectedWorker.paymentStatus === "paid"
+                      ? "Marcar como pendiente"
+                      : "Marcar como pagado"}
+                </button>
+              )}
             </div>
           </div>
         </div>

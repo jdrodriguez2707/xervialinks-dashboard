@@ -150,8 +150,17 @@ function updateWorkerPaymentStatus(workerId, status) {
   if (!VALID_STATUSES.includes(status)) {
     throw new ValidationError(`El estado debe ser uno de: ${VALID_STATUSES.join(", ")}`);
   }
-  getWorkerById(workerId);
-  return workersRepo.upsertPaymentStatus(Number(workerId), status);
+  const numericId = Number(workerId);
+  const worker = workersRepo.findById(numericId, { includeDeleted: true });
+  if (!worker) {
+    throw new NotFoundError(`Worker ${workerId} not found`);
+  }
+  if (worker.deleted_at) {
+    throw new ValidationError(
+      "No se puede cambiar el estado de pago de trabajadores inactivos"
+    );
+  }
+  return workersRepo.upsertPaymentStatus(numericId, status);
 }
 
 module.exports = {
