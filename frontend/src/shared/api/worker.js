@@ -9,8 +9,12 @@ export async function fetchWorkerContext() {
 }
 
 /** Métricas por periodos (puede tardar por GAM / caché). */
-export async function fetchWorkerDashboard() {
-  const res = await fetch("/api/worker/dashboard", { headers: getAuthHeaders() });
+export async function fetchWorkerDashboard({ domain } = {}) {
+  const params = new URLSearchParams();
+  if (domain) params.set("domain", domain);
+  const query = params.toString();
+  const url = `/api/worker/dashboard${query ? `?${query}` : ""}`;
+  const res = await fetch(url, { headers: getAuthHeaders() });
   if (!res.ok) throw new Error(`${res.status}`);
   const json = await res.json();
   return json.data;

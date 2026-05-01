@@ -208,6 +208,13 @@ describe("GET /api/worker/dashboard", () => {
     expect(res.status).toBe(401);
   });
 
+  it("returns 400 when requesting an unassigned domain", async () => {
+    const res = await request(app)
+      .get("/api/worker/dashboard?domain=not-assigned.example.com")
+      .set("Authorization", `Bearer ${workerToken}`);
+    expect(res.status).toBe(400);
+  });
+
   it("returns 4 periods each with revenue, ecpm and impressions", async () => {
     const res = await request(app)
       .get("/api/worker/dashboard")

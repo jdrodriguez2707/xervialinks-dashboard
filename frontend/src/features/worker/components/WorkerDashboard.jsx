@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { BarChart3, Globe, CreditCard } from "lucide-react";
 import { upsertWorkerPaymentInfo } from "../../../shared/api/worker";
 
@@ -74,6 +74,8 @@ function MetricSection({ title, colorClass, loading, data, getValue, format, hig
 export default function WorkerDashboard({
   workerContext,
   workerMetrics,
+  selectedDomain,
+  onDomainChange,
   contextLoading,
   metricsLoading,
   metricsError,
@@ -113,6 +115,8 @@ export default function WorkerDashboard({
   const [paymentDetails, setPaymentDetails] = useState("");
   const [savingPaymentInfo, setSavingPaymentInfo] = useState(false);
   const [paymentError, setPaymentError] = useState(null);
+  const [domainMenuOpen, setDomainMenuOpen] = useState(false);
+  const domainMenuRef = useRef(null);
 
   useEffect(() => {
     setPaymentInfo(workerContext?.paymentInfo ?? null);
@@ -123,6 +127,31 @@ export default function WorkerDashboard({
     window.localStorage.setItem(WORKER_TAB_STORAGE_KEY, activeTab);
   }, [activeTab]);
 
+  const { properties = [] } = workerContext ?? {};
+  const domains = properties.filter((p) => p.type === "domain");
+  const hasDomains = domains.length > 0;
+  const selectedDomainValue =
+    selectedDomain && domains.some((d) => d.value === selectedDomain)
+      ? selectedDomain
+      : domains[0]?.value || "";
+  const otherDomains = domains.filter((d) => d.value !== selectedDomainValue);
+  const canSwitchDomain = otherDomains.length > 0;
+
+  useEffect(() => {
+    if (!domainMenuOpen) return;
+    function onDocumentClick(event) {
+      if (!domainMenuRef.current?.contains(event.target)) {
+        setDomainMenuOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", onDocumentClick);
+    return () => document.removeEventListener("mousedown", onDocumentClick);
+  }, [domainMenuOpen]);
+
+  useEffect(() => {
+    setDomainMenuOpen(false);
+  }, [selectedDomainValue]);
+
   if (error) {
     return <p className="status-msg error">Error al cargar los ingresos.</p>;
   }
@@ -131,9 +160,13 @@ export default function WorkerDashboard({
     return <p className="status-msg">Cargando tu perfil…</p>;
   }
 
-  const { properties = [] } = workerContext ?? {};
-  const domains = properties.filter((p) => p.type === "domain");
-  const hasDomains = domains.length > 0;
+  async function handleDomainSwitch(nextDomain) {
+    setDomainMenuOpen(false);
+    if (!nextDomain || nextDomain === selectedDomainValue) return;
+    if (typeof onDomainChange === "function") {
+      await onDomainChange(nextDomain);
+    }
+  }
 
   function openPaymentDialog() {
     setPaymentMethodType(paymentInfo?.methodType || "");
@@ -170,6 +203,40 @@ export default function WorkerDashboard({
 
   return (
     <div className="worker-dashboard">
+      {hasDomains && activeTab === "stats" && (
+        <section className="worker-domain-selector" ref={domainMenuRef}>
+          <p className="worker-domain-selector-label">Subdominio en vista</p>
+          <button
+            type="button"
+            className="worker-domain-selector-trigger"
+            onClick={() => setDomainMenuOpen((open) => !open)}
+            aria-expanded={domainMenuOpen}
+            aria-haspopup="listbox"
+            disabled={!canSwitchDomain}
+          >
+            <span>{selectedDomainValue}</span>
+            {canSwitchDomain && (
+              <span aria-hidden>{domainMenuOpen ? "▴" : "▾"}</span>
+            )}
+          </button>
+
+          {domainMenuOpen && canSwitchDomain && (
+            <div className="worker-domain-selector-menu" role="listbox">
+              {otherDomains.map((domain) => (
+                <button
+                  key={domain.id}
+                  type="button"
+                  className="worker-domain-selector-option"
+                  onClick={() => handleDomainSwitch(domain.value)}
+                >
+                  {domain.value}
+                </button>
+              ))}
+            </div>
+          )}
+        </section>
+      )}
+
       {hasDomains && (
         <nav className="worker-nav" aria-label="Secciones del panel">
           {tabs.map((tab) => {

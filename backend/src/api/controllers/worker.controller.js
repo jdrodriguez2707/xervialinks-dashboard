@@ -13,6 +13,7 @@ async function getContext(req, res) {
 
   res.json({
     data: {
+      workerId: worker.id,
       properties: worker.properties,
       paymentInfo: worker.paymentInfo || null,
     },
@@ -29,7 +30,25 @@ async function getDashboard(req, res) {
   }
 
   const timeZone = clientTimeZoneFromRequest(req);
-  const periods = await revenueService.getWorkerDashboardPeriods(worker, timeZone);
+  const domain =
+    typeof req.query.domain === "string" && req.query.domain.trim()
+      ? req.query.domain.trim()
+      : null;
+
+  if (domain) {
+    const assignedDomains = worker.properties
+      .filter((p) => p.type === "domain")
+      .map((p) => p.value);
+    if (!assignedDomains.includes(domain)) {
+      return res
+        .status(400)
+        .json({ error: "El subdominio solicitado no está asignado a tu cuenta" });
+    }
+  }
+
+  const periods = await revenueService.getWorkerDashboardPeriods(worker, timeZone, {
+    domain,
+  });
   res.json({ data: periods });
 }
 

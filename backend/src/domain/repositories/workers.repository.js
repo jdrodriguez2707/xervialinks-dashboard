@@ -91,7 +91,7 @@ function findPropertyByTypeAndValue(type, value) {
 function getProperties(workerId) {
   const db = getDb();
   return db
-    .prepare("SELECT * FROM properties WHERE worker_id = ? ORDER BY type, value")
+    .prepare("SELECT * FROM properties WHERE worker_id = ? ORDER BY created_at ASC, id ASC")
     .all(workerId);
 }
 

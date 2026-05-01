@@ -20,6 +20,17 @@ const ADMIN_RANGE_LABELS = {
   currentMonth: "Este mes",
 };
 const ADMIN_CACHE_TTL_MS = 60 * 1000;
+const WORKER_DOMAIN_STORAGE_PREFIX = "workerDashboardSelectedDomain";
+
+function getWorkerDomains(context) {
+  return (context?.properties || [])
+    .filter((p) => p.type === "domain")
+    .map((p) => p.value);
+}
+
+function getWorkerDomainStorageKey(workerId) {
+  return `${WORKER_DOMAIN_STORAGE_PREFIX}:${workerId || "unknown"}`;
+}
 
 export default function App() {
   const [user, setUser] = useState(() => getStoredUser());
@@ -31,6 +42,7 @@ export default function App() {
   const [error, setError] = useState(null);
   const [workerMetricsLoading, setWorkerMetricsLoading] = useState(false);
   const [workerMetricsError, setWorkerMetricsError] = useState(null);
+  const [workerSelectedDomain, setWorkerSelectedDomain] = useState(null);
   const adminMetricsCacheRef = useRef(new Map());
 
   function getCachedAdminMetrics(rangeKey) {
@@ -50,6 +62,24 @@ export default function App() {
       cachedAt: Date.now(),
     });
   }
+
+  const loadWorkerMetrics = useCallback(
+    async (domain) => {
+      if (!user || user.role !== "worker") return;
+      setWorkerMetricsError(null);
+      setWorkerMetricsLoading(true);
+      try {
+        const metrics = await fetchWorkerDashboard({ domain });
+        setData((prev) => ({ ...prev, workerMetrics: metrics }));
+      } catch (err) {
+        if (err.message === "401") handleLogout();
+        else setWorkerMetricsError(err.message || "Error al cargar métricas");
+      } finally {
+        setWorkerMetricsLoading(false);
+      }
+    },
+    [user]
+  );
 
   const loadInitial = useCallback(async () => {
     if (!user) return;
@@ -79,18 +109,22 @@ export default function App() {
         });
       } else {
         const context = await fetchWorkerContext();
+        const domains = getWorkerDomains(context);
+        let initialDomain = domains[0] || null;
+        if (typeof window !== "undefined") {
+          const savedDomain = window.localStorage.getItem(
+            getWorkerDomainStorageKey(context?.workerId)
+          );
+          if (savedDomain && domains.includes(savedDomain)) {
+            initialDomain = savedDomain;
+          }
+        }
         setData({ workerContext: context, workerMetrics: null });
+        setWorkerSelectedDomain(initialDomain);
         setWorkerMetricsError(null);
-        setWorkerMetricsLoading(true);
-        fetchWorkerDashboard()
-          .then((metrics) => {
-            setData((prev) => ({ ...prev, workerMetrics: metrics }));
-          })
-          .catch((err) => {
-            if (err.message === "401") handleLogout();
-            else setWorkerMetricsError(err.message || "Error al cargar métricas");
-          })
-          .finally(() => setWorkerMetricsLoading(false));
+        if (initialDomain) {
+          await loadWorkerMetrics(initialDomain);
+        }
       }
     } catch (err) {
       if (err.message === "401") handleLogout();
@@ -98,7 +132,7 @@ export default function App() {
     } finally {
       setLoading(false);
     }
-  }, [user]);
+  }, [user, loadWorkerMetrics]);
 
   useEffect(() => {
     loadInitial();
@@ -136,6 +170,18 @@ export default function App() {
     refreshAdminByRange();
   }, [adminRange, user, adminReady]);
 
+  useEffect(() => {
+    if (!user || user.role !== "worker" || typeof window === "undefined") return;
+    const workerId = data?.workerContext?.workerId;
+    if (!workerId) return;
+    const storageKey = getWorkerDomainStorageKey(workerId);
+    if (workerSelectedDomain) {
+      window.localStorage.setItem(storageKey, workerSelectedDomain);
+    } else {
+      window.localStorage.removeItem(storageKey);
+    }
+  }, [user, workerSelectedDomain, data?.workerContext?.workerId]);
+
   const refreshAdminWorkersAndPayouts = useCallback(async () => {
     if (!user || user.role !== "admin") return;
     setRefreshingAdmin(true);
@@ -168,6 +214,7 @@ export default function App() {
     setAdminReady(false);
     setWorkerMetricsLoading(false);
     setWorkerMetricsError(null);
+    setWorkerSelectedDomain(null);
     adminMetricsCacheRef.current.clear();
   }
 
@@ -213,6 +260,11 @@ export default function App() {
           <WorkerDashboard
             workerContext={data?.workerContext ?? null}
             workerMetrics={data?.workerMetrics ?? null}
+            selectedDomain={workerSelectedDomain}
+            onDomainChange={async (nextDomain) => {
+              setWorkerSelectedDomain(nextDomain);
+              await loadWorkerMetrics(nextDomain);
+            }}
             contextLoading={loading}
             metricsLoading={workerMetricsLoading}
             metricsError={workerMetricsError}
@@ -220,7 +272,14 @@ export default function App() {
             onContextRefresh={async () => {
               try {
                 const ctx = await fetchWorkerContext();
+                const domains = getWorkerDomains(ctx);
+                const stillValid = workerSelectedDomain && domains.includes(workerSelectedDomain);
+                const nextDomain = stillValid ? workerSelectedDomain : domains[0] || null;
+                setWorkerSelectedDomain(nextDomain);
                 setData((prev) => ({ ...prev, workerContext: ctx }));
+                if (nextDomain) {
+                  await loadWorkerMetrics(nextDomain);
+                }
               } catch {
                 /* ignore refresh errors */
               }

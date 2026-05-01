@@ -86,15 +86,22 @@ function applyPercentage(revenue, percentage) {
  *
  * @param {{ percentage: number, properties: Array }} worker
  * @param {string} timeZone  IANA timezone from the client (X-Client-Timezone)
+ * @param {{ domain?: string }} [filters] Optional domain scope for worker metrics
  */
-async function getWorkerDashboardPeriods(worker, timeZone) {
+async function getWorkerDashboardPeriods(worker, timeZone, filters = {}) {
   const tz = timeZone || getDefaultTimeZone();
 
   const assignedDomains = worker.properties
     .filter((p) => p.type === "domain")
     .map((p) => p.value);
 
-  if (assignedDomains.length === 0) {
+  const requestedDomain =
+    typeof filters.domain === "string" && filters.domain.trim()
+      ? filters.domain.trim()
+      : null;
+  const scopedDomains = requestedDomain ? [requestedDomain] : assignedDomains;
+
+  if (scopedDomains.length === 0) {
     const empty = { revenue: 0, ecpm: 0, impressions: 0 };
     return {
       today: empty,
@@ -115,7 +122,7 @@ async function getWorkerDashboardPeriods(worker, timeZone) {
     endDate: today,
     timeZone: tz,
   });
-  const workerReports = reports.filter((r) => assignedDomains.includes(r.domain));
+  const workerReports = reports.filter((r) => scopedDomains.includes(r.domain));
 
   const rawToday = aggregateReports(workerReports, today, today);
   const rawYesterday = aggregateReports(workerReports, yesterday, yesterday);
