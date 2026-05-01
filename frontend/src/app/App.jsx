@@ -61,7 +61,8 @@ export default function App() {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(false);
   const [refreshingAdmin, setRefreshingAdmin] = useState(false);
-  const [adminRange, setAdminRange] = useState("today");
+  const [adminDashboardRange, setAdminDashboardRange] = useState("today");
+  const [adminEarningsRange, setAdminEarningsRange] = useState("today");
   const [adminReady, setAdminReady] = useState(false);
   const [error, setError] = useState(null);
   const [workerMetricsLoading, setWorkerMetricsLoading] = useState(false);
@@ -71,22 +72,39 @@ export default function App() {
   const [adminMenuOpen, setAdminMenuOpen] = useState(false);
   const [adminActiveModule, setAdminActiveModule] = useState("dashboard");
   const [highlightedEarningsWorkerId, setHighlightedEarningsWorkerId] = useState(null);
-  const adminMetricsCacheRef = useRef(new Map());
+  const adminDashboardCacheRef = useRef(new Map());
+  const adminEarningsCacheRef = useRef(new Map());
   const workerValidDomainsRef = useRef([]);
 
-  function getCachedAdminMetrics(rangeKey) {
-    const entry = adminMetricsCacheRef.current.get(rangeKey);
+  function getCachedDashboardSummary(rangeKey) {
+    const entry = adminDashboardCacheRef.current.get(rangeKey);
     if (!entry) return null;
     if (Date.now() - entry.cachedAt > ADMIN_CACHE_TTL_MS) {
-      adminMetricsCacheRef.current.delete(rangeKey);
+      adminDashboardCacheRef.current.delete(rangeKey);
       return null;
     }
-    return entry;
+    return entry.summary;
   }
 
-  function setCachedAdminMetrics(rangeKey, summary, payouts) {
-    adminMetricsCacheRef.current.set(rangeKey, {
+  function setCachedDashboardSummary(rangeKey, summary) {
+    adminDashboardCacheRef.current.set(rangeKey, {
       summary,
+      cachedAt: Date.now(),
+    });
+  }
+
+  function getCachedEarningsPayouts(rangeKey) {
+    const entry = adminEarningsCacheRef.current.get(rangeKey);
+    if (!entry) return null;
+    if (Date.now() - entry.cachedAt > ADMIN_CACHE_TTL_MS) {
+      adminEarningsCacheRef.current.delete(rangeKey);
+      return null;
+    }
+    return entry.payouts;
+  }
+
+  function setCachedEarningsPayouts(rangeKey, payouts) {
+    adminEarningsCacheRef.current.set(rangeKey, {
       payouts,
       cachedAt: Date.now(),
     });
@@ -151,17 +169,26 @@ export default function App() {
           fetchPayouts(range),
           fetchSites(),
         ]);
-        setCachedAdminMetrics("today", summary, payouts);
+        setCachedDashboardSummary("today", summary);
+        setCachedEarningsPayouts("today", payouts);
         setData({ summary, workers, payouts, sites });
         setAdminReady(true);
 
-        // Warm up all remaining ranges in background so any selector switch is instant.
+        // Warm up all remaining ranges in background so either selector switch is instant.
         const remainingRanges = ["yesterday", "last7Days", "currentMonth"];
         remainingRanges.forEach((rangeKey) => {
-          if (getCachedAdminMetrics(rangeKey)) return;
+          if (
+            getCachedDashboardSummary(rangeKey) != null &&
+            getCachedEarningsPayouts(rangeKey) != null
+          ) {
+            return;
+          }
           const r = getAdminDateRange(rangeKey);
           Promise.all([fetchSummary(r), fetchPayouts(r)])
-            .then(([s, p]) => setCachedAdminMetrics(rangeKey, s, p))
+            .then(([s, p]) => {
+              setCachedDashboardSummary(rangeKey, s);
+              setCachedEarningsPayouts(rangeKey, p);
+            })
             .catch(() => {});
         });
       } else {
@@ -227,27 +254,20 @@ export default function App() {
   }, [highlightedEarningsWorkerId]);
 
   useEffect(() => {
-    async function refreshAdminByRange() {
+    async function refreshDashboardByRange() {
       if (!user || user.role !== "admin" || !adminReady) return;
-      const cached = getCachedAdminMetrics(adminRange);
-      if (cached) {
-        setData((prev) => ({
-          ...prev,
-          summary: cached.summary,
-          payouts: cached.payouts,
-        }));
+      const cached = getCachedDashboardSummary(adminDashboardRange);
+      if (cached != null) {
+        setData((prev) => ({ ...prev, summary: cached }));
         return;
       }
       setRefreshingAdmin(true);
       setError(null);
       try {
-        const range = getAdminDateRange(adminRange);
-        const [summary, payouts] = await Promise.all([
-          fetchSummary(range),
-          fetchPayouts(range),
-        ]);
-        setCachedAdminMetrics(adminRange, summary, payouts);
-        setData((prev) => ({ ...prev, summary, payouts }));
+        const range = getAdminDateRange(adminDashboardRange);
+        const summary = await fetchSummary(range);
+        setCachedDashboardSummary(adminDashboardRange, summary);
+        setData((prev) => ({ ...prev, summary }));
       } catch (err) {
         if (err.message === "401") handleLogout();
         else setError(err.message);
@@ -255,8 +275,33 @@ export default function App() {
         setRefreshingAdmin(false);
       }
     }
-    refreshAdminByRange();
-  }, [adminRange, user, adminReady]);
+    refreshDashboardByRange();
+  }, [adminDashboardRange, user, adminReady]);
+
+  useEffect(() => {
+    async function refreshEarningsByRange() {
+      if (!user || user.role !== "admin" || !adminReady) return;
+      const cached = getCachedEarningsPayouts(adminEarningsRange);
+      if (cached != null) {
+        setData((prev) => ({ ...prev, payouts: cached }));
+        return;
+      }
+      setRefreshingAdmin(true);
+      setError(null);
+      try {
+        const range = getAdminDateRange(adminEarningsRange);
+        const payouts = await fetchPayouts(range);
+        setCachedEarningsPayouts(adminEarningsRange, payouts);
+        setData((prev) => ({ ...prev, payouts }));
+      } catch (err) {
+        if (err.message === "401") handleLogout();
+        else setError(err.message);
+      } finally {
+        setRefreshingAdmin(false);
+      }
+    }
+    refreshEarningsByRange();
+  }, [adminEarningsRange, user, adminReady]);
 
   // Keep ref in sync so loadWorkerMetrics always has current valid domains
   // without needing data in its dependency array (which would cause re-render loops).
@@ -281,13 +326,15 @@ export default function App() {
     setRefreshingAdmin(true);
     setError(null);
     try {
-      const range = getAdminDateRange(adminRange);
+      const dashRangeObj = getAdminDateRange(adminDashboardRange);
+      const earnRangeObj = getAdminDateRange(adminEarningsRange);
       const [workers, payouts, summary] = await Promise.all([
         fetchWorkers({ includeDeleted: true }),
-        fetchPayouts(range),
-        fetchSummary(range),
+        fetchPayouts(earnRangeObj),
+        fetchSummary(dashRangeObj),
       ]);
-      setCachedAdminMetrics(adminRange, summary, payouts);
+      setCachedDashboardSummary(adminDashboardRange, summary);
+      setCachedEarningsPayouts(adminEarningsRange, payouts);
       setData((prev) => ({ ...prev, workers, payouts, summary }));
     } catch (err) {
       if (err.message === "401") handleLogout();
@@ -295,7 +342,7 @@ export default function App() {
     } finally {
       setRefreshingAdmin(false);
     }
-  }, [user, adminRange]);
+  }, [user, adminDashboardRange, adminEarningsRange]);
 
   function handleLogin(loggedUser) {
     setSessionNotice(null);
@@ -337,7 +384,8 @@ export default function App() {
         }
       }
     }
-    adminMetricsCacheRef.current.clear();
+    adminDashboardCacheRef.current.clear();
+    adminEarningsCacheRef.current.clear();
   }
 
   if (!user) return <LoginForm onLogin={handleLogin} notice={sessionNotice} />;
@@ -442,8 +490,10 @@ export default function App() {
               <AdminDashboard
                 data={data}
                 onWorkersUpdate={refreshAdminWorkersAndPayouts}
-                adminRange={adminRange}
-                onChangeAdminRange={setAdminRange}
+                adminDashboardRange={adminDashboardRange}
+                onChangeAdminDashboardRange={setAdminDashboardRange}
+                adminEarningsRange={adminEarningsRange}
+                onChangeAdminEarningsRange={setAdminEarningsRange}
                 activeModule={adminActiveModule}
                 highlightedEarningsWorkerId={highlightedEarningsWorkerId}
                 onNavigateToEarnings={(workerId) => {
@@ -517,8 +567,10 @@ export default function App() {
 function AdminDashboard({
   data,
   onWorkersUpdate,
-  adminRange,
-  onChangeAdminRange,
+  adminDashboardRange,
+  onChangeAdminDashboardRange,
+  adminEarningsRange,
+  onChangeAdminEarningsRange,
   activeModule,
   highlightedEarningsWorkerId,
   onNavigateToEarnings,
@@ -536,6 +588,20 @@ function AdminDashboard({
   if (activeModule === "earnings") {
     return (
       <section>
+        <div className="admin-range-row">
+          <select
+            className="form-select admin-range-select"
+            value={adminEarningsRange}
+            onChange={(e) => onChangeAdminEarningsRange(e.target.value)}
+            aria-label="Rango de fechas para ganancias"
+          >
+            {Object.entries(ADMIN_RANGE_LABELS).map(([key, label]) => (
+              <option key={key} value={key}>
+                {label}
+              </option>
+            ))}
+          </select>
+        </div>
         <h2>Ganancias por trabajador</h2>
         <PayoutsTable
           payouts={payouts.payouts}
@@ -563,8 +629,9 @@ function AdminDashboard({
         <div className="admin-range-row">
           <select
             className="form-select admin-range-select"
-            value={adminRange}
-            onChange={(e) => onChangeAdminRange(e.target.value)}
+            value={adminDashboardRange}
+            onChange={(e) => onChangeAdminDashboardRange(e.target.value)}
+            aria-label="Rango de fechas para el resumen del dashboard"
           >
             {Object.entries(ADMIN_RANGE_LABELS).map(([key, label]) => (
               <option key={key} value={key}>
