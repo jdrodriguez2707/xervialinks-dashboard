@@ -1,111 +1,229 @@
-import { Trash2 } from "lucide-react";
-import { purgeInactiveWorker } from "../../../shared/api/workers";
+import { useMemo, useState } from "react";
+import { WalletCards } from "lucide-react";
+import { updateWorkerPaymentStatus } from "../../../shared/api/workers";
 
 /**
  * @param {{
  *   payouts: Array<{
- *     workerId: number, name: string, percentage: number,
+ *     workerId: number, name: string, email?: string, percentage: number,
  *     assignedDomains: string[], assignedRevenue: number,
  *     assignedImpressions: number, payout: number, deletedAt?: string | null
  *   }>,
  *   totalPayout: number,
- *   onPurgeInactive?: () => void
+ *   workers?: Array<{
+ *     id: number, paymentStatus?: string, paymentInfo?: { methodType: string, paymentDetails: string } | null
+ *   }>,
+ *   highlightedWorkerId?: number | null,
+ *   onRefresh?: () => void,
  * }} props
  */
-export default function PayoutsTable({ payouts, totalPayout, onPurgeInactive }) {
-  async function handlePurgeInactive(worker) {
-    const confirmed = window.confirm(`Eliminar definitivamente a ${worker.name}? Esta acción es permanente.`);
-    if (!confirmed) return;
+export default function PayoutsTable({
+  payouts,
+  totalPayout,
+  workers = [],
+  highlightedWorkerId = null,
+  onRefresh,
+}) {
+  const [selectedWorker, setSelectedWorker] = useState(null);
+  const [updatingPaymentStatus, setUpdatingPaymentStatus] = useState(false);
+
+  const workersById = useMemo(
+    () => new Map(workers.map((worker) => [worker.id, worker])),
+    [workers]
+  );
+
+  async function handleTogglePaymentStatus() {
+    if (!selectedWorker) return;
+    const currentStatus = selectedWorker.paymentStatus || "pending";
+    const nextStatus = currentStatus === "paid" ? "pending" : "paid";
+    setUpdatingPaymentStatus(true);
     try {
-      await purgeInactiveWorker(worker.workerId);
-      if (typeof onPurgeInactive === "function") onPurgeInactive();
+      await updateWorkerPaymentStatus(selectedWorker.workerId, nextStatus);
+      setSelectedWorker(null);
+      if (typeof onRefresh === "function") {
+        await onRefresh();
+      }
     } catch (err) {
-      window.alert(err.message || "No se pudo eliminar al trabajador inactivo");
+      window.alert(err.message || "No se pudo actualizar el estado de pago");
+    } finally {
+      setUpdatingPaymentStatus(false);
     }
+  }
+
+  function openPaymentModal(payoutWorker) {
+    const workerDetail = workersById.get(payoutWorker.workerId) || {};
+    setSelectedWorker({
+      ...payoutWorker,
+      paymentStatus: workerDetail.paymentStatus || "pending",
+      paymentInfo: workerDetail.paymentInfo || null,
+    });
   }
 
   if (payouts.length === 0) {
     return (
       <p className="empty-state">
         Aún no hay trabajadores configurados. Agrega uno y asígnale subdominios para ver sus ganancias.
-      </p>  
+      </p>
     );
   }
 
   return (
-    <div className="table-wrapper">
-      <table className="reports-table">
-        <thead>
-          <tr>
-            <th>Trabajador</th>
-            <th>Subdominios asignados</th>
-            <th>Impresiones</th>
-            <th>Ingresos asignados</th>
-            <th>%</th>
-            <th>Ganancia</th>
-            <th>Acciones</th>
-          </tr>
-        </thead>
-        <tbody>
-          {payouts.map((w) => (
-            <tr key={w.workerId}>
-              <td>
-                <span className="worker-name">{w.name}</span>
-                <span className="worker-email">{w.email}</span>
-                <span
-                  className={`worker-activity-badge ${w.deletedAt ? "is-inactive" : "is-active"}`}
-                >
-                  {w.deletedAt ? "Inactivo" : "Activo"}
-                </span>
-              </td>
-              <td>
-                {w.assignedDomains.length === 0 ? (
-                  <span className="no-domains">—</span>
-                ) : (
-                  <div className="domain-tags">
-                    {w.assignedDomains.map((d) => (
-                      <span key={d} className="tag">
-                        {d}
-                      </span>
-                    ))}
-                  </div>
-                )}
-              </td>
-              <td>{w.assignedImpressions.toLocaleString()}</td>
-              <td>${w.assignedRevenue.toFixed(2)}</td>
-              <td>{w.percentage}%</td>
-              <td>
-                <span className="payout-amount">${w.payout.toFixed(2)}</span>
-              </td>
-              <td>
-                {w.deletedAt ? (
+    <>
+      <div className="table-wrapper">
+        <table className="reports-table">
+          <thead>
+            <tr>
+              <th>Trabajador</th>
+              <th>Subdominios asignados</th>
+              <th>Impresiones</th>
+              <th>Ingresos asignados</th>
+              <th>%</th>
+              <th>Ganancia</th>
+              <th>Estado de pago</th>
+              <th>Pagos</th>
+            </tr>
+          </thead>
+          <tbody>
+            {payouts.map((w) => (
+              <tr
+                key={w.workerId}
+                className={w.workerId === highlightedWorkerId ? "row-highlight" : ""}
+              >
+                <td>
+                  <span className="worker-name">{w.name}</span>
+                  <span className="worker-email">{w.email}</span>
+                  <span
+                    className={`worker-activity-badge ${w.deletedAt ? "is-inactive" : "is-active"}`}
+                  >
+                    {w.deletedAt ? "Inactivo" : "Activo"}
+                  </span>
+                </td>
+                <td>
+                  {w.assignedDomains.length === 0 ? (
+                    <span className="no-domains">—</span>
+                  ) : (
+                    <div className="domain-tags">
+                      {w.assignedDomains.map((d) => (
+                        <span key={d} className="tag">
+                          {d}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                </td>
+                <td>{w.assignedImpressions.toLocaleString()}</td>
+                <td>${w.assignedRevenue.toFixed(2)}</td>
+                <td>{w.percentage}%</td>
+                <td>
+                  <span className="payout-amount">${w.payout.toFixed(2)}</span>
+                </td>
+                <td>
+                  {(() => {
+                    const status = workersById.get(w.workerId)?.paymentStatus || "pending";
+                    const statusLabel = status === "paid" ? "Pagado" : "Pendiente";
+                    const statusClass = `payment-status-badge ${status === "paid" ? "is-paid" : "is-pending"}`;
+                    return <span className={statusClass}>{statusLabel}</span>;
+                  })()}
+                </td>
+                <td>
                   <button
                     type="button"
-                    className="btn-icon btn-delete"
-                    onClick={() => handlePurgeInactive(w)}
-                    title="Eliminar definitivamente trabajador inactivo"
-                    aria-label={`Eliminar definitivamente a ${w.name}`}
+                    className="btn-icon btn-payment"
+                    title={`Gestionar estado de pago de ${w.name}`}
+                    aria-label={`Gestionar estado de pago de ${w.name}`}
+                    onClick={() => openPaymentModal(w)}
                   >
-                    <Trash2 size={16} />
+                    <WalletCards size={16} />
                   </button>
-                ) : (
-                  <span className="no-domains">—</span>
-                )}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+          <tfoot>
+            <tr>
+              <td colSpan={7} className="tfoot-label">
+                Ganancia total
+              </td>
+              <td>
+                <span className="payout-amount">${totalPayout.toFixed(2)}</span>
               </td>
             </tr>
-          ))}
-        </tbody>
-        <tfoot>
-          <tr>
-            <td colSpan={6} className="tfoot-label">
-              Ganancia total
-            </td>
-            <td>
-              <span className="payout-amount">${totalPayout.toFixed(2)}</span>
-            </td>
-          </tr>
-        </tfoot>
-      </table>
-    </div>
+          </tfoot>
+        </table>
+      </div>
+
+      {selectedWorker && (
+        <div className="modal-overlay" onClick={() => setSelectedWorker(null)}>
+          <div
+            className="modal payment-status-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby={`payment-modal-title-${selectedWorker.workerId}`}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="modal-header">
+              <h3 id={`payment-modal-title-${selectedWorker.workerId}`} className="modal-title">
+                Estado de pago de {selectedWorker.name}
+              </h3>
+              <button
+                className="modal-close"
+                aria-label="Cerrar"
+                onClick={() => setSelectedWorker(null)}
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="payment-status-modal-content">
+              <div className="payment-status-summary">
+                <span
+                  className={`payment-status-badge ${selectedWorker.paymentStatus === "paid" ? "is-paid" : "is-pending"}`}
+                >
+                  {selectedWorker.paymentStatus === "paid" ? "Pagado" : "Pendiente de pago"}
+                </span>
+              </div>
+
+              {selectedWorker.paymentInfo ? (
+                <div className="payment-info-card payment-info-card--admin">
+                  <p className="payment-info-label">Método</p>
+                  <p className="payment-info-value">{selectedWorker.paymentInfo.methodType}</p>
+                  <p className="payment-info-label">Detalle</p>
+                  <p className="payment-info-value">{selectedWorker.paymentInfo.paymentDetails}</p>
+                </div>
+              ) : (
+                <div className="payment-empty payment-empty--admin">
+                  <p className="payment-empty-title">Información de pago pendiente</p>
+                  <p className="payment-empty-text">
+                    El trabajador aún no ha registrado su método e información de pago.
+                  </p>
+                </div>
+              )}
+            </div>
+
+            <div className="modal-actions">
+              <button
+                type="button"
+                className="btn btn-secondary"
+                onClick={() => setSelectedWorker(null)}
+              >
+                Cerrar
+              </button>
+              <button
+                type="button"
+                className={`btn ${selectedWorker.paymentStatus === "paid" ? "btn-warning" : "btn-success"}`}
+                onClick={handleTogglePaymentStatus}
+                disabled={updatingPaymentStatus}
+              >
+                {updatingPaymentStatus
+                  ? "Actualizando…"
+                  : selectedWorker.paymentStatus === "paid"
+                    ? "Marcar como pendiente"
+                    : "Marcar como pagado"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
   );
 }

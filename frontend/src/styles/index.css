@@ -237,6 +237,7 @@ body {
   padding: 0.85rem 1.5rem;
   display: flex;
   align-items: center;
+  justify-content: space-between;
   gap: 1rem;
   flex-wrap: nowrap;
   overflow: hidden;
@@ -669,6 +670,20 @@ body {
   background: #f8f9fb;
 }
 
+.reports-table tbody tr.row-highlight td {
+  background: #fff7cc;
+  animation: row-highlight-fade 3.2s ease forwards;
+}
+
+@keyframes row-highlight-fade {
+  0% {
+    background: #fff7cc;
+  }
+  100% {
+    background: transparent;
+  }
+}
+
 /* Status */
 .status-msg {
   text-align: center;
@@ -888,6 +903,15 @@ body {
 .btn-payment:hover {
   background: #eff6ff;
   color: #1d4ed8;
+}
+
+.btn-earnings {
+  color: #0f766e;
+}
+
+.btn-earnings:hover {
+  background: #ecfeff;
+  color: #0f766e;
 }
 
 .worker-properties {

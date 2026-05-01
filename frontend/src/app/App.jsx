@@ -8,6 +8,7 @@ import { fetchWorkerContext, fetchWorkerDashboard } from "../shared/api/worker";
 import { fetchSites } from "../shared/api/sites";
 import LoginForm from "../features/auth/components/LoginForm";
 import SummaryCards from "../features/admin/components/SummaryCards";
+import PayoutsTable from "../features/admin/components/PayoutsTable";
 import WorkersList from "../features/admin/components/WorkersList";
 import WorkerDashboard from "../features/worker/components/WorkerDashboard";
 import { LayoutDashboard, Wallet, Users, Network, UserCircle2, LogOut, Menu, X } from "lucide-react";
@@ -69,6 +70,7 @@ export default function App() {
   const [currentDateLabel, setCurrentDateLabel] = useState(() => formatUserDateLabel());
   const [adminMenuOpen, setAdminMenuOpen] = useState(false);
   const [adminActiveModule, setAdminActiveModule] = useState("dashboard");
+  const [highlightedEarningsWorkerId, setHighlightedEarningsWorkerId] = useState(null);
   const adminMetricsCacheRef = useRef(new Map());
   const workerValidDomainsRef = useRef([]);
 
@@ -215,6 +217,15 @@ export default function App() {
     document.body.style.overflow = "";
   }, [adminMenuOpen, user?.role]);
 
+
+  useEffect(() => {
+    if (!highlightedEarningsWorkerId) return;
+    const timer = window.setTimeout(() => {
+      setHighlightedEarningsWorkerId(null);
+    }, 3500);
+    return () => window.clearTimeout(timer);
+  }, [highlightedEarningsWorkerId]);
+
   useEffect(() => {
     async function refreshAdminByRange() {
       if (!user || user.role !== "admin" || !adminReady) return;
@@ -295,8 +306,11 @@ export default function App() {
     workerValidDomainsRef.current = [];
     setAdminMenuOpen(false);
     setAdminActiveModule("dashboard");
+    setHighlightedEarningsWorkerId(null);
     setAdminMenuOpen(false);
     setAdminActiveModule("dashboard");
+    setHighlightedEarningsWorkerId(null);
+    setHighlightedEarningsWorkerId(null);
     setUser(loggedUser);
   }
 
@@ -363,6 +377,7 @@ export default function App() {
                   aria-current={isActive ? "page" : undefined}
                   onClick={() => {
                     setAdminActiveModule(item.id);
+                    if (item.id !== "earnings") setHighlightedEarningsWorkerId(null);
                     setAdminMenuOpen(false);
                   }}
                 >
@@ -430,6 +445,11 @@ export default function App() {
                 adminRange={adminRange}
                 onChangeAdminRange={setAdminRange}
                 activeModule={adminActiveModule}
+                highlightedEarningsWorkerId={highlightedEarningsWorkerId}
+                onNavigateToEarnings={(workerId) => {
+                  setAdminActiveModule("earnings");
+                  setHighlightedEarningsWorkerId(workerId);
+                }}
               />
             )}
           </main>
@@ -494,12 +514,36 @@ export default function App() {
     </div>
   );
 }
-function AdminDashboard({ data, onWorkersUpdate, adminRange, onChangeAdminRange, activeModule }) {
-  const { summary, workers, sites } = data;
+function AdminDashboard({
+  data,
+  onWorkersUpdate,
+  adminRange,
+  onChangeAdminRange,
+  activeModule,
+  highlightedEarningsWorkerId,
+  onNavigateToEarnings,
+}) {
+  const { summary, workers, payouts, sites } = data;
+
+  if (activeModule === "earnings") {
+    return (
+      <section>
+        <h2>Ganancias por trabajador</h2>
+        <PayoutsTable
+          payouts={payouts.payouts}
+          totalPayout={payouts.totalPayout}
+          workers={workers}
+          highlightedWorkerId={highlightedEarningsWorkerId}
+          onRefresh={onWorkersUpdate}
+        />
+      </section>
+    );
+  }
+
   if (activeModule !== "dashboard") {
     return (
       <section>
-        <h2>{activeModule === "earnings" ? "Ganancias" : activeModule === "workers" ? "Trabajadores" : activeModule === "network-codes" ? "Codigos de red" : "Perfil"}</h2>
+        <h2>{activeModule === "workers" ? "Trabajadores" : activeModule === "network-codes" ? "Codigos de red" : "Perfil"}</h2>
         <p className="empty-state">Módulo en construcción.</p>
       </section>
     );
@@ -527,7 +571,13 @@ function AdminDashboard({ data, onWorkersUpdate, adminRange, onChangeAdminRange,
 
       <section>
         <h2>Trabajadores</h2>
-        <WorkersList workers={workers} sites={sites} onUpdate={onWorkersUpdate} mode="dashboard" />
+        <WorkersList
+          workers={workers}
+          sites={sites}
+          onUpdate={onWorkersUpdate}
+          mode="dashboard"
+          onGoToEarnings={onNavigateToEarnings}
+        />
       </section>
     </>
   );

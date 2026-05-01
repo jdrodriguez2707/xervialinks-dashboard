@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { WalletCards } from "lucide-react";
+import { WalletCards, CircleDollarSign } from "lucide-react";
 import {
   addProperty,
   deleteWorker,
@@ -13,7 +13,7 @@ import {
  *   onUpdate: () => void
  * }} props
  */
-export default function WorkersList({ workers, sites = [], onUpdate, mode = "management" }) {
+export default function WorkersList({ workers, sites = [], onUpdate, mode = "management", onGoToEarnings }) {
   const globallyAssignedDomains = new Set(
     workers.flatMap((w) =>
       w.properties
@@ -40,13 +40,14 @@ export default function WorkersList({ workers, sites = [], onUpdate, mode = "man
           globallyAssignedDomains={globallyAssignedDomains}
           onUpdate={onUpdate}
           mode={mode}
+          onGoToEarnings={onGoToEarnings}
         />
       ))}
     </div>
   );
 }
 
-function WorkerCard({ worker, sites, globallyAssignedDomains, onUpdate, mode }) {
+function WorkerCard({ worker, sites, globallyAssignedDomains, onUpdate, mode, onGoToEarnings }) {
   const [selectedSite, setSelectedSite] = useState("");
   const [error, setError] = useState(null);
   const [submitting, setSubmitting] = useState(false);
@@ -122,6 +123,17 @@ function WorkerCard({ worker, sites, globallyAssignedDomains, onUpdate, mode }) 
         </div>
         <div className="worker-card-actions">
           <span className="percentage-badge">{worker.percentage}%</span>
+          {isDashboardMode && (
+            <button
+              type="button"
+              className="btn-icon btn-earnings"
+              aria-label={`Ver ganancias de ${worker.name}`}
+              title="Ir al módulo de Ganancias"
+              onClick={() => onGoToEarnings?.(worker.id)}
+            >
+              <CircleDollarSign size={16} />
+            </button>
+          )}
           {!isDashboardMode && (
             <button
               className="btn-icon btn-delete"
