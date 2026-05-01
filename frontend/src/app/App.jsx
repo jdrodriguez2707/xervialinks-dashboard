@@ -33,6 +33,20 @@ function getWorkerDomainStorageKey(workerId) {
   return `${WORKER_DOMAIN_STORAGE_PREFIX}:${workerId || "unknown"}`;
 }
 
+function formatUserDateLabel(date = new Date()) {
+  const formatter = new Intl.DateTimeFormat("es-ES", {
+    month: "long",
+    day: "numeric",
+    year: "numeric",
+  });
+  const parts = formatter.formatToParts(date);
+  const month = parts.find((p) => p.type === "month")?.value || "";
+  const day = parts.find((p) => p.type === "day")?.value || "";
+  const year = parts.find((p) => p.type === "year")?.value || "";
+  const monthCapitalized = month ? month.charAt(0).toUpperCase() + month.slice(1) : "";
+  return `${monthCapitalized} ${day}, ${year}`;
+}
+
 export default function App() {
   const [user, setUser] = useState(() => getStoredUser());
   const [sessionNotice, setSessionNotice] = useState(null);
@@ -45,6 +59,7 @@ export default function App() {
   const [workerMetricsLoading, setWorkerMetricsLoading] = useState(false);
   const [workerMetricsError, setWorkerMetricsError] = useState(null);
   const [workerSelectedDomain, setWorkerSelectedDomain] = useState(null);
+  const [currentDateLabel, setCurrentDateLabel] = useState(() => formatUserDateLabel());
   const adminMetricsCacheRef = useRef(new Map());
   const workerValidDomainsRef = useRef([]);
 
@@ -173,6 +188,14 @@ export default function App() {
   }, [loadInitial]);
 
   useEffect(() => {
+    setCurrentDateLabel(formatUserDateLabel());
+    const timer = window.setInterval(() => {
+      setCurrentDateLabel(formatUserDateLabel());
+    }, 60 * 1000);
+    return () => window.clearInterval(timer);
+  }, []);
+
+  useEffect(() => {
     async function refreshAdminByRange() {
       if (!user || user.role !== "admin" || !adminReady) return;
       const cached = getCachedAdminMetrics(adminRange);
@@ -284,7 +307,10 @@ export default function App() {
   return (
     <div className="app">
       <header className="app-header">
-        <h1>XerviaLinks Metrics</h1>
+        <div className="header-title-group">
+          <h1>XerviaLinks Metrics</h1>
+          <p className="app-current-date">{currentDateLabel}</p>
+        </div>
         <div className="header-user">
           <div className="header-user-info">
             <span className="header-user-name">{user.name}</span>
