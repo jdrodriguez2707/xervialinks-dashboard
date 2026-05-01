@@ -120,12 +120,12 @@ describe("getLast7DaysRevenue", () => {
 });
 
 describe("getCurrentMonthRevenue", () => {
-  it("revenue >= last 7 days revenue", async () => {
-    const [month, week] = await Promise.all([
+  it("includes at least today's revenue", async () => {
+    const [month, today] = await Promise.all([
       getCurrentMonthRevenue(),
-      getLast7DaysRevenue(),
+      getTodayRevenue(),
     ]);
-    expect(month.revenue).toBeGreaterThanOrEqual(week.revenue);
+    expect(month.revenue).toBeGreaterThanOrEqual(today.revenue);
   });
 });
 
@@ -248,13 +248,13 @@ describe("GET /api/worker/dashboard", () => {
     expect(data.today.ecpm).toBeCloseTo(9.40, 0);
   });
 
-  it("currentMonth.revenue >= last7Days.revenue", async () => {
+  it("currentMonth includes at least today's data", async () => {
     const res = await request(app)
       .get("/api/worker/dashboard")
       .set("Authorization", `Bearer ${workerToken}`);
 
     const { data } = res.body;
-    expect(data.currentMonth.revenue).toBeGreaterThanOrEqual(data.last7Days.revenue);
-    expect(data.currentMonth.impressions).toBeGreaterThanOrEqual(data.last7Days.impressions);
+    expect(data.currentMonth.revenue).toBeGreaterThanOrEqual(data.today.revenue);
+    expect(data.currentMonth.impressions).toBeGreaterThanOrEqual(data.today.impressions);
   });
 });

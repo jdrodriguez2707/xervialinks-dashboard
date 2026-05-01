@@ -108,9 +108,10 @@ async function getWorkerDashboardPeriods(worker, timeZone) {
   const today = todayISO(tz);
   const yesterday = daysAgoISO(1, tz);
   const last7Start = daysAgoISO(7, tz);
+  const baseStart = monthStart < last7Start ? monthStart : last7Start;
 
   const reports = await reportsRepo.findAll({
-    startDate: monthStart,
+    startDate: baseStart,
     endDate: today,
     timeZone: tz,
   });

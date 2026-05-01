@@ -7,6 +7,10 @@ const {
   getAssignedDomains,
   sumRevenue,
 } = require("../src/application/services/payouts.service");
+const {
+  todayISO,
+  daysAgoISO,
+} = require("../src/application/services/clientTimezone");
 
 let token;
 
@@ -110,8 +114,10 @@ describe("GET /api/payouts", () => {
   });
 
   it("calculates the correct payout for a worker with a domain property", async () => {
+    const startDate = daysAgoISO(7, "America/Bogota");
+    const endDate = todayISO("America/Bogota");
     const res = await request(app)
-      .get("/api/payouts")
+      .get(`/api/payouts?startDate=${startDate}&endDate=${endDate}`)
       .set("Authorization", `Bearer ${token}`);
     const grace = res.body.data.payouts.find((w) => w.workerId === workerId);
 
