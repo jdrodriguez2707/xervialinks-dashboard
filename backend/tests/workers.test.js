@@ -279,3 +279,41 @@ describe("DELETE /api/workers/:id", () => {
     expect(res.status).toBe(401);
   });
 });
+
+describe("DELETE /api/workers/:id/purge-inactive", () => {
+  it("purges an inactive worker permanently", async () => {
+    const createRes = await request(app)
+      .post("/api/workers")
+      .set("Authorization", `Bearer ${token}`)
+      .send({ name: "Purge Worker", email: "purge@example.com", percentage: 35 });
+    const workerId = createRes.body.data.id;
+
+    const softDelete = await request(app)
+      .delete(`/api/workers/${workerId}`)
+      .set("Authorization", `Bearer ${token}`);
+    expect(softDelete.status).toBe(204);
+
+    const purge = await request(app)
+      .delete(`/api/workers/${workerId}/purge-inactive`)
+      .set("Authorization", `Bearer ${token}`);
+    expect(purge.status).toBe(204);
+
+    const secondPurge = await request(app)
+      .delete(`/api/workers/${workerId}/purge-inactive`)
+      .set("Authorization", `Bearer ${token}`);
+    expect(secondPurge.status).toBe(400);
+  });
+
+  it("returns 400 when trying to purge an active worker", async () => {
+    const createRes = await request(app)
+      .post("/api/workers")
+      .set("Authorization", `Bearer ${token}`)
+      .send({ name: "Still Active", email: "still.active@example.com", percentage: 25 });
+    const workerId = createRes.body.data.id;
+
+    const purge = await request(app)
+      .delete(`/api/workers/${workerId}/purge-inactive`)
+      .set("Authorization", `Bearer ${token}`);
+    expect(purge.status).toBe(400);
+  });
+});

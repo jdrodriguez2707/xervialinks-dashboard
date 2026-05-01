@@ -1,3 +1,6 @@
+import { Trash2 } from "lucide-react";
+import { purgeInactiveWorker } from "../../../shared/api/workers";
+
 /**
  * @param {{
  *   payouts: Array<{
@@ -5,10 +8,22 @@
  *     assignedDomains: string[], assignedRevenue: number,
  *     assignedImpressions: number, payout: number, deletedAt?: string | null
  *   }>,
- *   totalPayout: number
+ *   totalPayout: number,
+ *   onPurgeInactive?: () => void
  * }} props
  */
-export default function PayoutsTable({ payouts, totalPayout }) {
+export default function PayoutsTable({ payouts, totalPayout, onPurgeInactive }) {
+  async function handlePurgeInactive(worker) {
+    const confirmed = window.confirm(`Eliminar definitivamente a ${worker.name}? Esta acción es permanente.`);
+    if (!confirmed) return;
+    try {
+      await purgeInactiveWorker(worker.workerId);
+      if (typeof onPurgeInactive === "function") onPurgeInactive();
+    } catch (err) {
+      window.alert(err.message || "No se pudo eliminar al trabajador inactivo");
+    }
+  }
+
   if (payouts.length === 0) {
     return (
       <p className="empty-state">
@@ -28,6 +43,7 @@ export default function PayoutsTable({ payouts, totalPayout }) {
             <th>Ingresos asignados</th>
             <th>%</th>
             <th>Ganancia</th>
+            <th>Acciones</th>
           </tr>
         </thead>
         <tbody>
@@ -61,12 +77,27 @@ export default function PayoutsTable({ payouts, totalPayout }) {
               <td>
                 <span className="payout-amount">${w.payout.toFixed(2)}</span>
               </td>
+              <td>
+                {w.deletedAt ? (
+                  <button
+                    type="button"
+                    className="btn-icon btn-delete"
+                    onClick={() => handlePurgeInactive(w)}
+                    title="Eliminar definitivamente trabajador inactivo"
+                    aria-label={`Eliminar definitivamente a ${w.name}`}
+                  >
+                    <Trash2 size={16} />
+                  </button>
+                ) : (
+                  <span className="no-domains">—</span>
+                )}
+              </td>
             </tr>
           ))}
         </tbody>
         <tfoot>
           <tr>
-            <td colSpan={5} className="tfoot-label">
+            <td colSpan={6} className="tfoot-label">
               Ganancia total
             </td>
             <td>

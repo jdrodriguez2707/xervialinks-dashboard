@@ -79,6 +79,13 @@ function deleteWorker(id) {
   if (!deleted) throw new NotFoundError(`Worker ${id} not found`);
 }
 
+function purgeInactiveWorker(id) {
+  const purged = workersRepo.hardDeleteInactiveById(Number(id));
+  if (!purged) {
+    throw new ValidationError("Solo se pueden eliminar definitivamente trabajadores inactivos");
+  }
+}
+
 function addPropertyToWorker(workerId, { type, value }) {
   const VALID_TYPES = ["domain", "ad_unit"];
   if (!VALID_TYPES.includes(type)) {
@@ -150,6 +157,7 @@ module.exports = {
   getWorkerByEmailIncludingDeleted,
   createWorker,
   deleteWorker,
+  purgeInactiveWorker,
   addPropertyToWorker,
   updateWorkerPaymentInfoByEmail,
   updateWorkerPaymentStatus,

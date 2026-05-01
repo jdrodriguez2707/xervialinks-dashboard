@@ -7,6 +7,7 @@ router.get("/", workers.listWorkers);
 router.post("/", workers.createWorker);
 router.get("/:id", workers.getWorker);
 router.delete("/:id", workers.deleteWorker);
+router.delete("/:id/purge-inactive", workers.purgeInactiveWorker);
 router.post("/:id/properties", workers.addProperty);
 router.patch("/:id/payment-status", workers.updatePaymentStatus);
 

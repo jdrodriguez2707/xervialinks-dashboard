@@ -381,7 +381,11 @@ function AdminDashboard({ data, onWorkersUpdate, adminRange, onChangeAdminRange 
 
       <section>
         <h2>Ganancias por trabajador</h2>
-        <PayoutsTable payouts={payouts.payouts} totalPayout={payouts.totalPayout} />
+        <PayoutsTable
+          payouts={payouts.payouts}
+          totalPayout={payouts.totalPayout}
+          onPurgeInactive={onWorkersUpdate}
+        />
       </section>
 
       <section>

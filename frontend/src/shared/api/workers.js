@@ -59,3 +59,15 @@ export async function updateWorkerPaymentStatus(workerId, status) {
   const json = await res.json();
   return json.data;
 }
+
+
+export async function purgeInactiveWorker(workerId) {
+  const res = await fetch(`/api/workers/${workerId}/purge-inactive`, {
+    method: "DELETE",
+    headers: getAuthHeaders(),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error || `Error ${res.status}`);
+  }
+}

@@ -35,6 +35,11 @@ async function deleteWorker(req, res) {
   res.status(204).end();
 }
 
+async function purgeInactiveWorker(req, res) {
+  workersService.purgeInactiveWorker(req.params.id);
+  res.status(204).end();
+}
+
 async function updatePaymentStatus(req, res) {
   const { status } = req.body || {};
   const paymentStatus = workersService.updateWorkerPaymentStatus(req.params.id, status);
@@ -47,6 +52,7 @@ module.exports = {
   getMe,
   createWorker,
   deleteWorker,
+  purgeInactiveWorker,
   addProperty,
   updatePaymentStatus,
 };
