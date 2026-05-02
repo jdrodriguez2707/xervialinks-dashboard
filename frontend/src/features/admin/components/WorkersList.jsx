@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { CircleDollarSign, SquarePen, Trash2, UserX } from "lucide-react";
 import { addProperty, deleteWorker, purgeInactiveWorker } from "../../../shared/api/workers";
 import WorkerForm from "./WorkerForm";
@@ -19,7 +19,10 @@ import WorkerEditModal from "./WorkerEditModal";
  *   onUpdate: () => void | Promise<void>,
  *   mode?: "dashboard" | "management",
  *   onGoToEarnings?: (workerId: number) => void,
+ *   onNavigateToWorkerEdit?: (workerId: number) => void,
  *   workerFormOpenRequestId?: number,
+ *   autoEditWorkerId?: number | null,
+ *   autoEditNonce?: number,
  * }} props
  */
 export default function WorkersList({
@@ -28,7 +31,10 @@ export default function WorkersList({
   onUpdate,
   mode = "management",
   onGoToEarnings,
+  onNavigateToWorkerEdit,
   workerFormOpenRequestId = 0,
+  autoEditWorkerId = null,
+  autoEditNonce = 0,
 }) {
   const globallyAssignedDomains = useMemo(
     () =>
@@ -93,6 +99,8 @@ export default function WorkersList({
                 sites={sites}
                 globallyAssignedDomains={globallyAssignedDomains}
                 onUpdate={onUpdate}
+                autoEditWorkerId={autoEditWorkerId}
+                autoEditNonce={autoEditNonce}
               />
             ))}
           </div>
@@ -104,38 +112,63 @@ export default function WorkersList({
   return (
     <div className="workers-list">
       {renderedWorkers.map((worker) => (
-        <WorkerDashboardCard key={worker.id} worker={worker} onGoToEarnings={onGoToEarnings} />
+        <WorkerDashboardCard
+          key={worker.id}
+          worker={worker}
+          onGoToEarnings={onGoToEarnings}
+          onNavigateToWorkerEdit={onNavigateToWorkerEdit}
+        />
       ))}
     </div>
   );
 }
 
-/** @param {{ worker: object, onGoToEarnings?: (id: number) => void }} props */
-function WorkerDashboardCard({ worker, onGoToEarnings }) {
+/** @param {{ worker: object, onGoToEarnings?: (id: number) => void, onNavigateToWorkerEdit?: (id: number) => void }} props */
+function WorkerDashboardCard({ worker, onGoToEarnings, onNavigateToWorkerEdit }) {
   const domains = (worker.properties || []).filter((p) => p.type === "domain");
   const paymentStatus = worker.paymentStatus || "pending";
   const isPaid = paymentStatus === "paid";
 
   const statusClassName = `payment-status-badge ${isPaid ? "is-paid" : "is-pending"}`;
 
+  function handleCardActivate() {
+    onNavigateToWorkerEdit?.(worker.id);
+  }
+
   return (
-    <div className="worker-card">
+    <article
+      className="worker-card worker-card--dashboard-clickable"
+      role="button"
+      tabIndex={0}
+      aria-label={`Editar trabajador ${worker.name}`}
+      onClick={handleCardActivate}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          handleCardActivate();
+        }
+      }}
+    >
+      <div className="worker-card-corner">
+        <span className="percentage-badge">{worker.percentage}%</span>
+        <button
+          type="button"
+          className="btn-icon btn-earnings"
+          aria-label={`Ver ganancias de ${worker.name}`}
+          title="Ir al módulo de Ganancias"
+          onClick={(e) => {
+            e.stopPropagation();
+            onGoToEarnings?.(worker.id);
+          }}
+        >
+          <CircleDollarSign size={16} />
+        </button>
+      </div>
+
       <div className="worker-card-header">
         <div className="worker-card-info">
           <p className="worker-name">{worker.name}</p>
           <p className="worker-email">{worker.email}</p>
-        </div>
-        <div className="worker-card-actions">
-          <span className="percentage-badge">{worker.percentage}%</span>
-          <button
-            type="button"
-            className="btn-icon btn-earnings"
-            aria-label={`Ver ganancias de ${worker.name}`}
-            title="Ir al módulo de Ganancias"
-            onClick={() => onGoToEarnings?.(worker.id)}
-          >
-            <CircleDollarSign size={16} />
-          </button>
         </div>
       </div>
 
@@ -156,20 +189,37 @@ function WorkerDashboardCard({ worker, onGoToEarnings }) {
       <div className="worker-payment-status-row">
         <span className={statusClassName}>{isPaid ? "Pagado" : "Pendiente de pago"}</span>
       </div>
-    </div>
+    </article>
   );
 }
 
-/** @param {{ worker: object, sites: string[], globallyAssignedDomains: Set<string>, onUpdate: () => void }} props */
-function WorkerManagementPanel({ worker, sites, globallyAssignedDomains, onUpdate }) {
+/** @param {{ worker: object, sites: string[], globallyAssignedDomains: Set<string>, onUpdate: () => void, autoEditWorkerId?: number | null, autoEditNonce?: number }} props */
+function WorkerManagementPanel({
+  worker,
+  sites,
+  globallyAssignedDomains,
+  onUpdate,
+  autoEditWorkerId = null,
+  autoEditNonce = 0,
+}) {
   const [selectedSite, setSelectedSite] = useState("");
   const [error, setError] = useState(null);
   const [submitting, setSubmitting] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [purging, setPurging] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
-
+  const autoEditHandledKeyRef = useRef(null);
   const isInactive = !!worker.deleted_at;
+
+  useEffect(() => {
+    if (isInactive) return;
+    if (autoEditWorkerId == null || !autoEditNonce) return;
+    if (worker.id !== autoEditWorkerId) return;
+    const key = `${autoEditWorkerId}:${autoEditNonce}`;
+    if (autoEditHandledKeyRef.current === key) return;
+    autoEditHandledKeyRef.current = key;
+    setEditOpen(true);
+  }, [autoEditWorkerId, autoEditNonce, worker.id, isInactive]);
   const domains = (worker.properties || []).filter((p) => p.type === "domain");
   const availableSites = sites.filter(
     (s) => !globallyAssignedDomains.has(s) || domains.some((p) => p.value === s)

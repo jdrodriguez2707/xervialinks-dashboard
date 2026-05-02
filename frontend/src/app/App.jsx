@@ -86,6 +86,7 @@ export default function App() {
   });
   const [workerFormOpenRequestId, setWorkerFormOpenRequestId] = useState(0);
   const [highlightedEarningsWorkerId, setHighlightedEarningsWorkerId] = useState(null);
+  const [workerEditLaunch, setWorkerEditLaunch] = useState({ id: null, nonce: 0 });
   const adminDashboardCacheRef = useRef(new Map());
   const adminEarningsCacheRef = useRef(new Map());
   const workerValidDomainsRef = useRef([]);
@@ -455,6 +456,9 @@ export default function App() {
                   onClick={() => {
                     setAdminActiveModule(item.id);
                     if (item.id !== "earnings") setHighlightedEarningsWorkerId(null);
+                    if (item.id !== "workers") {
+                      setWorkerEditLaunch((prev) => ({ ...prev, id: null }));
+                    }
                     setAdminMenuOpen(false);
                   }}
                 >
@@ -534,6 +538,15 @@ export default function App() {
                   setAdminActiveModule("earnings");
                   setHighlightedEarningsWorkerId(workerId);
                 }}
+                workerEditLaunchId={workerEditLaunch.id}
+                workerEditLaunchNonce={workerEditLaunch.nonce}
+                onNavigateToWorkerEdit={(workerId) => {
+                  setAdminActiveModule("workers");
+                  setWorkerEditLaunch((prev) => ({
+                    id: workerId,
+                    nonce: prev.nonce + 1,
+                  }));
+                }}
               />
             )}
           </main>
@@ -610,6 +623,9 @@ function AdminDashboard({
   workerFormOpenRequestId,
   onAddWorkerFromDashboard,
   onNavigateToEarnings,
+  workerEditLaunchId,
+  workerEditLaunchNonce,
+  onNavigateToWorkerEdit,
 }) {
   const { summary, workers, payouts, sites } = data;
 
@@ -623,6 +639,8 @@ function AdminDashboard({
         onUpdate={onWorkersUpdate}
         mode="management"
         workerFormOpenRequestId={workerFormOpenRequestId}
+        autoEditWorkerId={workerEditLaunchId}
+        autoEditNonce={workerEditLaunchNonce}
       />
     );
   }
@@ -708,6 +726,7 @@ function AdminDashboard({
             onUpdate={onWorkersUpdate}
             mode="dashboard"
             onGoToEarnings={onNavigateToEarnings}
+            onNavigateToWorkerEdit={onNavigateToWorkerEdit}
           />
         )}
       </section>
