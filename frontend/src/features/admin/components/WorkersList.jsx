@@ -221,9 +221,15 @@ function WorkerManagementPanel({
     setEditOpen(true);
   }, [autoEditWorkerId, autoEditNonce, worker.id, isInactive]);
   const domains = (worker.properties || []).filter((p) => p.type === "domain");
-  const availableSites = sites.filter(
-    (s) => !globallyAssignedDomains.has(s) || domains.some((p) => p.value === s)
-  );
+  const hasAssignableSubdomain = sites.some((s) => !globallyAssignedDomains.has(s));
+
+  useEffect(() => {
+    if (!selectedSite) return;
+    if (globallyAssignedDomains.has(selectedSite)) {
+      setSelectedSite("");
+    }
+  }, [selectedSite, globallyAssignedDomains]);
+
   const initial = String(worker.name || "?")
     .trim()
     .charAt(0)
@@ -231,7 +237,7 @@ function WorkerManagementPanel({
 
   async function handleAddDomain(e) {
     e.preventDefault();
-    if (!selectedSite || isInactive) return;
+    if (!selectedSite || isInactive || globallyAssignedDomains.has(selectedSite)) return;
     setError(null);
     setSubmitting(true);
     try {
@@ -352,7 +358,7 @@ function WorkerManagementPanel({
         {!isInactive && (
           <form className="worker-mgmt-assign" onSubmit={handleAddDomain}>
             <select
-              className="form-select worker-mgmt-select"
+              className="form-select worker-mgmt-select worker-mgmt-select--domains"
               value={selectedSite}
               onChange={(e) => setSelectedSite(e.target.value)}
               required
@@ -361,13 +367,27 @@ function WorkerManagementPanel({
               <option value="" disabled>
                 Elegir subdominio disponible…
               </option>
-              {availableSites.map((s) => (
-                <option key={s} value={s}>
-                  {s}
-                </option>
-              ))}
+              {sites.map((s) => {
+                const assignedGlobally = globallyAssignedDomains.has(s);
+                const ownedHere = domains.some((p) => p.value === s);
+                const disabled = assignedGlobally;
+                const hint = assignedGlobally
+                  ? ownedHere
+                    ? " · ya asignado aquí"
+                    : " · no disponible"
+                  : "";
+                return (
+                  <option key={s} value={s} disabled={disabled} className="worker-mgmt-site-option">
+                    {`${s}${hint}`}
+                  </option>
+                );
+              })}
             </select>
-            <button type="submit" className="btn btn-sm worker-mgmt-assign-btn" disabled={submitting || availableSites.length === 0}>
+            <button
+              type="submit"
+              className="btn btn-sm worker-mgmt-assign-btn"
+              disabled={submitting || !hasAssignableSubdomain || !selectedSite}
+            >
               {submitting ? "Asignando…" : "Asignar subdominio"}
             </button>
           </form>

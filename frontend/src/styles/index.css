@@ -1167,6 +1167,11 @@ body {
   min-width: min(100%, 200px);
 }
 
+.worker-mgmt-select--domains option.worker-mgmt-site-option:disabled {
+  color: #94a3b8;
+  background-color: #f1f5f9;
+}
+
 .worker-mgmt-assign-btn {
   align-self: center;
 }
