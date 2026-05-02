@@ -101,6 +101,45 @@ describe("GET /api/workers/:id", () => {
   });
 });
 
+describe("PATCH /api/workers/:id", () => {
+  let workerId;
+
+  beforeAll(async () => {
+    const res = await request(app)
+      .post("/api/workers")
+      .set("Authorization", `Bearer ${token}`)
+      .send({ name: "Patchable", email: "patchable@example.com", percentage: 50, password: "pass123" });
+    workerId = res.body.data.id;
+    await request(app)
+      .post(`/api/workers/${workerId}/properties`)
+      .set("Authorization", `Bearer ${token}`)
+      .send({ type: "domain", value: "patch.worker.example.com" });
+  });
+
+  it("updates name and percentage while keeping domains", async () => {
+    const res = await request(app)
+      .patch(`/api/workers/${workerId}`)
+      .set("Authorization", `Bearer ${token}`)
+      .send({
+        name: "Patchy",
+        email: "patchable@example.com",
+        percentage: 55,
+        domains: ["patch.worker.example.com"],
+      });
+    expect(res.status).toBe(200);
+    expect(res.body.data.name).toBe("Patchy");
+    expect(res.body.data.percentage).toBe(55);
+  });
+
+  it("returns 400 when domains is missing", async () => {
+    const res = await request(app)
+      .patch(`/api/workers/${workerId}`)
+      .set("Authorization", `Bearer ${token}`)
+      .send({ name: "X", email: "patchable@example.com", percentage: 55 });
+    expect(res.status).toBe(400);
+  });
+});
+
 describe("POST /api/workers/:id/properties", () => {
   let workerId;
 

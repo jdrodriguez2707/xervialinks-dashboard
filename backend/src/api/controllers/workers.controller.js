@@ -48,6 +48,11 @@ async function updatePaymentStatus(req, res) {
   res.json({ data: paymentStatus });
 }
 
+async function updateWorker(req, res) {
+  const worker = await workersService.updateWorker(req.params.id, req.body || {});
+  res.json({ data: worker });
+}
+
 module.exports = {
   listWorkers,
   getWorker,
@@ -57,4 +62,5 @@ module.exports = {
   purgeInactiveWorker,
   addProperty,
   updatePaymentStatus,
+  updateWorker,
 };

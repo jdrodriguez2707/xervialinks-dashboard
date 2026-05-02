@@ -145,6 +145,86 @@ function updateWorkerPaymentInfoByEmail(email, { methodType, paymentDetails }) {
   });
 }
 
+/**
+ * @param {number|string} workerId
+ * @param {{
+ *   name: string,
+ *   email: string,
+ *   percentage: number,
+ *   password?: string,
+ *   domains: string[],
+ * }} body
+ */
+async function updateWorker(workerId, body) {
+  const worker = getWorkerById(Number(workerId));
+  const { name: rawName, email: rawEmail, percentage, password, domains } = body;
+
+  if (!rawName || !rawEmail || percentage == null || !Array.isArray(domains)) {
+    throw new ValidationError("Nombre, email, porcentaje y lista de subdominios son requeridos");
+  }
+
+  const name = String(rawName).trim();
+  const email = String(rawEmail).trim();
+  if (!name || !email) {
+    throw new ValidationError("Nombre y email no pueden estar vacíos");
+  }
+
+  const pct = Number(percentage);
+  if (typeof pct !== "number" || Number.isNaN(pct) || pct <= 0 || pct > 100) {
+    throw new ValidationError("El porcentaje debe ser un número entre 0 y 100 (exclusivo)");
+  }
+
+  const normalizedDomains = [...new Set(domains.map((d) => String(d).trim()).filter(Boolean))];
+  for (const d of normalizedDomains) {
+    if (!isAssignableSubdomain(d)) {
+      throw new ValidationError(
+        "Solo se permiten subdominios asignables (ej: elvalerobux.barbacoadicto.com)"
+      );
+    }
+    const existing = workersRepo.findPropertyByTypeAndValue("domain", d);
+    if (existing && Number(existing.worker_id) !== Number(worker.id)) {
+      throw new ConflictError(`El subdominio ${d} ya está asignado a otro trabajador`);
+    }
+  }
+
+  const oldEmail = worker.email;
+  if (email !== oldEmail) {
+    const otherWorker = workersRepo.findByEmail(email, { includeDeleted: true });
+    if (otherWorker && otherWorker.id !== worker.id) {
+      throw new ConflictError(`El email ${email} ya está en uso`);
+    }
+    const userWithEmail = authRepo.findByEmail(email);
+    if (userWithEmail && userWithEmail.email !== oldEmail) {
+      throw new ConflictError(`Ya existe una cuenta con el email ${email}`);
+    }
+  }
+
+  let passwordHash = null;
+  if (password != null && String(password).trim()) {
+    passwordHash = await bcrypt.hash(String(password).trim(), 10);
+  }
+
+  try {
+    return workersRepo.updateWorkerComplete(
+      worker.id,
+      oldEmail,
+      { name, email, percentage: pct, passwordHash: passwordHash || null },
+      normalizedDomains
+    );
+  } catch (err) {
+    if (String(err.message || err).includes("UNIQUE")) {
+      throw new ConflictError("El email ya está en uso");
+    }
+    if (String(err.message).includes("Worker not found or inactive")) {
+      throw new NotFoundError("Trabajador no encontrado o inactivo");
+    }
+    if (String(err.message).includes("Linked user not found")) {
+      throw new NotFoundError("No se encontró la cuenta vinculada al trabajador");
+    }
+    throw err;
+  }
+}
+
 function updateWorkerPaymentStatus(workerId, status) {
   const VALID_STATUSES = ["pending", "paid"];
   if (!VALID_STATUSES.includes(status)) {
@@ -172,6 +252,7 @@ module.exports = {
   deleteWorker,
   purgeInactiveWorker,
   addPropertyToWorker,
+  updateWorker,
   updateWorkerPaymentInfoByEmail,
   updateWorkerPaymentStatus,
 };

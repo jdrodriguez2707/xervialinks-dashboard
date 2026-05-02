@@ -1,7 +1,8 @@
 import { useMemo, useState } from "react";
-import { CircleDollarSign, Trash2, UserX } from "lucide-react";
+import { CircleDollarSign, SquarePen, Trash2, UserX } from "lucide-react";
 import { addProperty, deleteWorker, purgeInactiveWorker } from "../../../shared/api/workers";
 import WorkerForm from "./WorkerForm";
+import WorkerEditModal from "./WorkerEditModal";
 
 /**
  * @param {{
@@ -166,10 +167,13 @@ function WorkerManagementPanel({ worker, sites, globallyAssignedDomains, onUpdat
   const [submitting, setSubmitting] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [purging, setPurging] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
 
   const isInactive = !!worker.deleted_at;
   const domains = (worker.properties || []).filter((p) => p.type === "domain");
-  const availableSites = sites.filter((s) => !globallyAssignedDomains.has(s));
+  const availableSites = sites.filter(
+    (s) => !globallyAssignedDomains.has(s) || domains.some((p) => p.value === s)
+  );
   const initial = String(worker.name || "?")
     .trim()
     .charAt(0)
@@ -243,16 +247,27 @@ function WorkerManagementPanel({ worker, sites, globallyAssignedDomains, onUpdat
           <div className="worker-mgmt-actions">
             <span className="worker-mgmt-pct">{worker.percentage}%</span>
             {!isInactive && (
-              <button
-                type="button"
-                className="btn-icon btn-mgmt-soft-delete"
-                aria-label={`Desactivar a ${worker.name}`}
-                title="Desactivar trabajador"
-                disabled={deleting}
-                onClick={handleDelete}
-              >
-                {deleting ? "…" : <UserX size={18} strokeWidth={2} />}
-              </button>
+              <>
+                <button
+                  type="button"
+                  className="btn-icon btn-mgmt-soft-delete"
+                  aria-label={`Desactivar a ${worker.name}`}
+                  title="Desactivar trabajador"
+                  disabled={deleting}
+                  onClick={handleDelete}
+                >
+                  {deleting ? "…" : <UserX size={18} strokeWidth={2} />}
+                </button>
+                <button
+                  type="button"
+                  className="btn-icon btn-mgmt-edit"
+                  aria-label={`Editar datos de ${worker.name}`}
+                  title="Editar trabajador"
+                  onClick={() => setEditOpen(true)}
+                >
+                  <SquarePen size={18} strokeWidth={2} />
+                </button>
+              </>
             )}
             {isInactive && (
               <button
@@ -317,6 +332,16 @@ function WorkerManagementPanel({ worker, sites, globallyAssignedDomains, onUpdat
 
         {error && <p className="form-error worker-mgmt-error">{error}</p>}
       </div>
+
+      {editOpen && !isInactive && (
+        <WorkerEditModal
+          worker={worker}
+          sites={sites}
+          globallyAssignedDomains={globallyAssignedDomains}
+          onClose={() => setEditOpen(false)}
+          onSaved={onUpdate}
+        />
+      )}
     </article>
   );
 }

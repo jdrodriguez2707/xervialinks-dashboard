@@ -8,6 +8,20 @@ export async function fetchWorkers({ includeDeleted = false } = {}) {
   return json.data;
 }
 
+export async function updateWorker(workerId, body) {
+  const res = await fetch(`/api/workers/${workerId}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json", ...getAuthHeaders() },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error || `Error ${res.status}`);
+  }
+  const json = await res.json();
+  return json.data;
+}
+
 export async function createWorker({ name, email, percentage, password }) {
   const res = await fetch("/api/workers", {
     method: "POST",

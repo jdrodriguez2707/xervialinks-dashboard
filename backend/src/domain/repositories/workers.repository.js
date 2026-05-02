@@ -204,6 +204,56 @@ function attachProperties(worker) {
   };
 }
 
+/**
+ * Updates worker row, linked worker user (by old email), and replaces domain properties
+ * to match `domainValues` order. Optional password: pass null to keep current hash.
+ * Runs in a single transaction.
+ */
+function updateWorkerComplete(workerId, oldEmail, { name, email, percentage, passwordHash }, domainValues) {
+  const db = getDb();
+  return db.transaction(() => {
+    const wr = db
+      .prepare(
+        `UPDATE workers SET name = ?, email = ?, percentage = ?
+         WHERE id = ? AND deleted_at IS NULL`
+      )
+      .run(name, email, percentage, workerId);
+    if (wr.changes === 0) {
+      throw new Error("Worker not found or inactive");
+    }
+
+    const ur = db
+      .prepare(
+        `UPDATE users SET name = ?, email = ?, password_hash = COALESCE(?, password_hash)
+         WHERE email = ? AND role = 'worker' AND deleted_at IS NULL`
+      )
+      .run(name, email, passwordHash, oldEmail);
+    if (ur.changes === 0) {
+      throw new Error("Linked user not found for worker");
+    }
+
+    const props = db
+      .prepare("SELECT id, value FROM properties WHERE worker_id = ? AND type = 'domain'")
+      .all(workerId);
+    const desired = new Set(domainValues);
+    for (const p of props) {
+      if (!desired.has(p.value)) {
+        db.prepare("DELETE FROM properties WHERE id = ?").run(p.id);
+      }
+    }
+    for (const d of domainValues) {
+      if (!props.some((row) => row.value === d)) {
+        db.prepare("INSERT INTO properties (worker_id, type, value) VALUES (?, 'domain', ?)").run(
+          workerId,
+          d
+        );
+      }
+    }
+
+    return findById(workerId);
+  })();
+}
+
 module.exports = {
   findAll,
   findById,
@@ -218,4 +268,6 @@ module.exports = {
   getPaymentStatus,
   upsertPaymentStatus,
   upsertPaymentInfo,
+  getProperties,
+  updateWorkerComplete,
 };
