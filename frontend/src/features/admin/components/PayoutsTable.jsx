@@ -32,6 +32,15 @@ export default function PayoutsTable({
     [workers]
   );
 
+  const payoutsOrdered = useMemo(() => {
+    return [...payouts].sort((a, b) => {
+      const aInactive = !!a.deletedAt;
+      const bInactive = !!b.deletedAt;
+      if (aInactive !== bInactive) return aInactive ? 1 : -1;
+      return String(a.name || "").localeCompare(String(b.name || ""), "es");
+    });
+  }, [payouts]);
+
   async function handleTogglePaymentStatus() {
     if (!selectedWorker || selectedWorker.deletedAt) return;
     const currentStatus = selectedWorker.paymentStatus || "pending";
@@ -86,7 +95,7 @@ export default function PayoutsTable({
             </tr>
           </thead>
           <tbody>
-            {payouts.map((w) => (
+            {payoutsOrdered.map((w) => (
               <tr
                 key={w.workerId}
                 className={w.workerId === highlightedWorkerId ? "row-highlight" : ""}
