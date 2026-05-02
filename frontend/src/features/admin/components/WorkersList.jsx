@@ -18,9 +18,17 @@ import WorkerForm from "./WorkerForm";
  *   onUpdate: () => void | Promise<void>,
  *   mode?: "dashboard" | "management",
  *   onGoToEarnings?: (workerId: number) => void,
+ *   workerFormOpenRequestId?: number,
  * }} props
  */
-export default function WorkersList({ workers, sites = [], onUpdate, mode = "management", onGoToEarnings }) {
+export default function WorkersList({
+  workers,
+  sites = [],
+  onUpdate,
+  mode = "management",
+  onGoToEarnings,
+  workerFormOpenRequestId = 0,
+}) {
   const globallyAssignedDomains = useMemo(
     () =>
       new Set(
@@ -67,6 +75,7 @@ export default function WorkersList({ workers, sites = [], onUpdate, mode = "man
             onCreated={onUpdate}
             triggerLabel="Agregar trabajador"
             triggerClassName="btn workers-module-add-btn"
+            openRequestId={workerFormOpenRequestId}
           />
         </div>
 

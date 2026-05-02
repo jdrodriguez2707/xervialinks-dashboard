@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { createWorker } from "../../../shared/api/workers";
 
 /**
@@ -6,14 +6,24 @@ import { createWorker } from "../../../shared/api/workers";
  *   onCreated: () => void,
  *   triggerClassName?: string,
  *   triggerLabel?: string,
+ *   openRequestId?: number,
  * }} props
  */
 export default function WorkerForm({
   onCreated,
   triggerClassName = "btn btn-add-worker",
   triggerLabel = "+ Agregar trabajador",
+  openRequestId = 0,
 }) {
   const [open, setOpen] = useState(false);
+  const lastOpenRequestId = useRef(0);
+
+  useEffect(() => {
+    if (openRequestId > lastOpenRequestId.current) {
+      lastOpenRequestId.current = openRequestId;
+      setOpen(true);
+    }
+  }, [openRequestId]);
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [percentage, setPercentage] = useState("");

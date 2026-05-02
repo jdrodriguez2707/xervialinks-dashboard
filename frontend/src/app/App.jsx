@@ -84,6 +84,7 @@ export default function App() {
     if (u?.role !== "admin") return "dashboard";
     return readStoredAdminActiveModule();
   });
+  const [workerFormOpenRequestId, setWorkerFormOpenRequestId] = useState(0);
   const [highlightedEarningsWorkerId, setHighlightedEarningsWorkerId] = useState(null);
   const adminDashboardCacheRef = useRef(new Map());
   const adminEarningsCacheRef = useRef(new Map());
@@ -244,6 +245,13 @@ export default function App() {
   }, [adminActiveModule, user?.role]);
 
   useEffect(() => {
+    if (user?.role !== "admin") return;
+    if (adminActiveModule !== "workers") {
+      setWorkerFormOpenRequestId(0);
+    }
+  }, [adminActiveModule, user?.role]);
+
+  useEffect(() => {
     setCurrentDateLabel(formatUserDateLabel());
     const timer = window.setInterval(() => {
       setCurrentDateLabel(formatUserDateLabel());
@@ -372,6 +380,7 @@ export default function App() {
     setAdminMenuOpen(false);
     setAdminActiveModule("dashboard");
     setHighlightedEarningsWorkerId(null);
+    setWorkerFormOpenRequestId(0);
     setAdminMenuOpen(false);
     setAdminActiveModule("dashboard");
     setHighlightedEarningsWorkerId(null);
@@ -393,6 +402,7 @@ export default function App() {
     setWorkerMetricsError(null);
     setWorkerSelectedDomain(null);
     workerValidDomainsRef.current = [];
+    setWorkerFormOpenRequestId(0);
     if (typeof window !== "undefined") {
       window.sessionStorage.removeItem(ADMIN_ACTIVE_MODULE_STORAGE_KEY);
       const tabPrefix = `${WORKER_TAB_STORAGE_PREFIX}:`;
@@ -515,6 +525,11 @@ export default function App() {
                 onChangeAdminEarningsRange={setAdminEarningsRange}
                 activeModule={adminActiveModule}
                 highlightedEarningsWorkerId={highlightedEarningsWorkerId}
+                workerFormOpenRequestId={workerFormOpenRequestId}
+                onAddWorkerFromDashboard={() => {
+                  setAdminActiveModule("workers");
+                  setWorkerFormOpenRequestId((n) => n + 1);
+                }}
                 onNavigateToEarnings={(workerId) => {
                   setAdminActiveModule("earnings");
                   setHighlightedEarningsWorkerId(workerId);
@@ -592,6 +607,8 @@ function AdminDashboard({
   onChangeAdminEarningsRange,
   activeModule,
   highlightedEarningsWorkerId,
+  workerFormOpenRequestId,
+  onAddWorkerFromDashboard,
   onNavigateToEarnings,
 }) {
   const { summary, workers, payouts, sites } = data;
@@ -600,7 +617,13 @@ function AdminDashboard({
 
   if (activeModule === "workers") {
     return (
-      <WorkersList workers={workers} sites={sites} onUpdate={onWorkersUpdate} mode="management" />
+      <WorkersList
+        workers={workers}
+        sites={sites}
+        onUpdate={onWorkersUpdate}
+        mode="management"
+        workerFormOpenRequestId={workerFormOpenRequestId}
+      />
     );
   }
 
@@ -665,13 +688,28 @@ function AdminDashboard({
 
       <section>
         <h2>Trabajadores</h2>
-        <WorkersList
-          workers={activeWorkers}
-          sites={sites}
-          onUpdate={onWorkersUpdate}
-          mode="dashboard"
-          onGoToEarnings={onNavigateToEarnings}
-        />
+        {activeWorkers.length === 0 ? (
+          <div className="admin-dashboard-workers-empty">
+            <p className="empty-state">
+              Aún no hay trabajadores activos. Crea el primero para asignar subdominios y ver ganancias.
+            </p>
+            <button
+              type="button"
+              className="btn workers-module-add-btn"
+              onClick={() => onAddWorkerFromDashboard?.()}
+            >
+              Agregar trabajador
+            </button>
+          </div>
+        ) : (
+          <WorkersList
+            workers={activeWorkers}
+            sites={sites}
+            onUpdate={onWorkersUpdate}
+            mode="dashboard"
+            onGoToEarnings={onNavigateToEarnings}
+          />
+        )}
       </section>
     </>
   );

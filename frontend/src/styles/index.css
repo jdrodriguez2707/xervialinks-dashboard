@@ -860,6 +860,18 @@ body {
   box-shadow: 0 2px 8px rgba(26, 26, 46, 0.12);
 }
 
+.admin-dashboard-workers-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.65rem;
+  margin-top: 0.35rem;
+}
+
+.admin-dashboard-workers-empty .empty-state {
+  margin-bottom: 0;
+}
+
 .workers-mgmt-list {
   display: flex;
   flex-direction: column;
