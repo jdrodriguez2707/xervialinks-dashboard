@@ -20,14 +20,18 @@ async function calculatePayouts(filters = {}, requesterEmail = null) {
     ? allWorkers.filter((w) => w.email === requesterEmail)
     : allWorkers;
 
+  const tz = filters.timeZone || "America/Bogota";
+
   const payouts = workers
     .map((worker) => {
-    const workerDeletedAt = normalizeDate(worker.deleted_at);
+    const workerDeletedCalendar = deletedAtToBusinessCalendarISO(worker.deleted_at, tz);
     const filterStart = filters.startDate || "0000-00-00";
     const filterEnd = filters.endDate || "9999-12-31";
     const effectiveStart = filterStart;
     const effectiveEnd =
-      workerDeletedAt && workerDeletedAt < filterEnd ? workerDeletedAt : filterEnd;
+      workerDeletedCalendar && workerDeletedCalendar < filterEnd
+        ? workerDeletedCalendar
+        : filterEnd;
     if (effectiveStart > effectiveEnd) return null;
 
     const assignedDomains = getAssignedDomains(worker.properties);
@@ -41,7 +45,7 @@ async function calculatePayouts(filters = {}, requesterEmail = null) {
     const assignedImpressions = sumImpressions(matchingReports);
     const payout = computePayout(assignedRevenue, worker.percentage);
 
-    if (workerDeletedAt && assignedRevenue === 0 && assignedImpressions === 0) {
+    if (workerDeletedCalendar && assignedRevenue === 0 && assignedImpressions === 0) {
       return null;
     }
 
@@ -50,7 +54,7 @@ async function calculatePayouts(filters = {}, requesterEmail = null) {
       name: worker.name,
       email: worker.email,
       percentage: worker.percentage,
-      deletedAt: workerDeletedAt || null,
+      deletedAt: workerDeletedCalendar || null,
       assignedDomains,
       assignedProperties: worker.properties,
       assignedRevenue,
@@ -94,10 +98,45 @@ function normalizeDate(value) {
   return value.slice(0, 10);
 }
 
+/** SQLite datetime('now') is UTC; interpret ambiguous strings as UTC for indexing. */
+function parseDeletedAtToUtcMs(raw) {
+  if (!raw || typeof raw !== "string") return NaN;
+  const s = raw.trim();
+  if (!s) return NaN;
+  if (s.includes("T")) {
+    return Date.parse(s);
+  }
+  const m = s.match(/^(\d{4}-\d{2}-\d{2})(?:[ T](\d{2}:\d{2}:\d{2}))?/);
+  if (!m) return NaN;
+  const datePart = m[1];
+  const timePart = m[2] || "00:00:00";
+  return Date.parse(`${datePart}T${timePart}Z`);
+}
+
+function deletedAtToBusinessCalendarISO(deletedAtRaw, timeZone) {
+  if (!deletedAtRaw || typeof deletedAtRaw !== "string") return "";
+  const trimmed = deletedAtRaw.trim();
+  if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) {
+    return trimmed;
+  }
+  const tz =
+    typeof timeZone === "string" && timeZone.trim()
+      ? timeZone.trim()
+      : "America/Bogota";
+  const ms = parseDeletedAtToUtcMs(trimmed);
+  if (!Number.isFinite(ms)) return normalizeDate(deletedAtRaw);
+  try {
+    return new Date(ms).toLocaleDateString("en-CA", { timeZone: tz });
+  } catch {
+    return normalizeDate(deletedAtRaw);
+  }
+}
+
 module.exports = {
   calculatePayouts,
   getAssignedDomains,
   computePayout,
   sumRevenue,
   sumImpressions,
+  deletedAtToBusinessCalendarISO,
 };

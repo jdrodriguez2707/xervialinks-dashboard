@@ -6,6 +6,7 @@ const {
   computePayout,
   getAssignedDomains,
   sumRevenue,
+  deletedAtToBusinessCalendarISO,
 } = require("../src/application/services/payouts.service");
 const {
   todayISO,
@@ -63,6 +64,21 @@ describe("getAssignedDomains", () => {
 
   it("returns empty array for empty properties", () => {
     expect(getAssignedDomains([])).toEqual([]);
+  });
+});
+
+describe("deletedAtToBusinessCalendarISO", () => {
+  it("maps SQLite UTC deletion instant to calendar date in America/Bogota", () => {
+    expect(deletedAtToBusinessCalendarISO("2026-05-01 04:30:00", "America/Bogota")).toBe(
+      "2026-04-30"
+    );
+    expect(deletedAtToBusinessCalendarISO("2026-05-01 18:00:00", "America/Bogota")).toBe(
+      "2026-05-01"
+    );
+  });
+
+  it("falls back for plain date strings", () => {
+    expect(deletedAtToBusinessCalendarISO("2026-03-15", "America/Bogota")).toBe("2026-03-15");
   });
 });
 
