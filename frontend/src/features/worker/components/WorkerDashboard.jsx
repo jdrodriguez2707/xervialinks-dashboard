@@ -117,7 +117,7 @@ export default function WorkerDashboard({
   const domainMenuRef = useRef(null);
 
   useEffect(() => {
-    setPaymentInfo(workerContext?.paymentInfo ?? null);
+    setPaymentInfo((prev) => workerContext?.paymentInfo ?? prev ?? null);
   }, [workerContext?.paymentInfo]);
 
   useEffect(() => {

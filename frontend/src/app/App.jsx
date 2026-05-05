@@ -100,7 +100,9 @@ export default function App() {
   const adminDashboardCacheRef = useRef(new Map());
   const adminEarningsCacheRef = useRef(new Map());
   const workerValidDomainsRef = useRef([]);
+  const workerPaymentMonthRef = useRef(getDefaultPaymentMonth());
   const lastDefaultPaymentMonthRef = useRef(getDefaultPaymentMonth());
+  const workerContextReqSeqRef = useRef(0);
 
   function getCachedDashboardSummary(rangeKey) {
     const entry = adminDashboardCacheRef.current.get(rangeKey);
@@ -161,7 +163,9 @@ export default function App() {
           handleLogout(err.message);
         } else if (err.message.includes("subdominio solicitado no está asignado")) {
           try {
-            const ctx = await fetchWorkerContext({ paymentMonth: workerPaymentMonth });
+            const ctx = await fetchWorkerContext({
+              paymentMonth: workerPaymentMonthRef.current,
+            });
             const domains = getWorkerDomains(ctx);
             const fallbackDomain = domains[0] || null;
             setData((prev) => ({ ...prev, workerContext: ctx }));
@@ -360,6 +364,10 @@ export default function App() {
   }, [data?.workerContext]);
 
   useEffect(() => {
+    workerPaymentMonthRef.current = workerPaymentMonth;
+  }, [workerPaymentMonth]);
+
+  useEffect(() => {
     if (!user || user.role !== "worker" || typeof window === "undefined") return;
     const workerId = data?.workerContext?.workerId;
     if (!workerId) return;
@@ -418,17 +426,21 @@ export default function App() {
 
   const refreshWorkerContextByPaymentMonth = useCallback(async () => {
     if (!user || user.role !== "worker") return;
+    const reqSeq = ++workerContextReqSeqRef.current;
     try {
       const ctx = await fetchWorkerContext({ paymentMonth: workerPaymentMonth });
+      if (workerContextReqSeqRef.current !== reqSeq) return;
       const domains = getWorkerDomains(ctx);
       const stillValid = workerSelectedDomain && domains.includes(workerSelectedDomain);
       const nextDomain = stillValid ? workerSelectedDomain : domains[0] || null;
       setWorkerSelectedDomain(nextDomain);
       setData((prev) => ({ ...prev, workerContext: ctx }));
+      setError(null);
     } catch (err) {
       if (err.message === "401") handleLogout();
       else if (err.message.includes("cuenta de trabajador fue eliminada")) handleLogout(err.message);
-      else setError(err.message || "No se pudo actualizar el estado de pago");
+      // No elevamos este error al estado global para no romper la UI del worker
+      // por fallos transitorios del refresco liviano de contexto.
     }
   }, [user, workerPaymentMonth, workerSelectedDomain]);
 
@@ -460,6 +472,14 @@ export default function App() {
     if (!user || user.role !== "worker" || !data?.workerContext) return;
     refreshWorkerContextByPaymentMonth();
   }, [workerPaymentMonth, user, data?.workerContext?.workerId, refreshWorkerContextByPaymentMonth]);
+
+  useEffect(() => {
+    if (!user || user.role !== "worker" || !data?.workerContext?.workerId) return;
+    const timer = window.setInterval(() => {
+      refreshWorkerContextByPaymentMonth();
+    }, 5000);
+    return () => window.clearInterval(timer);
+  }, [user, data?.workerContext?.workerId, refreshWorkerContextByPaymentMonth]);
 
   function handleLogin(loggedUser) {
     setSessionNotice(null);
