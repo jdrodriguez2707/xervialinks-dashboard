@@ -86,6 +86,9 @@ export default function App() {
   const [adminEarningsRange, setAdminEarningsRange] = useState("today");
   const [adminPaymentMonth, setAdminPaymentMonth] = useState(() => getDefaultPaymentMonth());
   const [workerPaymentMonth, setWorkerPaymentMonth] = useState(() => getDefaultPaymentMonth());
+  const [workerHistoryPaymentMonth, setWorkerHistoryPaymentMonth] = useState(() =>
+    getDefaultPaymentMonth()
+  );
   const [adminReady, setAdminReady] = useState(false);
   const [error, setError] = useState(null);
   const [workerMetricsLoading, setWorkerMetricsLoading] = useState(false);
@@ -105,6 +108,7 @@ export default function App() {
   const adminEarningsCacheRef = useRef(new Map());
   const workerValidDomainsRef = useRef([]);
   const workerPaymentMonthRef = useRef(getDefaultPaymentMonth());
+  const workerHistoryPaymentMonthRef = useRef(getDefaultPaymentMonth());
   const lastDefaultPaymentMonthRef = useRef(getDefaultPaymentMonth());
   const workerContextReqSeqRef = useRef(0);
 
@@ -229,7 +233,7 @@ export default function App() {
       } else {
         const [context, paymentHistory] = await Promise.all([
           fetchWorkerContext({ paymentMonth: workerPaymentMonth }),
-          fetchWorkerPaymentHistory({ paymentMonth: workerPaymentMonth }),
+          fetchWorkerPaymentHistory({ paymentMonth: workerHistoryPaymentMonth }),
         ]);
         const domains = getWorkerDomains(context);
         let initialDomain = domains[0] || null;
@@ -288,11 +292,14 @@ export default function App() {
         if (workerPaymentMonth === previousDefault) {
           setWorkerPaymentMonth(nextDefault);
         }
+        if (workerHistoryPaymentMonth === previousDefault) {
+          setWorkerHistoryPaymentMonth(nextDefault);
+        }
         lastDefaultPaymentMonthRef.current = nextDefault;
       }
     }, 60 * 1000);
     return () => window.clearInterval(timer);
-  }, [adminPaymentMonth, workerPaymentMonth]);
+  }, [adminPaymentMonth, workerPaymentMonth, workerHistoryPaymentMonth]);
 
   useEffect(() => {
     if (typeof document === "undefined") return;
@@ -375,6 +382,10 @@ export default function App() {
   }, [workerPaymentMonth]);
 
   useEffect(() => {
+    workerHistoryPaymentMonthRef.current = workerHistoryPaymentMonth;
+  }, [workerHistoryPaymentMonth]);
+
+  useEffect(() => {
     if (!user || user.role !== "worker" || typeof window === "undefined") return;
     const workerId = data?.workerContext?.workerId;
     if (!workerId) return;
@@ -436,8 +447,8 @@ export default function App() {
     const reqSeq = ++workerContextReqSeqRef.current;
     try {
       const [ctx, paymentHistory] = await Promise.all([
-        fetchWorkerContext({ paymentMonth: workerPaymentMonth }),
-        fetchWorkerPaymentHistory({ paymentMonth: workerPaymentMonth }),
+        fetchWorkerContext({ paymentMonth: workerPaymentMonthRef.current }),
+        fetchWorkerPaymentHistory({ paymentMonth: workerHistoryPaymentMonthRef.current }),
       ]);
       if (workerContextReqSeqRef.current !== reqSeq) return;
       const domains = getWorkerDomains(ctx);
@@ -452,7 +463,7 @@ export default function App() {
       // No elevamos este error al estado global para no romper la UI del worker
       // por fallos transitorios del refresco liviano de contexto.
     }
-  }, [user, workerPaymentMonth, workerSelectedDomain]);
+  }, [user, workerSelectedDomain]);
 
   useEffect(() => {
     async function refreshWorkersPaymentStatusByMonth() {
@@ -481,7 +492,13 @@ export default function App() {
   useEffect(() => {
     if (!user || user.role !== "worker" || !data?.workerContext) return;
     refreshWorkerContextByPaymentMonth();
-  }, [workerPaymentMonth, user, data?.workerContext?.workerId, refreshWorkerContextByPaymentMonth]);
+  }, [
+    workerPaymentMonth,
+    workerHistoryPaymentMonth,
+    user,
+    data?.workerContext?.workerId,
+    refreshWorkerContextByPaymentMonth,
+  ]);
 
   useEffect(() => {
     if (!user || user.role !== "worker" || !data?.workerContext?.workerId) return;
@@ -504,6 +521,7 @@ export default function App() {
     setWorkerFormOpenRequestId(0);
     setAdminPaymentMonth(getDefaultPaymentMonth());
     setWorkerPaymentMonth(getDefaultPaymentMonth());
+    setWorkerHistoryPaymentMonth(getDefaultPaymentMonth());
     setAdminMenuOpen(false);
     setAdminActiveModule("dashboard");
     setHighlightedEarningsWorkerId(null);
@@ -526,6 +544,7 @@ export default function App() {
     setWorkerSelectedDomain(null);
     setAdminPaymentMonth(getDefaultPaymentMonth());
     setWorkerPaymentMonth(getDefaultPaymentMonth());
+    setWorkerHistoryPaymentMonth(getDefaultPaymentMonth());
     workerValidDomainsRef.current = [];
     setWorkerFormOpenRequestId(0);
     if (typeof window !== "undefined") {
@@ -721,11 +740,13 @@ export default function App() {
           workerId={data?.workerContext?.workerId ?? null}
           paymentMonth={workerPaymentMonth}
           onPaymentMonthChange={setWorkerPaymentMonth}
+          paymentHistoryMonth={workerHistoryPaymentMonth}
+          onPaymentHistoryMonthChange={setWorkerHistoryPaymentMonth}
           onContextRefresh={async () => {
             try {
               const [ctx, paymentHistory] = await Promise.all([
                 fetchWorkerContext({ paymentMonth: workerPaymentMonth }),
-                fetchWorkerPaymentHistory({ paymentMonth: workerPaymentMonth }),
+                fetchWorkerPaymentHistory({ paymentMonth: workerHistoryPaymentMonth }),
               ]);
               const domains = getWorkerDomains(ctx);
               const stillValid = workerSelectedDomain && domains.includes(workerSelectedDomain);

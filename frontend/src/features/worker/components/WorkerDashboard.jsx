@@ -84,6 +84,8 @@ export default function WorkerDashboard({
   workerId,
   paymentMonth,
   onPaymentMonthChange,
+  paymentHistoryMonth,
+  onPaymentHistoryMonthChange,
 }) {
   const [activeTab, setActiveTab] = useState("stats");
   const [selectedRange, setSelectedRange] = useState("today");
@@ -149,6 +151,7 @@ export default function WorkerDashboard({
   }`;
   const paymentMonthOptions = useMemo(() => buildPaymentMonthOptions(), []);
   const paymentMonthLabel = formatPaymentMonthLabel(paymentMonth);
+  const paymentHistoryMonthLabel = formatPaymentMonthLabel(paymentHistoryMonth);
   const paymentHistoryRows = workerPaymentHistory?.rows || [];
   const selectedDomainValue =
     selectedDomain && domains.some((d) => d.value === selectedDomain)
@@ -431,11 +434,11 @@ export default function WorkerDashboard({
         <section className="adsense-section">
           <h2 className="section-title">Historial de pagos</h2>
           <div className="worker-edit-label">
-            <span>Periodo: {paymentMonthLabel}</span>
+            <span>Periodo: {paymentHistoryMonthLabel}</span>
             <select
               className="form-select"
-              value={paymentMonth}
-              onChange={(e) => onPaymentMonthChange?.(e.target.value)}
+              value={paymentHistoryMonth}
+              onChange={(e) => onPaymentHistoryMonthChange?.(e.target.value)}
               aria-label="Seleccionar periodo de historial de pago"
             >
               {paymentMonthOptions.map((option) => (
@@ -463,7 +466,7 @@ export default function WorkerDashboard({
                 </thead>
                 <tbody>
                   {paymentHistoryRows.map((row) => (
-                    <tr key={`${row.domain}-${paymentMonth}`}>
+                    <tr key={`${row.domain}-${paymentHistoryMonth}`}>
                       <td>{row.domain}</td>
                       <td>{fmtImpressions(row.impressions)}</td>
                       <td>{fmtCurrency(row.payout)}</td>
@@ -557,7 +560,7 @@ export default function WorkerDashboard({
   );
 }
 
-function buildPaymentMonthOptions(total = 18, date = new Date()) {
+function buildPaymentMonthOptions(total = 12, date = new Date()) {
   const options = [];
   const start = new Date(date.getFullYear(), date.getMonth() - 1, 1);
   for (let i = 0; i < total; i += 1) {

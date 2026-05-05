@@ -293,7 +293,7 @@ export default function PayoutsTable({
   );
 }
 
-function buildPaymentMonthOptions(total = 18, date = new Date()) {
+function buildPaymentMonthOptions(total = 12, date = new Date()) {
   const options = [];
   const start = new Date(date.getFullYear(), date.getMonth() - 1, 1);
   for (let i = 0; i < total; i += 1) {
