@@ -1,63 +1,21 @@
+const { getDb } = require("../../infrastructure/database/database");
 const env = require("../../infrastructure/config/env");
-const { fetchReports } = require("../../infrastructure/integrations/gamReports");
-const {
-  getDefaultTimeZone,
-  todayISO,
-  daysAgoISO,
-} = require("../../application/services/clientTimezone");
-
-/**
- * Mock data with dynamic dates so revenue ranges (today, yesterday, last 7
- * days, current month) always return meaningful values in development.
- *
- * Revenue is in USD (floating point, 6 decimal precision as GAM returns it).
- *
- * @param {string} timeZone  IANA zone (must match the client's calendar for filters).
- */
-function buildMockReports(timeZone) {
-  const tz = timeZone || getDefaultTimeZone();
-  const date = (daysAgo) => daysAgoISO(daysAgo, tz);
-
-  return [
-    { date: date(0), domain: "elvalerobux.barbacoadicto.com",    impressions: 29714, revenue: 279.42, ecpm: 9.40 },
-    { date: date(0), domain: "parceitorobux.barbacoadicto.com",  impressions: 45661, revenue: 552.10, ecpm: 12.09 },
-    { date: date(0), domain: "plez.barbacoadicto.com",           impressions: 27527, revenue: 53.54,  ecpm: 1.94 },
-    { date: date(0), domain: "barbacoadicto.com",                impressions: 16,    revenue: 0.01,   ecpm: 0.42 },
-    { date: date(0), domain: "mundialautos.barbacoadicto.com",   impressions: 62,    revenue: 0.10,   ecpm: 1.59 },
-    { date: date(1), domain: "elvalerobux.barbacoadicto.com",    impressions: 28100, revenue: 265.80, ecpm: 9.46 },
-    { date: date(1), domain: "parceitorobux.barbacoadicto.com",  impressions: 43200, revenue: 520.30, ecpm: 12.04 },
-    { date: date(1), domain: "plez.barbacoadicto.com",           impressions: 25900, revenue: 50.10,  ecpm: 1.93 },
-    { date: date(3), domain: "elvalerobux.barbacoadicto.com",    impressions: 26500, revenue: 248.60, ecpm: 9.38 },
-    { date: date(3), domain: "parceitorobux.barbacoadicto.com",  impressions: 41800, revenue: 498.70, ecpm: 11.93 },
-    { date: date(3), domain: "plez.barbacoadicto.com",           impressions: 24300, revenue: 47.20,  ecpm: 1.94 },
-  ];
-}
-
-const DEFAULT_DATE_RANGE_DAYS = 30;
+const { buildMockReports } = require("../../infrastructure/integrations/mockReports");
 const CACHE_TTL_MS = 60 * 1000;
 const reportsCache = new Map();
 const inflightRequests = new Map();
+let seedPromise = null;
 
 /**
- * Returns reports from GAM or from mock data depending on USE_REAL_GAM_API.
- * Always async so callers don't need to change when switching to real API.
+ * Returns reports from database only.
  *
  * @param {{ domain?: string, startDate?: string, endDate?: string, timeZone?: string }} filters
  */
 async function findAll(filters = {}) {
-  if (env.USE_REAL_GAM_API) {
-    return findAllFromGam(filters);
+  if (!env.USE_REAL_GAM_API) {
+    await ensureLocalMockSeed();
   }
-  return findAllFromMock(filters);
-}
-
-async function findAllFromGam(filters) {
-  const tz = filters.timeZone || getDefaultTimeZone();
-  const today = todayISO(tz);
-  const startDate =
-    filters.startDate || daysAgoISO(DEFAULT_DATE_RANGE_DAYS, tz);
-  const endDate = filters.endDate || today;
-  const cacheKey = buildCacheKey({ startDate, endDate, domain: filters.domain });
+  const cacheKey = buildCacheKey(filters);
 
   const cached = getCache(cacheKey);
   if (cached) return cached;
@@ -66,12 +24,8 @@ async function findAllFromGam(filters) {
     return inflightRequests.get(cacheKey);
   }
 
-  const request = fetchReports({ startDate, endDate })
-    .then((reports) =>
-      filters.domain
-        ? reports.filter((r) => r.domain === filters.domain)
-        : reports
-    )
+  const request = Promise.resolve()
+    .then(() => queryReportsFromDb(filters))
     .then((result) => {
       setCache(cacheKey, result);
       return result;
@@ -84,25 +38,77 @@ async function findAllFromGam(filters) {
   return request;
 }
 
-function findAllFromMock(filters) {
-  const tz = filters.timeZone || getDefaultTimeZone();
-  let results = buildMockReports(tz);
+function queryReportsFromDb(filters = {}) {
+  const db = getDb();
+  const params = [];
+  const where = [];
 
   if (filters.domain) {
-    results = results.filter((r) => r.domain === filters.domain);
+    where.push("domain = ?");
+    params.push(filters.domain);
   }
   if (filters.startDate) {
-    results = results.filter((r) => r.date >= filters.startDate);
+    where.push("date >= ?");
+    params.push(filters.startDate);
   }
   if (filters.endDate) {
-    results = results.filter((r) => r.date <= filters.endDate);
+    where.push("date <= ?");
+    params.push(filters.endDate);
   }
 
-  return results;
+  const whereClause = where.length ? `WHERE ${where.join(" AND ")}` : "";
+  const rows = db
+    .prepare(
+      `SELECT date, domain, impressions, revenue, ecpm
+       FROM reports
+       ${whereClause}
+       ORDER BY date DESC, domain ASC`
+    )
+    .all(...params);
+
+  return rows.map(normalizeRow);
+}
+
+function upsertMany(rows = []) {
+  if (!Array.isArray(rows) || rows.length === 0) return;
+  const db = getDb();
+  const insert = db.prepare(
+    `INSERT INTO reports (date, domain, impressions, revenue, ecpm, source, synced_at)
+     VALUES (?, ?, ?, ?, ?, ?, datetime('now'))
+     ON CONFLICT(date, domain) DO UPDATE SET
+       impressions = excluded.impressions,
+       revenue = excluded.revenue,
+       ecpm = excluded.ecpm,
+       source = excluded.source,
+       synced_at = datetime('now')`
+  );
+
+  db.transaction((items) => {
+    for (const row of items) {
+      const normalized = normalizeRow(row);
+      if (!normalized.date || !normalized.domain) continue;
+      insert.run(
+        normalized.date,
+        normalized.domain,
+        normalized.impressions,
+        normalized.revenue,
+        normalized.ecpm,
+        normalized.source || "sync"
+      );
+    }
+  })(rows);
+
+  clearCache();
+}
+
+function countAll() {
+  const db = getDb();
+  const row = db.prepare("SELECT COUNT(*) AS total FROM reports").get();
+  return row?.total || 0;
 }
 
 function buildCacheKey({ startDate, endDate, domain }) {
-  return `${startDate}|${endDate}|${domain || "*"}`;
+  return `${startDate || ""}|${endDate || ""}|${domain || "*"}`;
 }
 
 function getCache(key) {
@@ -122,4 +128,34 @@ function setCache(key, value) {
   });
 }
 
-module.exports = { findAll };
+function clearCache() {
+  reportsCache.clear();
+}
+
+async function ensureLocalMockSeed() {
+  if (countAll() > 0) return;
+  if (seedPromise) return seedPromise;
+  seedPromise = Promise.resolve()
+    .then(() => {
+      if (countAll() > 0) return;
+      const rows = buildMockReports();
+      upsertMany(rows.map((r) => ({ ...r, source: "mock-seed" })));
+    })
+    .finally(() => {
+      seedPromise = null;
+    });
+  return seedPromise;
+}
+
+function normalizeRow(row) {
+  return {
+    date: String(row?.date || ""),
+    domain: String(row?.domain || ""),
+    impressions: Number(row?.impressions || 0),
+    revenue: Number(Number(row?.revenue || 0).toFixed(6)),
+    ecpm: Number(Number(row?.ecpm || 0).toFixed(4)),
+    source: row?.source ? String(row.source) : undefined,
+  };
+}
+
+module.exports = { findAll, upsertMany, countAll, clearCache };

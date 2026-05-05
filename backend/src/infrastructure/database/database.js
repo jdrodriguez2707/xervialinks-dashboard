@@ -67,9 +67,27 @@ function applySchema(database) {
       updated_at  TEXT    DEFAULT (datetime('now')),
       UNIQUE (worker_id, payment_month)
     );
+
+    CREATE TABLE IF NOT EXISTS reports (
+      id          INTEGER PRIMARY KEY AUTOINCREMENT,
+      date        TEXT    NOT NULL,
+      domain      TEXT    NOT NULL,
+      impressions INTEGER NOT NULL DEFAULT 0,
+      revenue     REAL    NOT NULL DEFAULT 0,
+      ecpm        REAL    NOT NULL DEFAULT 0,
+      source      TEXT    NOT NULL DEFAULT 'sync',
+      synced_at   TEXT    DEFAULT (datetime('now')),
+      UNIQUE (date, domain)
+    );
   `);
   ensureColumn(database, "users", "deleted_at", "TEXT");
   ensureColumn(database, "workers", "deleted_at", "TEXT");
+  ensureColumn(database, "reports", "source", "TEXT NOT NULL DEFAULT 'sync'");
+  ensureColumn(database, "reports", "synced_at", "TEXT DEFAULT (datetime('now'))");
+  database.exec(`
+    CREATE INDEX IF NOT EXISTS idx_reports_date ON reports(date);
+    CREATE INDEX IF NOT EXISTS idx_reports_domain ON reports(domain);
+  `);
   ensureWorkerPaymentStatusMonthly(database);
 
   seedAdminUser(database);
@@ -143,7 +161,8 @@ function resetDb() {
     DELETE FROM properties;
     DELETE FROM workers;
     DELETE FROM users;
-    DELETE FROM sqlite_sequence WHERE name IN ('workers', 'properties', 'users', 'worker_payment_info', 'worker_payment_status');
+    DELETE FROM reports;
+    DELETE FROM sqlite_sequence WHERE name IN ('workers', 'properties', 'users', 'worker_payment_info', 'worker_payment_status', 'reports');
   `);
   seedAdminUser(database);
 }
