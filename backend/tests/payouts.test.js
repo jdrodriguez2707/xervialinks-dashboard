@@ -203,3 +203,52 @@ describe("GET /api/payouts", () => {
     expect(hidden).toBeUndefined();
   });
 });
+
+describe("GET /api/payouts/history", () => {
+  it("returns only paid records with computed payout amount", async () => {
+    const workerRes = await request(app)
+      .post("/api/workers")
+      .set("Authorization", `Bearer ${token}`)
+      .send({ name: "History Worker", email: "history.worker@example.com", percentage: 50, password: "pass123" });
+    const workerId = workerRes.body.data.id;
+
+    await request(app)
+      .post(`/api/workers/${workerId}/properties`)
+      .set("Authorization", `Bearer ${token}`)
+      .send({ type: "domain", value: "parceitorobux.barbacoadicto.com" });
+
+    const today = todayISO("America/Bogota");
+    const paymentMonth = today.slice(0, 7);
+
+    const markPaid = await request(app)
+      .patch(`/api/workers/${workerId}/payment-status`)
+      .set("Authorization", `Bearer ${token}`)
+      .send({ status: "paid", paymentMonth });
+    expect(markPaid.status).toBe(200);
+
+    const history = await request(app)
+      .get("/api/payouts/history")
+      .set("Authorization", `Bearer ${token}`);
+    expect(history.status).toBe(200);
+    const row = history.body.data.find(
+      (entry) => entry.workerName === "History Worker" && entry.paymentMonth === paymentMonth
+    );
+    expect(row).toBeDefined();
+    expect(row.status).toBe("success");
+    expect(row.statusLabel).toBe("Pago realizado");
+    expect(row.amount).toBeGreaterThan(0);
+
+    await request(app)
+      .patch(`/api/workers/${workerId}/payment-status`)
+      .set("Authorization", `Bearer ${token}`)
+      .send({ status: "pending", paymentMonth });
+
+    const historyAfterPending = await request(app)
+      .get("/api/payouts/history")
+      .set("Authorization", `Bearer ${token}`);
+    const removed = historyAfterPending.body.data.find(
+      (entry) => entry.workerName === "History Worker" && entry.paymentMonth === paymentMonth
+    );
+    expect(removed).toBeUndefined();
+  });
+});

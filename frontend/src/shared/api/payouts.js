@@ -13,3 +13,10 @@ export async function fetchPayouts(filters = {}) {
   const json = await res.json();
   return json.data;
 }
+
+export async function fetchPaymentHistory() {
+  const res = await fetch("/api/payouts/history", { headers: getAuthHeaders() });
+  if (!res.ok) throw new Error(`${res.status}`);
+  const json = await res.json();
+  return json.data;
+}

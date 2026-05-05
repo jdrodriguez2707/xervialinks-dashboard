@@ -4,5 +4,6 @@ const payouts = require("../controllers/payouts.controller");
 const router = Router();
 
 router.get("/", payouts.getPayouts);
+router.get("/history", payouts.getPaymentHistory);
 
 module.exports = router;

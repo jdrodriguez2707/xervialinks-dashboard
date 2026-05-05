@@ -199,6 +199,25 @@ function upsertPaymentInfo(workerId, { methodType, paymentDetails }) {
   return getPaymentInfo(workerId);
 }
 
+function listPaidPaymentStatuses() {
+  const db = getDb();
+  return db
+    .prepare(
+      `SELECT
+         ps.worker_id AS workerId,
+         ps.payment_month AS paymentMonth,
+         ps.updated_at AS paidAt,
+         w.name AS workerName,
+         p.method_type AS methodType
+       FROM worker_payment_status ps
+       INNER JOIN workers w ON w.id = ps.worker_id
+       LEFT JOIN worker_payment_info p ON p.worker_id = ps.worker_id
+       WHERE ps.status = 'paid'
+       ORDER BY ps.updated_at DESC, ps.id DESC`
+    )
+    .all();
+}
+
 function attachProperties(worker, { paymentMonth = null } = {}) {
   const paymentStatus = getPaymentStatus(worker.id, paymentMonth);
   return {
@@ -273,6 +292,7 @@ module.exports = {
   getPaymentStatus,
   upsertPaymentStatus,
   upsertPaymentInfo,
+  listPaidPaymentStatuses,
   getProperties,
   updateWorkerComplete,
 };

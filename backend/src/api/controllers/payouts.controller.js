@@ -1,4 +1,5 @@
 const payoutsService = require("../../application/services/payouts.service");
+const paymentHistoryService = require("../../application/services/paymentHistory.service");
 const {
   todayISO,
   currentMonthStartISO,
@@ -18,4 +19,13 @@ async function getPayouts(req, res) {
   res.json({ data: result });
 }
 
-module.exports = { getPayouts };
+async function getPaymentHistory(req, res) {
+  if (req.user?.role !== "admin") {
+    return res.status(403).json({ error: "Se requieren permisos de administrador" });
+  }
+  const timeZone = clientTimeZoneFromRequest(req);
+  const history = await paymentHistoryService.listPaymentHistory({ timeZone });
+  res.json({ data: history });
+}
+
+module.exports = { getPayouts, getPaymentHistory };

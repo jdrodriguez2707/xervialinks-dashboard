@@ -3,15 +3,16 @@ import { getStoredUser, logout } from "../shared/api/auth";
 import { getAdminDateRange } from "../shared/lib/reportCalendar";
 import { fetchSummary } from "../shared/api/summary";
 import { fetchWorkers } from "../shared/api/workers";
-import { fetchPayouts } from "../shared/api/payouts";
+import { fetchPayouts, fetchPaymentHistory } from "../shared/api/payouts";
 import { fetchWorkerContext, fetchWorkerDashboard } from "../shared/api/worker";
 import { fetchSites } from "../shared/api/sites";
 import LoginForm from "../features/auth/components/LoginForm";
 import SummaryCards from "../features/admin/components/SummaryCards";
 import PayoutsTable from "../features/admin/components/PayoutsTable";
+import PaymentHistoryTable from "../features/admin/components/PaymentHistoryTable";
 import WorkersList from "../features/admin/components/WorkersList";
 import WorkerDashboard from "../features/worker/components/WorkerDashboard";
-import { LayoutDashboard, Wallet, Users, Network, UserCircle2, LogOut, Menu, X } from "lucide-react";
+import { LayoutDashboard, Wallet, Banknote, Users, Network, UserCircle2, LogOut, Menu, X } from "lucide-react";
 
 const ADMIN_RANGE_LABELS = {
   today: "Hoy",
@@ -26,6 +27,7 @@ const WORKER_TAB_STORAGE_PREFIX = "workerDashboardActiveTab";
 const ADMIN_MENU_OPTIONS = [
   { id: "dashboard", label: "Dashboard", icon: LayoutDashboard },
   { id: "earnings", label: "Ganancias", icon: Wallet },
+  { id: "payment-history", label: "Historial de pagos", icon: Banknote },
   { id: "workers", label: "Trabajadores", icon: Users },
   { id: "network-codes", label: "Codigos de red", icon: Network },
   { id: "profile", label: "Perfil", icon: UserCircle2 },
@@ -187,15 +189,16 @@ export default function App() {
     try {
       if (user.role === "admin") {
         const range = getAdminDateRange("today");
-        const [summary, workers, payouts, sites] = await Promise.all([
+        const [summary, workers, payouts, paymentHistory, sites] = await Promise.all([
           fetchSummary(range),
           fetchWorkers({ includeDeleted: true, paymentMonth: adminPaymentMonth }),
           fetchPayouts(range),
+          fetchPaymentHistory(),
           fetchSites(),
         ]);
         setCachedDashboardSummary("today", summary);
         setCachedEarningsPayouts("today", payouts);
-        setData({ summary, workers, payouts, sites });
+        setData({ summary, workers, payouts, paymentHistory, sites });
         setAdminReady(true);
 
         // Warm up all remaining ranges in background so either selector switch is instant.
@@ -375,14 +378,15 @@ export default function App() {
     try {
       const dashRangeObj = getAdminDateRange(adminDashboardRange);
       const earnRangeObj = getAdminDateRange(adminEarningsRange);
-      const [workers, payouts, summary] = await Promise.all([
+      const [workers, payouts, summary, paymentHistory] = await Promise.all([
         fetchWorkers({ includeDeleted: true, paymentMonth: adminPaymentMonth }),
         fetchPayouts(earnRangeObj),
         fetchSummary(dashRangeObj),
+        fetchPaymentHistory(),
       ]);
       setCachedDashboardSummary(adminDashboardRange, summary);
       setCachedEarningsPayouts(adminEarningsRange, payouts);
-      setData((prev) => ({ ...prev, workers, payouts, summary }));
+      setData((prev) => ({ ...prev, workers, payouts, summary, paymentHistory }));
     } catch (err) {
       if (err.message === "401") handleLogout();
       else setError(err.message);
@@ -396,11 +400,14 @@ export default function App() {
     setRefreshingAdmin(true);
     setError(null);
     try {
-      const workers = await fetchWorkers({
-        includeDeleted: true,
-        paymentMonth: adminPaymentMonth,
-      });
-      setData((prev) => ({ ...prev, workers }));
+      const [workers, paymentHistory] = await Promise.all([
+        fetchWorkers({
+          includeDeleted: true,
+          paymentMonth: adminPaymentMonth,
+        }),
+        fetchPaymentHistory(),
+      ]);
+      setData((prev) => ({ ...prev, workers, paymentHistory }));
     } catch (err) {
       if (err.message === "401") handleLogout();
       else setError(err.message);
@@ -431,11 +438,14 @@ export default function App() {
       setRefreshingAdmin(true);
       setError(null);
       try {
-        const workers = await fetchWorkers({
-          includeDeleted: true,
-          paymentMonth: adminPaymentMonth,
-        });
-        setData((prev) => ({ ...prev, workers }));
+        const [workers, paymentHistory] = await Promise.all([
+          fetchWorkers({
+            includeDeleted: true,
+            paymentMonth: adminPaymentMonth,
+          }),
+          fetchPaymentHistory(),
+        ]);
+        setData((prev) => ({ ...prev, workers, paymentHistory }));
       } catch (err) {
         if (err.message === "401") handleLogout();
         else setError(err.message);
@@ -716,7 +726,7 @@ function AdminDashboard({
   workerEditLaunchNonce,
   onNavigateToWorkerEdit,
 }) {
-  const { summary, workers, payouts, sites } = data;
+  const { summary, workers, payouts, paymentHistory = [], sites } = data;
 
   const activeWorkers = (workers || []).filter((w) => !w.deleted_at);
 
@@ -761,6 +771,15 @@ function AdminDashboard({
           onPaymentMonthChange={onChangeAdminPaymentMonth}
           onRefresh={onWorkersPaymentStatusRefresh}
         />
+      </section>
+    );
+  }
+
+  if (activeModule === "payment-history") {
+    return (
+      <section>
+        <h2>Historial de pagos</h2>
+        <PaymentHistoryTable rows={paymentHistory} />
       </section>
     );
   }
