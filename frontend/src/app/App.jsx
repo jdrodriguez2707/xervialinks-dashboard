@@ -4,7 +4,11 @@ import { getAdminDateRange } from "../shared/lib/reportCalendar";
 import { fetchSummary } from "../shared/api/summary";
 import { fetchWorkers } from "../shared/api/workers";
 import { fetchPayouts, fetchPaymentHistory } from "../shared/api/payouts";
-import { fetchWorkerContext, fetchWorkerDashboard } from "../shared/api/worker";
+import {
+  fetchWorkerContext,
+  fetchWorkerDashboard,
+  fetchWorkerPaymentHistory,
+} from "../shared/api/worker";
 import { fetchSites } from "../shared/api/sites";
 import LoginForm from "../features/auth/components/LoginForm";
 import SummaryCards from "../features/admin/components/SummaryCards";
@@ -223,7 +227,10 @@ export default function App() {
             .catch(() => {});
         });
       } else {
-        const context = await fetchWorkerContext({ paymentMonth: workerPaymentMonth });
+        const [context, paymentHistory] = await Promise.all([
+          fetchWorkerContext({ paymentMonth: workerPaymentMonth }),
+          fetchWorkerPaymentHistory({ paymentMonth: workerPaymentMonth }),
+        ]);
         const domains = getWorkerDomains(context);
         let initialDomain = domains[0] || null;
         if (typeof window !== "undefined") {
@@ -234,7 +241,7 @@ export default function App() {
             initialDomain = savedDomain;
           }
         }
-        setData({ workerContext: context, workerMetrics: null });
+        setData({ workerContext: context, workerMetrics: null, workerPaymentHistory: paymentHistory });
         setWorkerSelectedDomain(initialDomain);
         setWorkerMetricsError(null);
         if (initialDomain) {
@@ -428,13 +435,16 @@ export default function App() {
     if (!user || user.role !== "worker") return;
     const reqSeq = ++workerContextReqSeqRef.current;
     try {
-      const ctx = await fetchWorkerContext({ paymentMonth: workerPaymentMonth });
+      const [ctx, paymentHistory] = await Promise.all([
+        fetchWorkerContext({ paymentMonth: workerPaymentMonth }),
+        fetchWorkerPaymentHistory({ paymentMonth: workerPaymentMonth }),
+      ]);
       if (workerContextReqSeqRef.current !== reqSeq) return;
       const domains = getWorkerDomains(ctx);
       const stillValid = workerSelectedDomain && domains.includes(workerSelectedDomain);
       const nextDomain = stillValid ? workerSelectedDomain : domains[0] || null;
       setWorkerSelectedDomain(nextDomain);
-      setData((prev) => ({ ...prev, workerContext: ctx }));
+      setData((prev) => ({ ...prev, workerContext: ctx, workerPaymentHistory: paymentHistory }));
       setError(null);
     } catch (err) {
       if (err.message === "401") handleLogout();
@@ -698,6 +708,7 @@ export default function App() {
         <WorkerDashboard
           workerContext={data?.workerContext ?? null}
           workerMetrics={data?.workerMetrics ?? null}
+          workerPaymentHistory={data?.workerPaymentHistory ?? null}
           selectedDomain={workerSelectedDomain}
           onDomainChange={async (nextDomain) => {
             setWorkerSelectedDomain(nextDomain);
@@ -712,12 +723,19 @@ export default function App() {
           onPaymentMonthChange={setWorkerPaymentMonth}
           onContextRefresh={async () => {
             try {
-              const ctx = await fetchWorkerContext({ paymentMonth: workerPaymentMonth });
+              const [ctx, paymentHistory] = await Promise.all([
+                fetchWorkerContext({ paymentMonth: workerPaymentMonth }),
+                fetchWorkerPaymentHistory({ paymentMonth: workerPaymentMonth }),
+              ]);
               const domains = getWorkerDomains(ctx);
               const stillValid = workerSelectedDomain && domains.includes(workerSelectedDomain);
               const nextDomain = stillValid ? workerSelectedDomain : domains[0] || null;
               setWorkerSelectedDomain(nextDomain);
-              setData((prev) => ({ ...prev, workerContext: ctx }));
+              setData((prev) => ({
+                ...prev,
+                workerContext: ctx,
+                workerPaymentHistory: paymentHistory,
+              }));
             } catch {
               /* ignore refresh errors */
             }

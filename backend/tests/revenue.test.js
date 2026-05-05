@@ -149,7 +149,7 @@ describe("GET /api/worker/context", () => {
     await request(app)
       .post(`/api/workers/${workerId}/properties`)
       .set("Authorization", `Bearer ${adminToken}`)
-      .send({ type: "domain", value: "plez.barbacoadicto.com" });
+      .send({ type: "domain", value: "mundialautos.barbacoadicto.com" });
 
     const loginRes = await request(app)
       .post("/api/auth/login")
@@ -276,5 +276,54 @@ describe("GET /api/worker/dashboard", () => {
     const { data } = res.body;
     expect(data.currentMonth.revenue).toBeGreaterThanOrEqual(data.today.revenue);
     expect(data.currentMonth.impressions).toBeGreaterThanOrEqual(data.today.impressions);
+  });
+});
+
+describe("GET /api/worker/payment-history", () => {
+  let workerToken;
+
+  beforeAll(async () => {
+    const workerRes = await request(app)
+      .post("/api/workers")
+      .set("Authorization", `Bearer ${adminToken}`)
+      .send({
+        name: "Payment History Worker",
+        email: "payment.history.worker@example.com",
+        percentage: 60,
+        password: "pass123",
+      });
+    const workerId = workerRes.body.data.id;
+
+    await request(app)
+      .post(`/api/workers/${workerId}/properties`)
+      .set("Authorization", `Bearer ${adminToken}`)
+      .send({ type: "domain", value: "plez.barbacoadicto.com" });
+
+    const paymentMonth = todayISO("America/Bogota").slice(0, 7);
+    await request(app)
+      .patch(`/api/workers/${workerId}/payment-status`)
+      .set("Authorization", `Bearer ${adminToken}`)
+      .send({ status: "paid", paymentMonth });
+
+    const loginRes = await request(app)
+      .post("/api/auth/login")
+      .send({ email: "payment.history.worker@example.com", password: "pass123" });
+    workerToken = loginRes.body.data.token;
+  });
+
+  it("returns monthly rows per assigned domain with payment status", async () => {
+    const paymentMonth = todayISO("America/Bogota").slice(0, 7);
+    const res = await request(app)
+      .get(`/api/worker/payment-history?paymentMonth=${paymentMonth}`)
+      .set("Authorization", `Bearer ${workerToken}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body.data.period).toBe(paymentMonth);
+    expect(Array.isArray(res.body.data.rows)).toBe(true);
+    expect(res.body.data.rows.length).toBeGreaterThan(0);
+    expect(res.body.data.rows[0]).toHaveProperty("domain");
+    expect(res.body.data.rows[0]).toHaveProperty("impressions");
+    expect(res.body.data.rows[0]).toHaveProperty("payout");
+    expect(res.body.data.rows[0]).toHaveProperty("paymentStatus");
   });
 });

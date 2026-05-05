@@ -53,3 +53,17 @@ export async function upsertWorkerPaymentInfo({ methodType, paymentDetails }) {
   const json = await res.json();
   return json.data;
 }
+
+export async function fetchWorkerPaymentHistory({ paymentMonth }) {
+  const params = new URLSearchParams();
+  if (paymentMonth) params.set("paymentMonth", paymentMonth);
+  const query = params.toString();
+  const url = `/api/worker/payment-history${query ? `?${query}` : ""}`;
+  const res = await fetch(url, { headers: getAuthHeaders() });
+  if (!res.ok) {
+    const payload = await res.json().catch(() => ({}));
+    throw new Error(payload.error || `${res.status}`);
+  }
+  const json = await res.json();
+  return json.data;
+}

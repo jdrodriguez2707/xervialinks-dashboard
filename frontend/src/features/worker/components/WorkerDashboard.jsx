@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { BarChart3, Globe, CreditCard } from "lucide-react";
+import { BarChart3, Globe, CreditCard, CircleDollarSign } from "lucide-react";
 import { upsertWorkerPaymentInfo } from "../../../shared/api/worker";
 
 const PERIODS = ["today", "yesterday", "last7Days", "currentMonth"];
@@ -73,6 +73,7 @@ function MetricSection({ title, colorClass, loading, data, getValue, format, hig
 export default function WorkerDashboard({
   workerContext,
   workerMetrics,
+  workerPaymentHistory,
   selectedDomain,
   onDomainChange,
   contextLoading,
@@ -104,6 +105,7 @@ export default function WorkerDashboard({
       { id: "stats", label: "Estadísticas", icon: BarChart3 },
       { id: "domains", label: "Subdominios", icon: Globe },
       { id: "payment", label: "Pago", icon: CreditCard },
+      { id: "payment-history", label: "Historial de pagos", icon: CircleDollarSign },
     ],
     []
   );
@@ -147,6 +149,7 @@ export default function WorkerDashboard({
   }`;
   const paymentMonthOptions = useMemo(() => buildPaymentMonthOptions(), []);
   const paymentMonthLabel = formatPaymentMonthLabel(paymentMonth);
+  const paymentHistoryRows = workerPaymentHistory?.rows || [];
   const selectedDomainValue =
     selectedDomain && domains.some((d) => d.value === selectedDomain)
       ? selectedDomain
@@ -421,6 +424,75 @@ export default function WorkerDashboard({
           <div className="worker-payment-status-box">
             <span className={paymentStatusClassName}>{paymentStatusLabel}</span>
           </div>
+        </section>
+      )}
+
+      {activeTab === "payment-history" && (
+        <section className="adsense-section">
+          <h2 className="section-title">Historial de pagos</h2>
+          <div className="worker-edit-label">
+            <span>Periodo: {paymentMonthLabel}</span>
+            <select
+              className="form-select"
+              value={paymentMonth}
+              onChange={(e) => onPaymentMonthChange?.(e.target.value)}
+              aria-label="Seleccionar periodo de historial de pago"
+            >
+              {paymentMonthOptions.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          </div>
+          {paymentHistoryRows.length === 0 ? (
+            <p className="empty-state">
+              No hay subdominios asignados para este periodo. Si el administrador los asigna,
+              aquí verás impresiones, ganancias y estado de pago.
+            </p>
+          ) : (
+            <div className="table-wrapper">
+              <table className="reports-table">
+                <thead>
+                  <tr>
+                    <th>Subdominio</th>
+                    <th>Impresiones</th>
+                    <th>Ganancias</th>
+                    <th>Estado de pago</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {paymentHistoryRows.map((row) => (
+                    <tr key={`${row.domain}-${paymentMonth}`}>
+                      <td>{row.domain}</td>
+                      <td>{fmtImpressions(row.impressions)}</td>
+                      <td>{fmtCurrency(row.payout)}</td>
+                      <td>
+                        <span
+                          className={`payment-status-badge ${
+                            row.paymentStatus === "paid" ? "is-paid" : "is-pending"
+                          }`}
+                        >
+                          {row.paymentStatus === "paid" ? "Pagado" : "Pendiente de pago"}
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+                <tfoot>
+                  <tr>
+                    <td colSpan={2} className="tfoot-label">
+                      Ganancia total
+                    </td>
+                    <td>
+                      <span className="payout-amount">{fmtCurrency(paymentHistoryRows.reduce((sum, r) => sum + (r.payout || 0), 0))}</span>
+                    </td>
+                    <td />
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+          )}
         </section>
       )}
 

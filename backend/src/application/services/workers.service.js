@@ -276,4 +276,5 @@ module.exports = {
   updateWorker,
   updateWorkerPaymentInfoByEmail,
   updateWorkerPaymentStatus,
+  resolvePaymentMonth,
 };

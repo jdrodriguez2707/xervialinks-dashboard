@@ -1,5 +1,6 @@
 const workersService = require("../../application/services/workers.service");
 const revenueService = require("../../application/services/revenue.service");
+const workerPaymentHistoryService = require("../../application/services/workerPaymentHistory.service");
 const { clientTimeZoneFromRequest } = require("../utils/clientTz");
 const { isValidISODate } = require("../../application/services/clientTimezone");
 
@@ -80,4 +81,26 @@ async function upsertPaymentInfo(req, res) {
   res.json({ data: paymentInfo });
 }
 
-module.exports = { getContext, getDashboard, upsertPaymentInfo };
+async function getPaymentHistory(req, res) {
+  const workerIncludingDeleted = workersService.getWorkerByEmailIncludingDeleted(req.user.email);
+  if (!workerIncludingDeleted) {
+    return res
+      .status(404)
+      .json({ error: "No tienes un perfil de trabajador asignado" });
+  }
+  if (workerIncludingDeleted.deleted_at) {
+    return res
+      .status(403)
+      .json({ error: "Tu cuenta de trabajador fue eliminada. Contacta al administrador." });
+  }
+
+  const paymentMonth = workersService.resolvePaymentMonth(req.query.paymentMonth);
+  const timeZone = clientTimeZoneFromRequest(req);
+  const history = await workerPaymentHistoryService.getWorkerPaymentHistoryByEmail(req.user.email, {
+    paymentMonth,
+    timeZone,
+  });
+  res.json({ data: history });
+}
+
+module.exports = { getContext, getDashboard, upsertPaymentInfo, getPaymentHistory };
