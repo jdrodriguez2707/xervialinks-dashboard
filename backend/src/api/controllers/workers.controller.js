@@ -3,17 +3,17 @@ const workersService = require("../../application/services/workers.service");
 async function listWorkers(req, res) {
   const includeDeleted =
     req.query.includeDeleted === "true" || req.query.includeDeleted === "1";
-  const workers = workersService.getAllWorkers(includeDeleted);
+  const workers = workersService.getAllWorkers(includeDeleted, req.query.paymentMonth);
   res.json({ data: workers });
 }
 
 async function getWorker(req, res) {
-  const worker = workersService.getWorkerById(req.params.id);
+  const worker = workersService.getWorkerById(req.params.id, req.query.paymentMonth);
   res.json({ data: worker });
 }
 
 async function getMe(req, res) {
-  const worker = workersService.getWorkerByEmail(req.user.email);
+  const worker = workersService.getWorkerByEmail(req.user.email, req.query.paymentMonth);
   if (!worker) {
     return res.status(404).json({ error: "No tienes un perfil de trabajador asignado" });
   }
@@ -43,8 +43,12 @@ async function purgeInactiveWorker(req, res) {
 }
 
 async function updatePaymentStatus(req, res) {
-  const { status } = req.body || {};
-  const paymentStatus = workersService.updateWorkerPaymentStatus(req.params.id, status);
+  const { status, paymentMonth } = req.body || {};
+  const paymentStatus = workersService.updateWorkerPaymentStatus(
+    req.params.id,
+    status,
+    paymentMonth
+  );
   res.json({ data: paymentStatus });
 }
 

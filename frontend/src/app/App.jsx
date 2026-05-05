@@ -64,6 +64,12 @@ function formatUserDateLabel(date = new Date()) {
   return `${monthCapitalized} ${day}, ${year}`;
 }
 
+function getDefaultPaymentMonth(date = new Date()) {
+  const target = new Date(date.getFullYear(), date.getMonth() - 1, 1);
+  const month = String(target.getMonth() + 1).padStart(2, "0");
+  return `${target.getFullYear()}-${month}`;
+}
+
 export default function App() {
   const [user, setUser] = useState(() => getStoredUser());
   const [sessionNotice, setSessionNotice] = useState(null);
@@ -72,6 +78,8 @@ export default function App() {
   const [refreshingAdmin, setRefreshingAdmin] = useState(false);
   const [adminDashboardRange, setAdminDashboardRange] = useState("today");
   const [adminEarningsRange, setAdminEarningsRange] = useState("today");
+  const [adminPaymentMonth, setAdminPaymentMonth] = useState(() => getDefaultPaymentMonth());
+  const [workerPaymentMonth, setWorkerPaymentMonth] = useState(() => getDefaultPaymentMonth());
   const [adminReady, setAdminReady] = useState(false);
   const [error, setError] = useState(null);
   const [workerMetricsLoading, setWorkerMetricsLoading] = useState(false);
@@ -90,6 +98,7 @@ export default function App() {
   const adminDashboardCacheRef = useRef(new Map());
   const adminEarningsCacheRef = useRef(new Map());
   const workerValidDomainsRef = useRef([]);
+  const lastDefaultPaymentMonthRef = useRef(getDefaultPaymentMonth());
 
   function getCachedDashboardSummary(rangeKey) {
     const entry = adminDashboardCacheRef.current.get(rangeKey);
@@ -150,7 +159,7 @@ export default function App() {
           handleLogout(err.message);
         } else if (err.message.includes("subdominio solicitado no está asignado")) {
           try {
-            const ctx = await fetchWorkerContext();
+            const ctx = await fetchWorkerContext({ paymentMonth: workerPaymentMonth });
             const domains = getWorkerDomains(ctx);
             const fallbackDomain = domains[0] || null;
             setData((prev) => ({ ...prev, workerContext: ctx }));
@@ -180,7 +189,7 @@ export default function App() {
         const range = getAdminDateRange("today");
         const [summary, workers, payouts, sites] = await Promise.all([
           fetchSummary(range),
-          fetchWorkers({ includeDeleted: true }),
+          fetchWorkers({ includeDeleted: true, paymentMonth: adminPaymentMonth }),
           fetchPayouts(range),
           fetchSites(),
         ]);
@@ -207,7 +216,7 @@ export default function App() {
             .catch(() => {});
         });
       } else {
-        const context = await fetchWorkerContext();
+        const context = await fetchWorkerContext({ paymentMonth: workerPaymentMonth });
         const domains = getWorkerDomains(context);
         let initialDomain = domains[0] || null;
         if (typeof window !== "undefined") {
@@ -256,9 +265,20 @@ export default function App() {
     setCurrentDateLabel(formatUserDateLabel());
     const timer = window.setInterval(() => {
       setCurrentDateLabel(formatUserDateLabel());
+      const nextDefault = getDefaultPaymentMonth();
+      const previousDefault = lastDefaultPaymentMonthRef.current;
+      if (nextDefault !== previousDefault) {
+        if (adminPaymentMonth === previousDefault) {
+          setAdminPaymentMonth(nextDefault);
+        }
+        if (workerPaymentMonth === previousDefault) {
+          setWorkerPaymentMonth(nextDefault);
+        }
+        lastDefaultPaymentMonthRef.current = nextDefault;
+      }
     }, 60 * 1000);
     return () => window.clearInterval(timer);
-  }, []);
+  }, [adminPaymentMonth, workerPaymentMonth]);
 
   useEffect(() => {
     if (typeof document === "undefined") return;
@@ -356,7 +376,7 @@ export default function App() {
       const dashRangeObj = getAdminDateRange(adminDashboardRange);
       const earnRangeObj = getAdminDateRange(adminEarningsRange);
       const [workers, payouts, summary] = await Promise.all([
-        fetchWorkers({ includeDeleted: true }),
+        fetchWorkers({ includeDeleted: true, paymentMonth: adminPaymentMonth }),
         fetchPayouts(earnRangeObj),
         fetchSummary(dashRangeObj),
       ]);
@@ -369,7 +389,67 @@ export default function App() {
     } finally {
       setRefreshingAdmin(false);
     }
-  }, [user, adminDashboardRange, adminEarningsRange]);
+  }, [user, adminDashboardRange, adminEarningsRange, adminPaymentMonth]);
+
+  const refreshAdminWorkerStatusesOnly = useCallback(async () => {
+    if (!user || user.role !== "admin") return;
+    setRefreshingAdmin(true);
+    setError(null);
+    try {
+      const workers = await fetchWorkers({
+        includeDeleted: true,
+        paymentMonth: adminPaymentMonth,
+      });
+      setData((prev) => ({ ...prev, workers }));
+    } catch (err) {
+      if (err.message === "401") handleLogout();
+      else setError(err.message);
+    } finally {
+      setRefreshingAdmin(false);
+    }
+  }, [user, adminPaymentMonth]);
+
+  const refreshWorkerContextByPaymentMonth = useCallback(async () => {
+    if (!user || user.role !== "worker") return;
+    try {
+      const ctx = await fetchWorkerContext({ paymentMonth: workerPaymentMonth });
+      const domains = getWorkerDomains(ctx);
+      const stillValid = workerSelectedDomain && domains.includes(workerSelectedDomain);
+      const nextDomain = stillValid ? workerSelectedDomain : domains[0] || null;
+      setWorkerSelectedDomain(nextDomain);
+      setData((prev) => ({ ...prev, workerContext: ctx }));
+    } catch (err) {
+      if (err.message === "401") handleLogout();
+      else if (err.message.includes("cuenta de trabajador fue eliminada")) handleLogout(err.message);
+      else setError(err.message || "No se pudo actualizar el estado de pago");
+    }
+  }, [user, workerPaymentMonth, workerSelectedDomain]);
+
+  useEffect(() => {
+    async function refreshWorkersPaymentStatusByMonth() {
+      if (!user || user.role !== "admin" || !adminReady) return;
+      setRefreshingAdmin(true);
+      setError(null);
+      try {
+        const workers = await fetchWorkers({
+          includeDeleted: true,
+          paymentMonth: adminPaymentMonth,
+        });
+        setData((prev) => ({ ...prev, workers }));
+      } catch (err) {
+        if (err.message === "401") handleLogout();
+        else setError(err.message);
+      } finally {
+        setRefreshingAdmin(false);
+      }
+    }
+    refreshWorkersPaymentStatusByMonth();
+  }, [adminPaymentMonth, user, adminReady]);
+
+  useEffect(() => {
+    if (!user || user.role !== "worker" || !data?.workerContext) return;
+    refreshWorkerContextByPaymentMonth();
+  }, [workerPaymentMonth, user, data?.workerContext?.workerId, refreshWorkerContextByPaymentMonth]);
 
   function handleLogin(loggedUser) {
     setSessionNotice(null);
@@ -382,6 +462,8 @@ export default function App() {
     setAdminActiveModule("dashboard");
     setHighlightedEarningsWorkerId(null);
     setWorkerFormOpenRequestId(0);
+    setAdminPaymentMonth(getDefaultPaymentMonth());
+    setWorkerPaymentMonth(getDefaultPaymentMonth());
     setAdminMenuOpen(false);
     setAdminActiveModule("dashboard");
     setHighlightedEarningsWorkerId(null);
@@ -402,6 +484,8 @@ export default function App() {
     setWorkerMetricsLoading(false);
     setWorkerMetricsError(null);
     setWorkerSelectedDomain(null);
+    setAdminPaymentMonth(getDefaultPaymentMonth());
+    setWorkerPaymentMonth(getDefaultPaymentMonth());
     workerValidDomainsRef.current = [];
     setWorkerFormOpenRequestId(0);
     if (typeof window !== "undefined") {
@@ -523,10 +607,13 @@ export default function App() {
               <AdminDashboard
                 data={data}
                 onWorkersUpdate={refreshAdminWorkersAndPayouts}
+                onWorkersPaymentStatusRefresh={refreshAdminWorkerStatusesOnly}
                 adminDashboardRange={adminDashboardRange}
                 onChangeAdminDashboardRange={setAdminDashboardRange}
                 adminEarningsRange={adminEarningsRange}
                 onChangeAdminEarningsRange={setAdminEarningsRange}
+                adminPaymentMonth={adminPaymentMonth}
+                onChangeAdminPaymentMonth={setAdminPaymentMonth}
                 activeModule={adminActiveModule}
                 highlightedEarningsWorkerId={highlightedEarningsWorkerId}
                 workerFormOpenRequestId={workerFormOpenRequestId}
@@ -591,17 +678,16 @@ export default function App() {
           metricsError={workerMetricsError}
           error={error}
           workerId={data?.workerContext?.workerId ?? null}
+          paymentMonth={workerPaymentMonth}
+          onPaymentMonthChange={setWorkerPaymentMonth}
           onContextRefresh={async () => {
             try {
-              const ctx = await fetchWorkerContext();
+              const ctx = await fetchWorkerContext({ paymentMonth: workerPaymentMonth });
               const domains = getWorkerDomains(ctx);
               const stillValid = workerSelectedDomain && domains.includes(workerSelectedDomain);
               const nextDomain = stillValid ? workerSelectedDomain : domains[0] || null;
               setWorkerSelectedDomain(nextDomain);
               setData((prev) => ({ ...prev, workerContext: ctx }));
-              if (nextDomain) {
-                await loadWorkerMetrics(nextDomain, domains);
-              }
             } catch {
               /* ignore refresh errors */
             }
@@ -614,10 +700,13 @@ export default function App() {
 function AdminDashboard({
   data,
   onWorkersUpdate,
+  onWorkersPaymentStatusRefresh,
   adminDashboardRange,
   onChangeAdminDashboardRange,
   adminEarningsRange,
   onChangeAdminEarningsRange,
+  adminPaymentMonth,
+  onChangeAdminPaymentMonth,
   activeModule,
   highlightedEarningsWorkerId,
   workerFormOpenRequestId,
@@ -668,7 +757,9 @@ function AdminDashboard({
           totalPayout={payouts.totalPayout}
           workers={workers}
           highlightedWorkerId={highlightedEarningsWorkerId}
-          onRefresh={onWorkersUpdate}
+          paymentMonth={adminPaymentMonth}
+          onPaymentMonthChange={onChangeAdminPaymentMonth}
+          onRefresh={onWorkersPaymentStatusRefresh}
         />
       </section>
     );

@@ -27,20 +27,21 @@ class ConflictError extends Error {
   }
 }
 
-function getAllWorkers(includeDeleted = false) {
-  return workersRepo.findAll({ includeDeleted: !!includeDeleted });
+function getAllWorkers(includeDeleted = false, paymentMonth = null) {
+  const resolvedMonth = resolvePaymentMonth(paymentMonth);
+  return workersRepo.findAll({ includeDeleted: !!includeDeleted, paymentMonth: resolvedMonth });
 }
 
-function getWorkerByEmail(email) {
-  return workersRepo.findByEmail(email) || null;
+function getWorkerByEmail(email, paymentMonth = null) {
+  return workersRepo.findByEmail(email, { paymentMonth: resolvePaymentMonth(paymentMonth) }) || null;
 }
 
 function getWorkerByEmailIncludingDeleted(email) {
   return workersRepo.findByEmail(email, { includeDeleted: true }) || null;
 }
 
-function getWorkerById(id) {
-  const worker = workersRepo.findById(Number(id));
+function getWorkerById(id, paymentMonth = null) {
+  const worker = workersRepo.findById(Number(id), { paymentMonth: resolvePaymentMonth(paymentMonth) });
   if (!worker) throw new NotFoundError(`Worker ${id} not found`);
   return worker;
 }
@@ -225,11 +226,12 @@ async function updateWorker(workerId, body) {
   }
 }
 
-function updateWorkerPaymentStatus(workerId, status) {
+function updateWorkerPaymentStatus(workerId, status, paymentMonth = null) {
   const VALID_STATUSES = ["pending", "paid"];
   if (!VALID_STATUSES.includes(status)) {
     throw new ValidationError(`El estado debe ser uno de: ${VALID_STATUSES.join(", ")}`);
   }
+  const resolvedMonth = resolvePaymentMonth(paymentMonth);
   const numericId = Number(workerId);
   const worker = workersRepo.findById(numericId, { includeDeleted: true });
   if (!worker) {
@@ -240,7 +242,26 @@ function updateWorkerPaymentStatus(workerId, status) {
       "No se puede cambiar el estado de pago de trabajadores inactivos"
     );
   }
-  return workersRepo.upsertPaymentStatus(numericId, status);
+  return workersRepo.upsertPaymentStatus(numericId, status, resolvedMonth);
+}
+
+function resolvePaymentMonth(paymentMonth) {
+  if (paymentMonth == null || String(paymentMonth).trim() === "") {
+    return getPreviousMonthKey();
+  }
+  const month = String(paymentMonth).trim();
+  if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(month)) {
+    throw new ValidationError("El periodo de pago debe tener formato YYYY-MM");
+  }
+  return month;
+}
+
+function getPreviousMonthKey(date = new Date()) {
+  const year = date.getUTCFullYear();
+  const monthIdx = date.getUTCMonth() - 1;
+  const target = new Date(Date.UTC(year, monthIdx, 1));
+  const month = String(target.getUTCMonth() + 1).padStart(2, "0");
+  return `${target.getUTCFullYear()}-${month}`;
 }
 
 module.exports = {

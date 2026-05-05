@@ -1,16 +1,16 @@
 const { getDb } = require("../../infrastructure/database/database");
 
-function findAll({ includeDeleted = false } = {}) {
+function findAll({ includeDeleted = false, paymentMonth = null } = {}) {
   const db = getDb();
   const workers = includeDeleted
     ? db.prepare("SELECT * FROM workers ORDER BY name ASC").all()
     : db
         .prepare("SELECT * FROM workers WHERE deleted_at IS NULL ORDER BY name ASC")
         .all();
-  return workers.map(attachProperties);
+  return workers.map((worker) => attachProperties(worker, { paymentMonth }));
 }
 
-function findById(id, { includeDeleted = false } = {}) {
+function findById(id, { includeDeleted = false, paymentMonth = null } = {}) {
   const db = getDb();
   const worker = includeDeleted
     ? db.prepare("SELECT * FROM workers WHERE id = ?").get(id)
@@ -18,17 +18,17 @@ function findById(id, { includeDeleted = false } = {}) {
         .prepare("SELECT * FROM workers WHERE id = ? AND deleted_at IS NULL")
         .get(id);
   if (!worker) return null;
-  return attachProperties(worker);
+  return attachProperties(worker, { paymentMonth });
 }
 
-function findByEmail(email, { includeDeleted = false } = {}) {
+function findByEmail(email, { includeDeleted = false, paymentMonth = null } = {}) {
   const db = getDb();
   const worker = includeDeleted
     ? db.prepare("SELECT * FROM workers WHERE email = ?").get(email)
     : db
         .prepare("SELECT * FROM workers WHERE email = ? AND deleted_at IS NULL")
         .get(email);
-  return worker ? attachProperties(worker) : null;
+  return worker ? attachProperties(worker, { paymentMonth }) : null;
 }
 
 function create({ name, email, percentage }) {
@@ -157,28 +157,33 @@ function getPaymentInfo(workerId) {
   );
 }
 
-function getPaymentStatus(workerId) {
+function getPaymentStatus(workerId, paymentMonth) {
   const db = getDb();
+  const month = String(paymentMonth || "").trim();
+  if (!month) {
+    return { paymentStatus: "pending", paymentStatusUpdatedAt: null, paymentMonth: null };
+  }
   const row = db
     .prepare(
-      `SELECT status AS paymentStatus, updated_at AS paymentStatusUpdatedAt
+      `SELECT status AS paymentStatus, updated_at AS paymentStatusUpdatedAt, payment_month AS paymentMonth
        FROM worker_payment_status
-       WHERE worker_id = ?`
+       WHERE worker_id = ? AND payment_month = ?`
     )
-    .get(workerId);
-  return row || { paymentStatus: "pending", paymentStatusUpdatedAt: null };
+    .get(workerId, month);
+  return row || { paymentStatus: "pending", paymentStatusUpdatedAt: null, paymentMonth: month };
 }
 
-function upsertPaymentStatus(workerId, status) {
+function upsertPaymentStatus(workerId, status, paymentMonth) {
   const db = getDb();
+  const month = String(paymentMonth || "").trim();
   db.prepare(
-    `INSERT INTO worker_payment_status (worker_id, status, updated_at)
-     VALUES (?, ?, datetime('now'))
-     ON CONFLICT(worker_id) DO UPDATE SET
+    `INSERT INTO worker_payment_status (worker_id, payment_month, status, updated_at)
+     VALUES (?, ?, ?, datetime('now'))
+     ON CONFLICT(worker_id, payment_month) DO UPDATE SET
        status = excluded.status,
        updated_at = datetime('now')`
-  ).run(workerId, status);
-  return getPaymentStatus(workerId);
+  ).run(workerId, month, status);
+  return getPaymentStatus(workerId, month);
 }
 
 function upsertPaymentInfo(workerId, { methodType, paymentDetails }) {
@@ -194,8 +199,8 @@ function upsertPaymentInfo(workerId, { methodType, paymentDetails }) {
   return getPaymentInfo(workerId);
 }
 
-function attachProperties(worker) {
-  const paymentStatus = getPaymentStatus(worker.id);
+function attachProperties(worker, { paymentMonth = null } = {}) {
+  const paymentStatus = getPaymentStatus(worker.id, paymentMonth);
   return {
     ...worker,
     properties: getProperties(worker.id),

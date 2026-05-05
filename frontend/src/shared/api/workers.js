@@ -1,7 +1,10 @@
 import { getAuthHeaders } from "./auth";
 
-export async function fetchWorkers({ includeDeleted = false } = {}) {
-  const qs = includeDeleted ? "?includeDeleted=true" : "";
+export async function fetchWorkers({ includeDeleted = false, paymentMonth } = {}) {
+  const params = new URLSearchParams();
+  if (includeDeleted) params.set("includeDeleted", "true");
+  if (paymentMonth) params.set("paymentMonth", paymentMonth);
+  const qs = params.size ? `?${params.toString()}` : "";
   const res = await fetch(`/api/workers${qs}`, { headers: getAuthHeaders() });
   if (!res.ok) throw new Error(`${res.status}`);
   const json = await res.json();
@@ -61,11 +64,11 @@ export async function deleteWorker(workerId) {
   }
 }
 
-export async function updateWorkerPaymentStatus(workerId, status) {
+export async function updateWorkerPaymentStatus(workerId, status, paymentMonth) {
   const res = await fetch(`/api/workers/${workerId}/payment-status`, {
     method: "PATCH",
     headers: { "Content-Type": "application/json", ...getAuthHeaders() },
-    body: JSON.stringify({ status }),
+    body: JSON.stringify({ status, paymentMonth }),
   });
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));

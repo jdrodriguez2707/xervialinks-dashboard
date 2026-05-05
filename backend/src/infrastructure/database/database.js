@@ -61,13 +61,16 @@ function applySchema(database) {
 
     CREATE TABLE IF NOT EXISTS worker_payment_status (
       id          INTEGER PRIMARY KEY AUTOINCREMENT,
-      worker_id   INTEGER NOT NULL UNIQUE REFERENCES workers(id) ON DELETE CASCADE,
+      worker_id   INTEGER NOT NULL REFERENCES workers(id) ON DELETE CASCADE,
+      payment_month TEXT  NOT NULL,
       status      TEXT    NOT NULL CHECK (status IN ('pending', 'paid')) DEFAULT 'pending',
-      updated_at  TEXT    DEFAULT (datetime('now'))
+      updated_at  TEXT    DEFAULT (datetime('now')),
+      UNIQUE (worker_id, payment_month)
     );
   `);
   ensureColumn(database, "users", "deleted_at", "TEXT");
   ensureColumn(database, "workers", "deleted_at", "TEXT");
+  ensureWorkerPaymentStatusMonthly(database);
 
   seedAdminUser(database);
 }
@@ -95,6 +98,34 @@ function seedAdminUser(database) {
       "INSERT INTO users (name, email, password_hash, role) VALUES (?, ?, ?, 'admin')"
     )
     .run("Admin", adminEmail, passwordHash);
+}
+
+function ensureWorkerPaymentStatusMonthly(database) {
+  const columns = database.prepare("PRAGMA table_info(worker_payment_status)").all();
+  const hasPaymentMonth = columns.some((c) => c.name === "payment_month");
+  if (hasPaymentMonth) return;
+
+  database.exec(`
+    ALTER TABLE worker_payment_status RENAME TO worker_payment_status_legacy;
+
+    CREATE TABLE worker_payment_status (
+      id            INTEGER PRIMARY KEY AUTOINCREMENT,
+      worker_id     INTEGER NOT NULL REFERENCES workers(id) ON DELETE CASCADE,
+      payment_month TEXT    NOT NULL,
+      status        TEXT    NOT NULL CHECK (status IN ('pending', 'paid')) DEFAULT 'pending',
+      updated_at    TEXT    DEFAULT (datetime('now')),
+      UNIQUE (worker_id, payment_month)
+    );
+
+    INSERT INTO worker_payment_status (worker_id, payment_month, status, updated_at)
+    SELECT worker_id,
+           strftime('%Y-%m', 'now', 'start of month', '-1 month'),
+           status,
+           updated_at
+    FROM worker_payment_status_legacy;
+
+    DROP TABLE worker_payment_status_legacy;
+  `);
 }
 
 function closeDb() {

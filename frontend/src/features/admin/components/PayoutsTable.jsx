@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { WalletCards } from "lucide-react";
+import { HandCoins } from "lucide-react";
 import { updateWorkerPaymentStatus } from "../../../shared/api/workers";
 
 /**
@@ -22,6 +22,8 @@ export default function PayoutsTable({
   totalPayout,
   workers = [],
   highlightedWorkerId = null,
+  paymentMonth,
+  onPaymentMonthChange,
   onRefresh,
 }) {
   const [selectedWorker, setSelectedWorker] = useState(null);
@@ -41,13 +43,20 @@ export default function PayoutsTable({
     });
   }, [payouts]);
 
+  const paymentMonthOptions = useMemo(() => buildPaymentMonthOptions(), []);
+  const paymentMonthLabel = formatPaymentMonthLabel(paymentMonth);
+  const selectedWorkerCurrentStatus =
+    selectedWorker && !selectedWorker.deletedAt
+      ? workersById.get(selectedWorker.workerId)?.paymentStatus || "pending"
+      : selectedWorker?.paymentStatus || "pending";
+
   async function handleTogglePaymentStatus() {
     if (!selectedWorker || selectedWorker.deletedAt) return;
-    const currentStatus = selectedWorker.paymentStatus || "pending";
+    const currentStatus = selectedWorkerCurrentStatus;
     const nextStatus = currentStatus === "paid" ? "pending" : "paid";
     setUpdatingPaymentStatus(true);
     try {
-      await updateWorkerPaymentStatus(selectedWorker.workerId, nextStatus);
+      await updateWorkerPaymentStatus(selectedWorker.workerId, nextStatus, paymentMonth);
       setSelectedWorker(null);
       if (typeof onRefresh === "function") {
         await onRefresh();
@@ -152,16 +161,16 @@ export default function PayoutsTable({
                     title={
                       w.deletedAt
                         ? `Ver información de pago de ${w.name}`
-                        : `Gestionar estado de pago de ${w.name}`
+                        : `Gestionar estado de pago de ${w.name} (${paymentMonth})`
                     }
                     aria-label={
                       w.deletedAt
                         ? `Ver información de pago de ${w.name}`
-                        : `Gestionar estado de pago de ${w.name}`
+                        : `Gestionar estado de pago de ${w.name} (${paymentMonth})`
                     }
                     onClick={() => openPaymentModal(w)}
                   >
-                    <WalletCards size={16} />
+                    <HandCoins size={16} />
                   </button>
                 </td>
               </tr>
@@ -205,6 +214,22 @@ export default function PayoutsTable({
             </div>
 
             <div className="payment-status-modal-content">
+              <div className="worker-edit-label">
+                <span>Pagando periodo: {paymentMonthLabel}</span>
+                <select
+                  className="form-select"
+                  value={paymentMonth}
+                  onChange={(e) => onPaymentMonthChange?.(e.target.value)}
+                  aria-label="Seleccionar mes de pago"
+                >
+                  {paymentMonthOptions.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
               {isInactivePayoutRow && (
                 <p className="payment-inactive-banner">
                   Perfil <strong>Inactivo</strong>: puedes revisar método y datos de pago registrados.
@@ -214,9 +239,9 @@ export default function PayoutsTable({
               {!isInactivePayoutRow && (
                 <div className="payment-status-summary">
                   <span
-                    className={`payment-status-badge ${selectedWorker.paymentStatus === "paid" ? "is-paid" : "is-pending"}`}
+                    className={`payment-status-badge ${selectedWorkerCurrentStatus === "paid" ? "is-paid" : "is-pending"}`}
                   >
-                    {selectedWorker.paymentStatus === "paid" ? "Pagado" : "Pendiente de pago"}
+                    {selectedWorkerCurrentStatus === "paid" ? "Pagado" : "Pendiente de pago"}
                   </span>
                 </div>
               )}
@@ -249,13 +274,13 @@ export default function PayoutsTable({
               {!isInactivePayoutRow && (
                 <button
                   type="button"
-                  className={`btn ${selectedWorker.paymentStatus === "paid" ? "btn-warning" : "btn-success"}`}
+                  className={`btn ${selectedWorkerCurrentStatus === "paid" ? "btn-warning" : "btn-success"}`}
                   onClick={handleTogglePaymentStatus}
                   disabled={updatingPaymentStatus}
                 >
                   {updatingPaymentStatus
                     ? "Actualizando…"
-                    : selectedWorker.paymentStatus === "paid"
+                    : selectedWorkerCurrentStatus === "paid"
                       ? "Marcar como pendiente"
                       : "Marcar como pagado"}
                 </button>
@@ -266,4 +291,25 @@ export default function PayoutsTable({
       )}
     </>
   );
+}
+
+function buildPaymentMonthOptions(total = 18, date = new Date()) {
+  const options = [];
+  const start = new Date(date.getFullYear(), date.getMonth() - 1, 1);
+  for (let i = 0; i < total; i += 1) {
+    const monthDate = new Date(start.getFullYear(), start.getMonth() - i, 1);
+    const value = `${monthDate.getFullYear()}-${String(monthDate.getMonth() + 1).padStart(2, "0")}`;
+    options.push({ value, label: formatPaymentMonthLabel(value) });
+  }
+  return options;
+}
+
+function formatPaymentMonthLabel(paymentMonth) {
+  const m = /^(\d{4})-(\d{2})$/.exec(String(paymentMonth || ""));
+  if (!m) return String(paymentMonth || "");
+  const year = Number(m[1]);
+  const monthIndex = Number(m[2]) - 1;
+  const date = new Date(year, monthIndex, 1);
+  const label = new Intl.DateTimeFormat("es-ES", { month: "long", year: "numeric" }).format(date);
+  return label.charAt(0).toUpperCase() + label.slice(1);
 }

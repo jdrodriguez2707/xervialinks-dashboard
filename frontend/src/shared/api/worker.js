@@ -1,8 +1,12 @@
 import { getAuthHeaders } from "./auth";
 
 /** Solo BD: subdominios + info de pago (rápido, sin GAM). */
-export async function fetchWorkerContext() {
-  const res = await fetch("/api/worker/context", { headers: getAuthHeaders() });
+export async function fetchWorkerContext({ paymentMonth } = {}) {
+  const params = new URLSearchParams();
+  if (paymentMonth) params.set("paymentMonth", paymentMonth);
+  const query = params.toString();
+  const url = `/api/worker/context${query ? `?${query}` : ""}`;
+  const res = await fetch(url, { headers: getAuthHeaders() });
   if (!res.ok) {
     const payload = await res.json().catch(() => ({}));
     throw new Error(payload.error || `${res.status}`);

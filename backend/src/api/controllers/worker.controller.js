@@ -4,18 +4,19 @@ const { clientTimeZoneFromRequest } = require("../utils/clientTz");
 const { isValidISODate } = require("../../application/services/clientTimezone");
 
 async function getContext(req, res) {
-  const worker = workersService.getWorkerByEmailIncludingDeleted(req.user.email);
+  const workerIncludingDeleted = workersService.getWorkerByEmailIncludingDeleted(req.user.email);
 
-  if (!worker) {
+  if (!workerIncludingDeleted) {
     return res
       .status(404)
       .json({ error: "No tienes un perfil de trabajador asignado" });
   }
-  if (worker.deleted_at) {
+  if (workerIncludingDeleted.deleted_at) {
     return res
       .status(403)
       .json({ error: "Tu cuenta de trabajador fue eliminada. Contacta al administrador." });
   }
+  const worker = workersService.getWorkerByEmail(req.user.email, req.query.paymentMonth);
 
   res.json({
     data: {

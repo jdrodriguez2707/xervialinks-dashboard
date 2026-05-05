@@ -254,6 +254,8 @@ describe("POST /api/workers/:id/properties", () => {
 
 describe("PATCH /api/workers/:id/payment-status", () => {
   let workerId;
+  const aprilMonth = "2026-04";
+  const mayMonth = "2026-05";
 
   beforeAll(async () => {
     const res = await request(app)
@@ -267,9 +269,32 @@ describe("PATCH /api/workers/:id/payment-status", () => {
     const res = await request(app)
       .patch(`/api/workers/${workerId}/payment-status`)
       .set("Authorization", `Bearer ${token}`)
-      .send({ status: "paid" });
+      .send({ status: "paid", paymentMonth: aprilMonth });
     expect(res.status).toBe(200);
     expect(res.body.data.paymentStatus).toBe("paid");
+    expect(res.body.data.paymentMonth).toBe(aprilMonth);
+  });
+
+  it("tracks payment status independently per month", async () => {
+    const markNext = await request(app)
+      .patch(`/api/workers/${workerId}/payment-status`)
+      .set("Authorization", `Bearer ${token}`)
+      .send({ status: "pending", paymentMonth: mayMonth });
+    expect(markNext.status).toBe(200);
+    expect(markNext.body.data.paymentStatus).toBe("pending");
+    expect(markNext.body.data.paymentMonth).toBe(mayMonth);
+
+    const listApril = await request(app)
+      .get(`/api/workers?paymentMonth=${aprilMonth}`)
+      .set("Authorization", `Bearer ${token}`);
+    const aprilWorker = listApril.body.data.find((w) => w.id === workerId);
+    expect(aprilWorker.paymentStatus).toBe("paid");
+
+    const listMay = await request(app)
+      .get(`/api/workers?paymentMonth=${mayMonth}`)
+      .set("Authorization", `Bearer ${token}`);
+    const mayWorker = listMay.body.data.find((w) => w.id === workerId);
+    expect(mayWorker.paymentStatus).toBe("pending");
   });
 
   it("returns 400 for invalid status", async () => {

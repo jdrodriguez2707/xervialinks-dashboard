@@ -81,6 +81,8 @@ export default function WorkerDashboard({
   error,
   onContextRefresh,
   workerId,
+  paymentMonth,
+  onPaymentMonthChange,
 }) {
   const [activeTab, setActiveTab] = useState("stats");
   const [selectedRange, setSelectedRange] = useState("today");
@@ -143,6 +145,8 @@ export default function WorkerDashboard({
   const paymentStatusClassName = `payment-status-badge ${
     paymentStatus === "paid" ? "is-paid" : "is-pending"
   }`;
+  const paymentMonthOptions = useMemo(() => buildPaymentMonthOptions(), []);
+  const paymentMonthLabel = formatPaymentMonthLabel(paymentMonth);
   const selectedDomainValue =
     selectedDomain && domains.some((d) => d.value === selectedDomain)
       ? selectedDomain
@@ -378,6 +382,21 @@ export default function WorkerDashboard({
       {activeTab === "payment" && (
         <section className="adsense-section">
           <h2 className="section-title">Información de pago</h2>
+          <div className="worker-edit-label">
+            <span>Periodo de pago: {paymentMonthLabel}</span>
+            <select
+              className="form-select"
+              value={paymentMonth}
+              onChange={(e) => onPaymentMonthChange?.(e.target.value)}
+              aria-label="Seleccionar periodo de pago"
+            >
+              {paymentMonthOptions.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          </div>
 
           {paymentInfo ? (
             <div className="payment-info-card">
@@ -464,4 +483,25 @@ export default function WorkerDashboard({
       )}
     </div>
   );
+}
+
+function buildPaymentMonthOptions(total = 18, date = new Date()) {
+  const options = [];
+  const start = new Date(date.getFullYear(), date.getMonth() - 1, 1);
+  for (let i = 0; i < total; i += 1) {
+    const monthDate = new Date(start.getFullYear(), start.getMonth() - i, 1);
+    const value = `${monthDate.getFullYear()}-${String(monthDate.getMonth() + 1).padStart(2, "0")}`;
+    options.push({ value, label: formatPaymentMonthLabel(value) });
+  }
+  return options;
+}
+
+function formatPaymentMonthLabel(paymentMonth) {
+  const m = /^(\d{4})-(\d{2})$/.exec(String(paymentMonth || ""));
+  if (!m) return String(paymentMonth || "");
+  const year = Number(m[1]);
+  const monthIndex = Number(m[2]) - 1;
+  const date = new Date(year, monthIndex, 1);
+  const label = new Intl.DateTimeFormat("es-ES", { month: "long", year: "numeric" }).format(date);
+  return label.charAt(0).toUpperCase() + label.slice(1);
 }
