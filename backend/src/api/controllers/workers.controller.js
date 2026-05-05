@@ -3,12 +3,12 @@ const workersService = require("../../application/services/workers.service");
 async function listWorkers(req, res) {
   const includeDeleted =
     req.query.includeDeleted === "true" || req.query.includeDeleted === "1";
-  const workers = workersService.getAllWorkers(includeDeleted, req.query.paymentMonth);
+  const workers = workersService.getAllWorkers(includeDeleted, req.query.paymentMonth, true);
   res.json({ data: workers });
 }
 
 async function getWorker(req, res) {
-  const worker = workersService.getWorkerById(req.params.id, req.query.paymentMonth);
+  const worker = workersService.getWorkerById(req.params.id, req.query.paymentMonth, true);
   res.json({ data: worker });
 }
 

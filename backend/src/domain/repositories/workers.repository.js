@@ -46,12 +46,12 @@ function create({ name, email, percentage }) {
  * @param {{ name: string, email: string, percentage: number }} workerData
  * @param {{ passwordHash: string }} userCredentials
  */
-function createWithUser({ name, email, percentage }, { passwordHash }) {
+function createWithUser({ name, email, percentage }, { passwordHash, passwordCipher = null }) {
   const db = getDb();
   return db.transaction(() => {
     db.prepare(
-      "INSERT INTO users (name, email, password_hash, role) VALUES (?, ?, ?, 'worker')"
-    ).run(name, email, passwordHash);
+      "INSERT INTO users (name, email, password_hash, password_cipher, role) VALUES (?, ?, ?, ?, 'worker')"
+    ).run(name, email, passwordHash, passwordCipher);
 
     const result = db
       .prepare("INSERT INTO workers (name, email, percentage) VALUES (?, ?, ?)")
@@ -233,7 +233,12 @@ function attachProperties(worker, { paymentMonth = null } = {}) {
  * to match `domainValues` order. Optional password: pass null to keep current hash.
  * Runs in a single transaction.
  */
-function updateWorkerComplete(workerId, oldEmail, { name, email, percentage, passwordHash }, domainValues) {
+function updateWorkerComplete(
+  workerId,
+  oldEmail,
+  { name, email, percentage, passwordHash, passwordCipher, invalidateSessions = false },
+  domainValues
+) {
   const db = getDb();
   return db.transaction(() => {
     const wr = db
@@ -248,10 +253,10 @@ function updateWorkerComplete(workerId, oldEmail, { name, email, percentage, pas
 
     const ur = db
       .prepare(
-        `UPDATE users SET name = ?, email = ?, password_hash = COALESCE(?, password_hash)
+        `UPDATE users SET name = ?, email = ?, password_hash = COALESCE(?, password_hash), password_cipher = COALESCE(?, password_cipher), session_invalidated_at = CASE WHEN ? = 1 THEN datetime('now') ELSE session_invalidated_at END
          WHERE email = ? AND role = 'worker' AND deleted_at IS NULL`
       )
-      .run(name, email, passwordHash, oldEmail);
+      .run(name, email, passwordHash, passwordCipher, invalidateSessions ? 1 : 0, oldEmail);
     if (ur.changes === 0) {
       throw new Error("Linked user not found for worker");
     }

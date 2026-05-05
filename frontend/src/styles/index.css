@@ -1200,6 +1200,18 @@ body {
   min-width: min(100%, 180px);
 }
 
+.worker-edit-password-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.worker-edit-password-row .form-input {
+  flex: 1;
+  min-width: min(100%, 180px);
+}
+
 .worker-mgmt-domains-block {
   margin-top: 0.85rem;
   padding-top: 0.85rem;

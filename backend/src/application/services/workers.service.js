@@ -2,6 +2,7 @@ const bcrypt = require("bcryptjs");
 const workersRepo = require("../../domain/repositories/workers.repository");
 const authRepo = require("../../domain/repositories/auth.repository");
 const { isAssignableSubdomain } = require("./sites.service");
+const { encryptPassword, decryptPassword } = require("../../infrastructure/security/passwordVault");
 
 class ValidationError extends Error {
   constructor(message) {
@@ -27,9 +28,11 @@ class ConflictError extends Error {
   }
 }
 
-function getAllWorkers(includeDeleted = false, paymentMonth = null) {
+function getAllWorkers(includeDeleted = false, paymentMonth = null, includePassword = false) {
   const resolvedMonth = resolvePaymentMonth(paymentMonth);
-  return workersRepo.findAll({ includeDeleted: !!includeDeleted, paymentMonth: resolvedMonth });
+  const workers = workersRepo.findAll({ includeDeleted: !!includeDeleted, paymentMonth: resolvedMonth });
+  if (!includePassword) return workers;
+  return workers.map(attachPasswordField);
 }
 
 function getWorkerByEmail(email, paymentMonth = null) {
@@ -40,10 +43,10 @@ function getWorkerByEmailIncludingDeleted(email) {
   return workersRepo.findByEmail(email, { includeDeleted: true }) || null;
 }
 
-function getWorkerById(id, paymentMonth = null) {
+function getWorkerById(id, paymentMonth = null, includePassword = false) {
   const worker = workersRepo.findById(Number(id), { paymentMonth: resolvePaymentMonth(paymentMonth) });
   if (!worker) throw new NotFoundError(`Worker ${id} not found`);
-  return worker;
+  return includePassword ? attachPasswordField(worker) : worker;
 }
 
 /**
@@ -67,8 +70,10 @@ async function createWorker({ name, email, percentage, password }) {
   const existingUser = authRepo.findByEmail(email);
   if (existingUser) throw new ConflictError(`Ya existe una cuenta de usuario con el email ${email}`);
 
-  const passwordHash = await bcrypt.hash(String(password).trim(), 10);
-  return workersRepo.createWithUser({ name, email, percentage }, { passwordHash });
+  const trimmedPassword = String(password).trim();
+  const passwordHash = await bcrypt.hash(trimmedPassword, 10);
+  const passwordCipher = encryptPassword(trimmedPassword);
+  return workersRepo.createWithUser({ name, email, percentage }, { passwordHash, passwordCipher });
 }
 
 function deleteWorker(id) {
@@ -201,15 +206,27 @@ async function updateWorker(workerId, body) {
   }
 
   let passwordHash = null;
+  let passwordCipher = null;
+  let invalidateSessions = false;
   if (password != null && String(password).trim()) {
-    passwordHash = await bcrypt.hash(String(password).trim(), 10);
+    const trimmedPassword = String(password).trim();
+    passwordHash = await bcrypt.hash(trimmedPassword, 10);
+    passwordCipher = encryptPassword(trimmedPassword);
+    invalidateSessions = true;
   }
 
   try {
     return workersRepo.updateWorkerComplete(
       worker.id,
       oldEmail,
-      { name, email, percentage: pct, passwordHash: passwordHash || null },
+      {
+        name,
+        email,
+        percentage: pct,
+        passwordHash: passwordHash || null,
+        passwordCipher: passwordCipher || null,
+        invalidateSessions,
+      },
       normalizedDomains
     );
   } catch (err) {
@@ -262,6 +279,13 @@ function getPreviousMonthKey(date = new Date()) {
   const target = new Date(Date.UTC(year, monthIdx, 1));
   const month = String(target.getUTCMonth() + 1).padStart(2, "0");
   return `${target.getUTCFullYear()}-${month}`;
+}
+
+function attachPasswordField(worker) {
+  if (!worker?.email) return { ...worker, password: "" };
+  const authUser = authRepo.findByEmailIncludingDeleted(worker.email);
+  const password = decryptPassword(authUser?.password_cipher);
+  return { ...worker, password };
 }
 
 module.exports = {

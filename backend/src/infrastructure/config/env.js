@@ -6,6 +6,7 @@ const env = {
 
   // Auth
   JWT_SECRET: process.env.JWT_SECRET || "change-this-secret-in-production",
+  PASSWORD_VIEW_SECRET: process.env.PASSWORD_VIEW_SECRET || "",
   ADMIN_EMAIL: process.env.ADMIN_EMAIL || "admin@example.com",
   ADMIN_PASSWORD: process.env.ADMIN_PASSWORD || "admin123",
 

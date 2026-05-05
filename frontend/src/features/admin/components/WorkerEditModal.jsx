@@ -19,13 +19,14 @@ export default function WorkerEditModal({ worker, sites, globallyAssignedDomains
   const [selectedSite, setSelectedSite] = useState("");
   const [error, setError] = useState(null);
   const [submitting, setSubmitting] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
   useEffect(() => {
     if (!worker) return;
     setName(worker.name || "");
     setEmail(worker.email || "");
     setPercentage(String(worker.percentage ?? ""));
-    setPassword("");
+    setPassword(worker.password || "");
     setDomains(
       (worker.properties || [])
         .filter((p) => p.type === "domain")
@@ -33,6 +34,7 @@ export default function WorkerEditModal({ worker, sites, globallyAssignedDomains
     );
     setSelectedSite("");
     setError(null);
+    setShowPassword(false);
   }, [worker]);
 
   const availableSites = useMemo(() => {
@@ -118,14 +120,24 @@ export default function WorkerEditModal({ worker, sites, globallyAssignedDomains
           </label>
           <label className="worker-edit-label">
             Contraseña
-            <input
-              type="password"
-              className="form-input"
-              value={password}
-              onChange={(ev) => setPassword(ev.target.value)}
-              placeholder="Dejar en blanco para no cambiar"
-              autoComplete="new-password"
-            />
+            <div className="worker-edit-password-row">
+              <input
+                type={showPassword ? "text" : "password"}
+                className="form-input"
+                value={password}
+                onChange={(ev) => setPassword(ev.target.value)}
+                placeholder="Contraseña del trabajador"
+                autoComplete="off"
+              />
+              <button
+                type="button"
+                className="btn btn-secondary btn-sm"
+                onClick={() => setShowPassword((prev) => !prev)}
+                aria-label={showPassword ? "Ocultar contraseña" : "Mostrar contraseña"}
+              >
+                {showPassword ? "Ocultar" : "Mostrar"}
+              </button>
+            </div>
           </label>
           <label className="worker-edit-label">
             Porcentaje (%)

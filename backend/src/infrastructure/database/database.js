@@ -27,6 +27,7 @@ function applySchema(database) {
       name          TEXT    NOT NULL,
       email         TEXT    NOT NULL UNIQUE,
       password_hash TEXT    NOT NULL,
+      password_cipher TEXT,
       role          TEXT    NOT NULL CHECK (role IN ('admin', 'worker')) DEFAULT 'worker',
       created_at    TEXT    DEFAULT (datetime('now')),
       deleted_at    TEXT
@@ -81,6 +82,8 @@ function applySchema(database) {
     );
   `);
   ensureColumn(database, "users", "deleted_at", "TEXT");
+  ensureColumn(database, "users", "password_cipher", "TEXT");
+  ensureColumn(database, "users", "session_invalidated_at", "TEXT");
   ensureColumn(database, "workers", "deleted_at", "TEXT");
   ensureColumn(database, "reports", "source", "TEXT NOT NULL DEFAULT 'sync'");
   ensureColumn(database, "reports", "synced_at", "TEXT DEFAULT (datetime('now'))");

@@ -17,6 +17,16 @@ function authenticate(req, res, next) {
         .status(401)
         .json({ error: "Tu cuenta de trabajador fue eliminada. Contacta al administrador." });
     }
+    if (user.role === "worker" && user.session_invalidated_at && decoded?.iat) {
+      const invalidatedAtMs = Date.parse(String(user.session_invalidated_at).replace(" ", "T") + "Z");
+      const tokenIssuedAtMs = Number(decoded.iat) * 1000;
+      if (Number.isFinite(invalidatedAtMs) && tokenIssuedAtMs <= invalidatedAtMs) {
+        return res.status(401).json({
+          error:
+            "Tus credenciales fueron cambiadas por el administrador. Inicia sesión nuevamente y contacta al administrador si no reconoces este cambio.",
+        });
+      }
+    }
     req.user = decoded;
     next();
   } catch {

@@ -8,10 +8,20 @@ function findByEmail(email) {
   );
 }
 
+function findByEmailIncludingDeleted(email) {
+  return (
+    getDb()
+      .prepare("SELECT * FROM users WHERE email = ?")
+      .get(email) || null
+  );
+}
+
 function findById(id) {
   return (
     getDb()
-      .prepare("SELECT id, name, email, role, created_at, deleted_at FROM users WHERE id = ?")
+      .prepare(
+        "SELECT id, name, email, role, created_at, deleted_at, session_invalidated_at FROM users WHERE id = ?"
+      )
       .get(id) || null
   );
 }
@@ -26,4 +36,4 @@ function create({ name, email, passwordHash, role = "worker" }) {
   return findById(result.lastInsertRowid);
 }
 
-module.exports = { findByEmail, findById, create };
+module.exports = { findByEmail, findByEmailIncludingDeleted, findById, create };

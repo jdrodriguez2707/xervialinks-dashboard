@@ -112,6 +112,11 @@ function parseSyncTimestamp(value) {
   return new Date(raw);
 }
 
+function isAuthSessionError(message) {
+  const text = String(message || "");
+  return text === "401" || text.includes("credenciales fueron cambiadas");
+}
+
 export default function App() {
   const [user, setUser] = useState(() => getStoredUser());
   const [sessionNotice, setSessionNotice] = useState(null);
@@ -203,7 +208,7 @@ export default function App() {
         const metrics = await fetchWorkerDashboard({ domain: targetDomain });
         setData((prev) => ({ ...prev, workerMetrics: metrics }));
       } catch (err) {
-        if (err.message === "401") handleLogout();
+        if (isAuthSessionError(err.message)) handleLogout(err.message);
         else if (err.message.includes("cuenta de trabajador fue eliminada")) {
           handleLogout(err.message);
         } else if (err.message.includes("subdominio solicitado no está asignado")) {
@@ -294,7 +299,7 @@ export default function App() {
         }
       }
     } catch (err) {
-      if (err.message === "401") handleLogout();
+      if (isAuthSessionError(err.message)) handleLogout(err.message);
       else if (err.message.includes("cuenta de trabajador fue eliminada")) {
         handleLogout(err.message);
       }
@@ -391,7 +396,7 @@ export default function App() {
         setCachedDashboardSummary(adminDashboardRange, summary);
         setData((prev) => ({ ...prev, summary }));
       } catch (err) {
-        if (err.message === "401") handleLogout();
+        if (isAuthSessionError(err.message)) handleLogout(err.message);
         else setError(err.message);
       } finally {
         setRefreshingAdmin(false);
@@ -416,7 +421,7 @@ export default function App() {
         setCachedEarningsPayouts(adminEarningsRange, payouts);
         setData((prev) => ({ ...prev, payouts }));
       } catch (err) {
-        if (err.message === "401") handleLogout();
+        if (isAuthSessionError(err.message)) handleLogout(err.message);
         else setError(err.message);
       } finally {
         setRefreshingAdmin(false);
@@ -468,7 +473,7 @@ export default function App() {
       setCachedEarningsPayouts(adminEarningsRange, payouts);
       setData((prev) => ({ ...prev, workers, payouts, summary, paymentHistory }));
     } catch (err) {
-      if (err.message === "401") handleLogout();
+      if (isAuthSessionError(err.message)) handleLogout(err.message);
       else setError(err.message);
     } finally {
       setRefreshingAdmin(false);
@@ -489,7 +494,7 @@ export default function App() {
       ]);
       setData((prev) => ({ ...prev, workers, paymentHistory }));
     } catch (err) {
-      if (err.message === "401") handleLogout();
+      if (isAuthSessionError(err.message)) handleLogout(err.message);
       else setError(err.message);
     } finally {
       setRefreshingAdmin(false);
@@ -512,7 +517,7 @@ export default function App() {
       setData((prev) => ({ ...prev, workerContext: ctx, workerPaymentHistory: paymentHistory }));
       setError(null);
     } catch (err) {
-      if (err.message === "401") handleLogout();
+      if (isAuthSessionError(err.message)) handleLogout(err.message);
       else if (err.message.includes("cuenta de trabajador fue eliminada")) handleLogout(err.message);
       // No elevamos este error al estado global para no romper la UI del worker
       // por fallos transitorios del refresco liviano de contexto.
@@ -534,7 +539,7 @@ export default function App() {
         ]);
         setData((prev) => ({ ...prev, workers, paymentHistory }));
       } catch (err) {
-        if (err.message === "401") handleLogout();
+        if (isAuthSessionError(err.message)) handleLogout(err.message);
         else setError(err.message);
       } finally {
         setRefreshingAdmin(false);
