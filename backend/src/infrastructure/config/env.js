@@ -17,6 +17,12 @@ const env = {
 
   /** Fallback IANA zone when the client does not send X-Client-Timezone */
   DEFAULT_REPORT_TIMEZONE: process.env.DEFAULT_REPORT_TIMEZONE || "",
+
+  // Report sync tuning
+  REPORTS_BATCH_INTERVAL_MS: parseInt(process.env.REPORTS_BATCH_INTERVAL_MS, 10) || 3 * 60 * 60 * 1000,
+  REPORTS_BACKFILL_INTERVAL_MS: parseInt(process.env.REPORTS_BACKFILL_INTERVAL_MS, 10) || 24 * 60 * 60 * 1000,
+  REPORTS_BATCH_WINDOW_DAYS: parseInt(process.env.REPORTS_BATCH_WINDOW_DAYS, 10) || 30,
+  REPORTS_BACKFILL_WINDOW_DAYS: parseInt(process.env.REPORTS_BACKFILL_WINDOW_DAYS, 10) || 370,
 };
 
 module.exports = env;

@@ -10,6 +10,7 @@ import {
   fetchWorkerPaymentHistory,
 } from "../shared/api/worker";
 import { fetchSites } from "../shared/api/sites";
+import { fetchSyncStatus } from "../shared/api/sync";
 import LoginForm from "../features/auth/components/LoginForm";
 import SummaryCards from "../features/admin/components/SummaryCards";
 import PayoutsTable from "../features/admin/components/PayoutsTable";
@@ -76,6 +77,41 @@ function getDefaultPaymentMonth(date = new Date()) {
   return `${target.getFullYear()}-${month}`;
 }
 
+function formatSyncStatusLabel(lastSyncedAt, mode = "admin") {
+  if (!lastSyncedAt) {
+    return mode === "worker"
+      ? "Ultima actualizacion: pendiente"
+      : "Ultima sincronizacion Ad Manager: pendiente";
+  }
+  const date = parseSyncTimestamp(lastSyncedAt);
+  if (Number.isNaN(date.getTime())) {
+    return mode === "worker"
+      ? "Ultima actualizacion: pendiente"
+      : "Ultima sincronizacion Ad Manager: pendiente";
+  }
+  const formatted = new Intl.DateTimeFormat("es-ES", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(date);
+  return mode === "worker"
+    ? `Ultima actualizacion: ${formatted}`
+    : `Ultima sincronizacion Ad Manager: ${formatted}`;
+}
+
+function parseSyncTimestamp(value) {
+  const raw = String(value || "").trim();
+  if (!raw) return new Date(NaN);
+  // SQLite datetime('now') stores UTC without timezone suffix (e.g. "2026-05-05 18:19:00").
+  // Interpret it as UTC explicitly so users see the correct local time conversion.
+  if (/^\d{4}-\d{2}-\d{2}\s\d{2}:\d{2}:\d{2}$/.test(raw)) {
+    return new Date(raw.replace(" ", "T") + "Z");
+  }
+  return new Date(raw);
+}
+
 export default function App() {
   const [user, setUser] = useState(() => getStoredUser());
   const [sessionNotice, setSessionNotice] = useState(null);
@@ -95,6 +131,7 @@ export default function App() {
   const [workerMetricsError, setWorkerMetricsError] = useState(null);
   const [workerSelectedDomain, setWorkerSelectedDomain] = useState(null);
   const [currentDateLabel, setCurrentDateLabel] = useState(() => formatUserDateLabel());
+  const [syncStatus, setSyncStatus] = useState(null);
   const [adminMenuOpen, setAdminMenuOpen] = useState(false);
   const [adminActiveModule, setAdminActiveModule] = useState(() => {
     const u = getStoredUser();
@@ -201,16 +238,18 @@ export default function App() {
     try {
       if (user.role === "admin") {
         const range = getAdminDateRange("today");
-        const [summary, workers, payouts, paymentHistory, sites] = await Promise.all([
+        const [summary, workers, payouts, paymentHistory, sites, sync] = await Promise.all([
           fetchSummary(range),
           fetchWorkers({ includeDeleted: true, paymentMonth: adminPaymentMonth }),
           fetchPayouts(range),
           fetchPaymentHistory(),
           fetchSites(),
+          fetchSyncStatus().catch(() => null),
         ]);
         setCachedDashboardSummary("today", summary);
         setCachedEarningsPayouts("today", payouts);
         setData({ summary, workers, payouts, paymentHistory, sites });
+        setSyncStatus(sync);
         setAdminReady(true);
 
         // Warm up all remaining ranges in background so either selector switch is instant.
@@ -231,9 +270,10 @@ export default function App() {
             .catch(() => {});
         });
       } else {
-        const [context, paymentHistory] = await Promise.all([
+        const [context, paymentHistory, sync] = await Promise.all([
           fetchWorkerContext({ paymentMonth: workerPaymentMonth }),
           fetchWorkerPaymentHistory({ paymentMonth: workerHistoryPaymentMonth }),
+          fetchSyncStatus().catch(() => null),
         ]);
         const domains = getWorkerDomains(context);
         let initialDomain = domains[0] || null;
@@ -246,6 +286,7 @@ export default function App() {
           }
         }
         setData({ workerContext: context, workerMetrics: null, workerPaymentHistory: paymentHistory });
+        setSyncStatus(sync);
         setWorkerSelectedDomain(initialDomain);
         setWorkerMetricsError(null);
         if (initialDomain) {
@@ -271,6 +312,19 @@ export default function App() {
     if (typeof window === "undefined" || user?.role !== "admin") return;
     window.sessionStorage.setItem(ADMIN_ACTIVE_MODULE_STORAGE_KEY, adminActiveModule);
   }, [adminActiveModule, user?.role]);
+
+  useEffect(() => {
+    if (!user) return;
+    const timer = window.setInterval(async () => {
+      try {
+        const status = await fetchSyncStatus();
+        setSyncStatus(status);
+      } catch {
+        // Keep last known sync status during transient errors.
+      }
+    }, 60 * 1000);
+    return () => window.clearInterval(timer);
+  }, [user]);
 
   useEffect(() => {
     if (user?.role !== "admin") return;
@@ -522,6 +576,7 @@ export default function App() {
     setAdminPaymentMonth(getDefaultPaymentMonth());
     setWorkerPaymentMonth(getDefaultPaymentMonth());
     setWorkerHistoryPaymentMonth(getDefaultPaymentMonth());
+    setSyncStatus(null);
     setAdminMenuOpen(false);
     setAdminActiveModule("dashboard");
     setHighlightedEarningsWorkerId(null);
@@ -545,6 +600,7 @@ export default function App() {
     setAdminPaymentMonth(getDefaultPaymentMonth());
     setWorkerPaymentMonth(getDefaultPaymentMonth());
     setWorkerHistoryPaymentMonth(getDefaultPaymentMonth());
+    setSyncStatus(null);
     workerValidDomainsRef.current = [];
     setWorkerFormOpenRequestId(0);
     if (typeof window !== "undefined") {
@@ -653,6 +709,9 @@ export default function App() {
             <div className="header-title-group">
               <h1>{activeAdminModule.label}</h1>
               <p className="app-current-date">{currentDateLabel}</p>
+              <p className="app-sync-status">
+                {formatSyncStatusLabel(syncStatus?.lastSyncedAt, "admin")}
+              </p>
             </div>
             {(loading || refreshingAdmin) && (
               <div className="header-progress" aria-hidden="true" />
@@ -707,6 +766,9 @@ export default function App() {
         <div className="header-title-group">
           <h1>XerviaLinks Metrics</h1>
           <p className="app-current-date">{currentDateLabel}</p>
+          <p className="app-sync-status">
+            {formatSyncStatusLabel(syncStatus?.lastSyncedAt, "worker")}
+          </p>
         </div>
         <div className="header-user">
           <div className="header-user-info">

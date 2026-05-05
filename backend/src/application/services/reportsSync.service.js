@@ -8,8 +8,8 @@ const {
   daysAgoISO,
 } = require("./clientTimezone");
 
-const DEFAULT_BATCH_WINDOW_DAYS = 30;
-const TWELVE_MONTHS_WINDOW_DAYS = 370;
+const DEFAULT_BATCH_WINDOW_DAYS = env.REPORTS_BATCH_WINDOW_DAYS;
+const TWELVE_MONTHS_WINDOW_DAYS = env.REPORTS_BACKFILL_WINDOW_DAYS;
 
 async function syncReportsBatch(options = {}) {
   const tz = options.timeZone || getDefaultTimeZone();

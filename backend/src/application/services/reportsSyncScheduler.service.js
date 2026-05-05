@@ -1,7 +1,8 @@
 const { syncReportsBatch, syncReportsBackfill12Months } = require("./reportsSync.service");
+const env = require("../../infrastructure/config/env");
 
-const THREE_HOURS_MS = 3 * 60 * 60 * 1000;
-const DAILY_MS = 24 * 60 * 60 * 1000;
+const THREE_HOURS_MS = env.REPORTS_BATCH_INTERVAL_MS;
+const DAILY_MS = env.REPORTS_BACKFILL_INTERVAL_MS;
 let schedulerTimer = null;
 let backfillTimer = null;
 let runInFlight = null;

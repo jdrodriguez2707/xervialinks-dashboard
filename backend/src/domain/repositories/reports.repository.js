@@ -107,6 +107,25 @@ function countAll() {
   return row?.total || 0;
 }
 
+function getSyncStatus() {
+  const db = getDb();
+  const row = db
+    .prepare(
+      `SELECT synced_at AS lastSyncedAt, source AS lastSource
+       FROM reports
+       WHERE synced_at IS NOT NULL
+       ORDER BY datetime(synced_at) DESC, id DESC
+       LIMIT 1`
+    )
+    .get();
+
+  return {
+    lastSyncedAt: row?.lastSyncedAt || null,
+    lastSource: row?.lastSource || null,
+    totalRows: countAll(),
+  };
+}
+
 function buildCacheKey({ startDate, endDate, domain }) {
   return `${startDate || ""}|${endDate || ""}|${domain || "*"}`;
 }
@@ -158,4 +177,4 @@ function normalizeRow(row) {
   };
 }
 
-module.exports = { findAll, upsertMany, countAll, clearCache };
+module.exports = { findAll, upsertMany, countAll, clearCache, getSyncStatus };
