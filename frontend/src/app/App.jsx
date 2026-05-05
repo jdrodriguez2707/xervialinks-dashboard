@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback, useRef } from "react";
-import { getStoredUser, logout } from "../shared/api/auth";
+import { getStoredUser, logout, setStoredUser } from "../shared/api/auth";
 import { getAdminDateRange } from "../shared/lib/reportCalendar";
 import { fetchSummary } from "../shared/api/summary";
 import { fetchWorkers } from "../shared/api/workers";
@@ -17,6 +17,7 @@ import PayoutsTable from "../features/admin/components/PayoutsTable";
 import PaymentHistoryTable from "../features/admin/components/PaymentHistoryTable";
 import WorkersList from "../features/admin/components/WorkersList";
 import WorkerDashboard from "../features/worker/components/WorkerDashboard";
+import AdminProfile from "../features/admin/components/AdminProfile";
 import { LayoutDashboard, Wallet, Banknote, Users, Network, UserCircle2, LogOut, Menu, X } from "lucide-react";
 
 const ADMIN_RANGE_LABELS = {
@@ -729,6 +730,7 @@ export default function App() {
             {!loading && data && (
               <AdminDashboard
                 data={data}
+                user={user}
                 onWorkersUpdate={refreshAdminWorkersAndPayouts}
                 onWorkersPaymentStatusRefresh={refreshAdminWorkerStatusesOnly}
                 adminDashboardRange={adminDashboardRange}
@@ -757,6 +759,15 @@ export default function App() {
                     nonce: prev.nonce + 1,
                   }));
                 }}
+                onAdminUserUpdated={(partial) => {
+                  setUser((prev) => {
+                    if (!prev) return prev;
+                    const next = { ...prev, ...partial };
+                    setStoredUser(next);
+                    return next;
+                  });
+                }}
+                onForceLogout={handleLogout}
               />
             )}
           </main>
@@ -835,6 +846,7 @@ export default function App() {
 }
 function AdminDashboard({
   data,
+  user,
   onWorkersUpdate,
   onWorkersPaymentStatusRefresh,
   adminDashboardRange,
@@ -851,6 +863,8 @@ function AdminDashboard({
   workerEditLaunchId,
   workerEditLaunchNonce,
   onNavigateToWorkerEdit,
+  onAdminUserUpdated,
+  onForceLogout,
 }) {
   const { summary, workers, payouts, paymentHistory = [], sites } = data;
 
@@ -907,6 +921,16 @@ function AdminDashboard({
         <h2>Historial de pagos</h2>
         <PaymentHistoryTable rows={paymentHistory} />
       </section>
+    );
+  }
+
+  if (activeModule === "profile") {
+    return (
+      <AdminProfile
+        user={user}
+        onUserUpdated={onAdminUserUpdated}
+        onForceLogout={onForceLogout}
+      />
     );
   }
 

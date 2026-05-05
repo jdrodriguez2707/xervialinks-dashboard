@@ -16,4 +16,19 @@ async function me(req, res) {
   res.json({ data: req.user });
 }
 
-module.exports = { login, register, me };
+async function getProfile(req, res) {
+  const profile = authService.getAdminProfile(req.user.userId);
+  res.json({ data: profile });
+}
+
+async function updateProfile(req, res) {
+  const profile = authService.updateAdminProfile(req.user.userId, req.body || {});
+  res.json({ data: profile });
+}
+
+async function changePassword(req, res) {
+  await authService.changeAdminPassword(req.user.userId, req.body || {});
+  res.status(204).end();
+}
+
+module.exports = { login, register, me, getProfile, updateProfile, changePassword };

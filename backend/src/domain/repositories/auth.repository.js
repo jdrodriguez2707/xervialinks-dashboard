@@ -20,7 +20,7 @@ function findById(id) {
   return (
     getDb()
       .prepare(
-        "SELECT id, name, email, role, created_at, deleted_at, session_invalidated_at FROM users WHERE id = ?"
+        "SELECT id, name, email, role, created_at, deleted_at, session_invalidated_at, last_login_at FROM users WHERE id = ?"
       )
       .get(id) || null
   );
@@ -36,4 +36,35 @@ function create({ name, email, passwordHash, role = "worker" }) {
   return findById(result.lastInsertRowid);
 }
 
-module.exports = { findByEmail, findByEmailIncludingDeleted, findById, create };
+function updateLastLogin(userId) {
+  const db = getDb();
+  db.prepare("UPDATE users SET last_login_at = datetime('now') WHERE id = ?").run(userId);
+  return findById(userId);
+}
+
+function updateProfile(userId, { name, email }) {
+  const db = getDb();
+  db.prepare(
+    "UPDATE users SET name = ?, email = ? WHERE id = ? AND deleted_at IS NULL"
+  ).run(name, email, userId);
+  return findById(userId);
+}
+
+function updatePassword(userId, passwordHash) {
+  const db = getDb();
+  db.prepare("UPDATE users SET password_hash = ?, session_invalidated_at = datetime('now') WHERE id = ?").run(
+    passwordHash,
+    userId
+  );
+  return findById(userId);
+}
+
+module.exports = {
+  findByEmail,
+  findByEmailIncludingDeleted,
+  findById,
+  create,
+  updateLastLogin,
+  updateProfile,
+  updatePassword,
+};

@@ -19,6 +19,14 @@ export async function login(email, password) {
   return data;
 }
 
+export function setStoredUser(user) {
+  if (!user) {
+    localStorage.removeItem(USER_KEY);
+    return;
+  }
+  localStorage.setItem(USER_KEY, JSON.stringify(user));
+}
+
 export function logout() {
   localStorage.removeItem(TOKEN_KEY);
   localStorage.removeItem(USER_KEY);
@@ -49,4 +57,40 @@ export function getAuthHeaders() {
   const tz = getClientTimeZone();
   if (tz) headers["X-Client-Timezone"] = tz;
   return headers;
+}
+
+export async function fetchAdminProfile() {
+  const res = await fetch("/api/auth/profile", { headers: getAuthHeaders() });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error || `${res.status}`);
+  }
+  const { data } = await res.json();
+  return data;
+}
+
+export async function updateAdminProfile(payload) {
+  const res = await fetch("/api/auth/profile", {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json", ...getAuthHeaders() },
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error || `${res.status}`);
+  }
+  const { data } = await res.json();
+  return data;
+}
+
+export async function changeAdminPassword(payload) {
+  const res = await fetch("/api/auth/change-password", {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json", ...getAuthHeaders() },
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error || `${res.status}`);
+  }
 }
