@@ -794,9 +794,6 @@ export default function App() {
           <p className="app-current-date">{currentDateLabel}</p>
         </div>
         <div className="header-right">
-          <p className="app-sync-status">
-            {formatSyncStatusLabel(syncStatus?.lastSyncedAt, "worker")}
-          </p>
           <div className="header-user">
             <div className="header-user-info">
               <span className="header-user-name">{user.name}</span>
@@ -823,6 +820,7 @@ export default function App() {
           metricsLoading={workerMetricsLoading}
           metricsError={workerMetricsError}
           error={error}
+          syncStatusLabel={formatSyncStatusLabel(syncStatus?.lastSyncedAt, "worker")}
           workerId={data?.workerContext?.workerId ?? null}
           paymentMonth={workerPaymentMonth}
           onPaymentMonthChange={setWorkerPaymentMonth}
