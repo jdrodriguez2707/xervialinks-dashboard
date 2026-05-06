@@ -18,6 +18,7 @@ import PaymentHistoryTable from "../features/admin/components/PaymentHistoryTabl
 import WorkersList from "../features/admin/components/WorkersList";
 import WorkerDashboard from "../features/worker/components/WorkerDashboard";
 import AdminProfile from "../features/admin/components/AdminProfile";
+import SectionHeader from "../components/SectionHeader";
 import {
   LayoutDashboard,
   Wallet,
@@ -915,7 +916,7 @@ function AdminDashboard({
             ))}
           </select>
         </div>
-        <h2>Ganancias por trabajador</h2>
+        <SectionHeader title="Ganancias por trabajador" />
         <PayoutsTable
           payouts={payouts.payouts}
           totalPayout={payouts.totalPayout}
@@ -933,7 +934,7 @@ function AdminDashboard({
   if (activeModule === "payment-history") {
     return (
       <section>
-        <h2>Historial de pagos</h2>
+        <SectionHeader title="Historial de pagos" />
         <PaymentHistoryTable rows={paymentHistory} isLoading={isRefreshing} />
       </section>
     );
@@ -971,12 +972,12 @@ function AdminDashboard({
             ))}
           </select>
         </div>
-        <h2>Resumen</h2>
+        <SectionHeader title="Resumen" />
         <SummaryCards summary={summary} isLoading={isRefreshing} />
       </section>
 
       <section>
-        <h2>Trabajadores</h2>
+        <SectionHeader title="Trabajadores" />
         {activeWorkers.length === 0 ? (
           <div className="admin-dashboard-workers-empty">
             <p className="empty-state">

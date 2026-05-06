@@ -1,16 +1,13 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
-  Table,
-  TableBody,
   TableCell,
-  TableHead,
-  TableHeader,
   TableRow,
 } from "@/components/ui/table";
 import { Skeleton } from "@/components/ui/skeleton";
 import EmptyState from "@/components/EmptyState";
 import StatusBadge from "@/components/StatusBadge";
+import DataTable from "@/components/DataTable";
 
 export default function PaymentHistoryTable({ rows = [], isLoading = false }) {
   const [isPickerOpen, setPickerOpen] = useState(false);
@@ -102,30 +99,19 @@ export default function PaymentHistoryTable({ rows = [], isLoading = false }) {
   return (
     <>
       {isLoading ? (
-        <div className="w-full overflow-x-auto rounded-lg border border-border bg-card">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Fecha de pago</TableHead>
-                <TableHead>Estado</TableHead>
-                <TableHead>Trabajador</TableHead>
-                <TableHead>Método de pago</TableHead>
-                <TableHead>Cantidad</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {Array.from({ length: 4 }).map((_, idx) => (
-                <TableRow key={`history-skeleton-${idx}`}>
-                  <TableCell><Skeleton className="h-4 w-28" /></TableCell>
-                  <TableCell><Skeleton className="h-5 w-20 rounded-full" /></TableCell>
-                  <TableCell><Skeleton className="h-4 w-28" /></TableCell>
-                  <TableCell><Skeleton className="h-4 w-24" /></TableCell>
-                  <TableCell><Skeleton className="h-4 w-20" /></TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </div>
+        <DataTable
+          columns={["Fecha de pago", "Estado", "Trabajador", "Método de pago", "Cantidad"]}
+          rows={Array.from({ length: 4 })}
+          renderRow={(_, idx) => (
+            <TableRow key={`history-skeleton-${idx}`}>
+              <TableCell><Skeleton className="h-4 w-28" /></TableCell>
+              <TableCell><Skeleton className="h-5 w-20 rounded-full" /></TableCell>
+              <TableCell><Skeleton className="h-4 w-28" /></TableCell>
+              <TableCell><Skeleton className="h-4 w-24" /></TableCell>
+              <TableCell><Skeleton className="h-4 w-20" /></TableCell>
+            </TableRow>
+          )}
+        />
       ) : null}
 
       {!isLoading && orderedRows.length === 0 ? (
@@ -231,42 +217,31 @@ export default function PaymentHistoryTable({ rows = [], isLoading = false }) {
               }
             />
           ) : (
-            <div className="w-full overflow-x-auto rounded-lg border border-border bg-card">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Fecha de pago</TableHead>
-                    <TableHead>Estado</TableHead>
-                    <TableHead>Trabajador</TableHead>
-                    <TableHead>Método de pago</TableHead>
-                    <TableHead>Cantidad</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filteredRows.map((row, idx) => (
-                    <TableRow
-                      key={`${row.workerName}-${row.paymentMonth}-${row.paidAt}-${idx}`}
-                      className="transition-colors hover:bg-muted/20"
-                    >
-                      <TableCell>{formatPaidAt(row.paidAt)}</TableCell>
-                      <TableCell>
-                        <StatusBadge status="paid" label={row.statusLabel || "Pago realizado"} />
-                      </TableCell>
-                      <TableCell>{row.workerName}</TableCell>
-                      <TableCell>{row.methodType || "-"}</TableCell>
-                      <TableCell className="tabular-nums font-semibold">
-                        {new Intl.NumberFormat("es-ES", {
-                          style: "currency",
-                          currency: "USD",
-                          minimumFractionDigits: 2,
-                          maximumFractionDigits: 2,
-                        }).format(row.amount || 0)}
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
+            <DataTable
+              columns={["Fecha de pago", "Estado", "Trabajador", "Método de pago", "Cantidad"]}
+              rows={filteredRows}
+              renderRow={(row, idx) => (
+                <TableRow
+                  key={`${row.workerName}-${row.paymentMonth}-${row.paidAt}-${idx}`}
+                  className="transition-colors hover:bg-muted/20"
+                >
+                  <TableCell>{formatPaidAt(row.paidAt)}</TableCell>
+                  <TableCell>
+                    <StatusBadge status="paid" label={row.statusLabel || "Pago realizado"} />
+                  </TableCell>
+                  <TableCell>{row.workerName}</TableCell>
+                  <TableCell>{row.methodType || "-"}</TableCell>
+                  <TableCell className="tabular-nums font-semibold">
+                    {new Intl.NumberFormat("es-ES", {
+                      style: "currency",
+                      currency: "USD",
+                      minimumFractionDigits: 2,
+                      maximumFractionDigits: 2,
+                    }).format(row.amount || 0)}
+                  </TableCell>
+                </TableRow>
+              )}
+            />
           )}
         </>
       ) : null}

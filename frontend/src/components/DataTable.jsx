@@ -2,15 +2,15 @@ import React from "react";
 import {
   Table,
   TableBody,
-  TableCell,
   TableHead,
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { cn } from "@/lib/utils";
 
-export default function DataTable({ columns, rows, renderRow }) {
+export default function DataTable({ columns, rows, renderRow, footer, className }) {
   return (
-    <div className="w-full overflow-x-auto rounded-lg border border-border bg-card">
+    <div className={cn("w-full overflow-x-auto rounded-lg border border-border bg-card", className)}>
       <Table>
         <TableHeader>
           <TableRow>
@@ -19,7 +19,10 @@ export default function DataTable({ columns, rows, renderRow }) {
             ))}
           </TableRow>
         </TableHeader>
-        <TableBody>{rows.map(renderRow)}</TableBody>
+        <TableBody>
+          {rows.map(renderRow)}
+          {typeof footer === "function" ? footer() : null}
+        </TableBody>
       </Table>
     </div>
   );

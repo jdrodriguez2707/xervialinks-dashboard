@@ -4,11 +4,7 @@ import { updateWorkerPaymentStatus } from "../../../shared/api/workers";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
-  Table,
-  TableBody,
   TableCell,
-  TableHead,
-  TableHeader,
   TableRow,
 } from "@/components/ui/table";
 import {
@@ -29,6 +25,7 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import EmptyState from "@/components/EmptyState";
 import StatusBadge from "@/components/StatusBadge";
+import DataTable from "@/components/DataTable";
 
 /**
  * @param {{
@@ -110,36 +107,31 @@ export default function PayoutsTable({
 
   if (isLoading) {
     return (
-      <div className="w-full overflow-x-auto rounded-lg border border-border bg-card">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Trabajador</TableHead>
-              <TableHead>Subdominios asignados</TableHead>
-              <TableHead>Impresiones</TableHead>
-              <TableHead>Ingresos asignados</TableHead>
-              <TableHead>%</TableHead>
-              <TableHead>Ganancia</TableHead>
-              <TableHead>Estado de pago</TableHead>
-              <TableHead>Pagos</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {Array.from({ length: 4 }).map((_, idx) => (
-              <TableRow key={`payout-skeleton-${idx}`}>
-                <TableCell><Skeleton className="h-4 w-32" /></TableCell>
-                <TableCell><Skeleton className="h-4 w-44" /></TableCell>
-                <TableCell><Skeleton className="h-4 w-16" /></TableCell>
-                <TableCell><Skeleton className="h-4 w-20" /></TableCell>
-                <TableCell><Skeleton className="h-4 w-8" /></TableCell>
-                <TableCell><Skeleton className="h-4 w-20" /></TableCell>
-                <TableCell><Skeleton className="h-5 w-20 rounded-full" /></TableCell>
-                <TableCell><Skeleton className="h-8 w-8 rounded-md" /></TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </div>
+      <DataTable
+        columns={[
+          "Trabajador",
+          "Subdominios asignados",
+          "Impresiones",
+          "Ingresos asignados",
+          "%",
+          "Ganancia",
+          "Estado de pago",
+          "Pagos",
+        ]}
+        rows={Array.from({ length: 4 })}
+        renderRow={(_, idx) => (
+          <TableRow key={`payout-skeleton-${idx}`}>
+            <TableCell><Skeleton className="h-4 w-32" /></TableCell>
+            <TableCell><Skeleton className="h-4 w-44" /></TableCell>
+            <TableCell><Skeleton className="h-4 w-16" /></TableCell>
+            <TableCell><Skeleton className="h-4 w-20" /></TableCell>
+            <TableCell><Skeleton className="h-4 w-8" /></TableCell>
+            <TableCell><Skeleton className="h-4 w-20" /></TableCell>
+            <TableCell><Skeleton className="h-5 w-20 rounded-full" /></TableCell>
+            <TableCell><Skeleton className="h-8 w-8 rounded-md" /></TableCell>
+          </TableRow>
+        )}
+      />
     );
   }
 
@@ -154,111 +146,104 @@ export default function PayoutsTable({
 
   return (
     <>
-      <div className="w-full overflow-x-auto rounded-lg border border-border bg-card">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Trabajador</TableHead>
-              <TableHead>Subdominios asignados</TableHead>
-              <TableHead>Impresiones</TableHead>
-              <TableHead>Ingresos asignados</TableHead>
-              <TableHead>%</TableHead>
-              <TableHead>Ganancia</TableHead>
-              <TableHead>Estado de pago</TableHead>
-              <TableHead>Pagos</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {payoutsOrdered.map((w) => {
-              const status = workersById.get(w.workerId)?.paymentStatus || "pending";
-              return (
-                <TableRow
-                  key={w.workerId}
-                  className={`transition-colors hover:bg-muted/20 ${
-                    w.workerId === highlightedWorkerId
-                      ? "bg-primary/20 ring-1 ring-inset ring-primary/40"
-                      : ""
-                  }`}
-                >
-                  <TableCell>
-                    <div className="space-y-1">
-                      <p className="text-sm font-semibold">{w.name}</p>
-                      <p className="text-xs text-muted-foreground">{w.email}</p>
-                      <Badge
-                        variant="outline"
-                        className={`text-xs ${
-                          w.deletedAt
-                            ? "border-border text-muted-foreground bg-background"
-                            : "border-emerald-500/40 text-emerald-700 bg-emerald-50"
-                        }`}
-                      >
-                        {w.deletedAt ? "Inactivo" : "Activo"}
+      <DataTable
+        columns={[
+          "Trabajador",
+          "Subdominios asignados",
+          "Impresiones",
+          "Ingresos asignados",
+          "%",
+          "Ganancia",
+          "Estado de pago",
+          "Pagos",
+        ]}
+        rows={payoutsOrdered}
+        renderRow={(w) => {
+          const status = workersById.get(w.workerId)?.paymentStatus || "pending";
+          return (
+            <TableRow
+              key={w.workerId}
+              className={`transition-colors hover:bg-muted/20 ${
+                w.workerId === highlightedWorkerId
+                  ? "bg-primary/20 ring-1 ring-inset ring-primary/40"
+                  : ""
+              }`}
+            >
+              <TableCell>
+                <div className="space-y-1">
+                  <p className="text-sm font-semibold">{w.name}</p>
+                  <p className="text-xs text-muted-foreground">{w.email}</p>
+                  <Badge
+                    variant="outline"
+                    className={`text-xs ${
+                      w.deletedAt
+                        ? "border-border text-muted-foreground bg-background"
+                        : "border-emerald-500/40 text-emerald-700 bg-emerald-50"
+                    }`}
+                  >
+                    {w.deletedAt ? "Inactivo" : "Activo"}
+                  </Badge>
+                </div>
+              </TableCell>
+              <TableCell>
+                {w.assignedDomains.length === 0 ? (
+                  <span className="text-xs text-muted-foreground">—</span>
+                ) : (
+                  <div className="flex flex-wrap gap-2">
+                    {w.assignedDomains.map((d) => (
+                      <Badge key={d} variant="outline">
+                        {d}
                       </Badge>
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    {w.assignedDomains.length === 0 ? (
-                      <span className="text-xs text-muted-foreground">—</span>
-                    ) : (
-                      <div className="flex flex-wrap gap-2">
-                        {w.assignedDomains.map((d) => (
-                          <Badge key={d} variant="outline">
-                            {d}
-                          </Badge>
-                        ))}
-                      </div>
-                    )}
-                  </TableCell>
-                  <TableCell className="tabular-nums">
-                    {w.assignedImpressions.toLocaleString()}
-                  </TableCell>
-                  <TableCell className="tabular-nums">${w.assignedRevenue.toFixed(2)}</TableCell>
-                  <TableCell className="tabular-nums">{w.percentage}%</TableCell>
-                  <TableCell className="tabular-nums font-semibold">${w.payout.toFixed(2)}</TableCell>
-                  <TableCell>
-                    {w.deletedAt ? (
-                      <span className="text-xs text-muted-foreground">—</span>
-                    ) : (
-                      <StatusBadge
-                        status={status === "paid" ? "paid" : "pending"}
-                        label={status === "paid" ? "Pagado" : "Pendiente"}
-                      />
-                    )}
-                  </TableCell>
-                  <TableCell>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon"
-                      title={
-                        w.deletedAt
-                          ? `Ver información de pago de ${w.name}`
-                          : `Gestionar estado de pago de ${w.name} (${paymentMonth})`
-                      }
-                      aria-label={
-                        w.deletedAt
-                          ? `Ver información de pago de ${w.name}`
-                          : `Gestionar estado de pago de ${w.name} (${paymentMonth})`
-                      }
-                      onClick={() => openPaymentModal(w)}
-                    >
-                      <HandCoins className="h-4 w-4" />
-                    </Button>
-                  </TableCell>
-                </TableRow>
-              );
-            })}
-            <TableRow>
-              <TableCell colSpan={7} className="text-sm font-semibold text-muted-foreground">
-                Ganancia total
+                    ))}
+                  </div>
+                )}
               </TableCell>
-              <TableCell className="tabular-nums font-semibold">
-                ${totalPayout.toFixed(2)}
+              <TableCell className="tabular-nums">{w.assignedImpressions.toLocaleString()}</TableCell>
+              <TableCell className="tabular-nums">${w.assignedRevenue.toFixed(2)}</TableCell>
+              <TableCell className="tabular-nums">{w.percentage}%</TableCell>
+              <TableCell className="tabular-nums font-semibold">${w.payout.toFixed(2)}</TableCell>
+              <TableCell>
+                {w.deletedAt ? (
+                  <span className="text-xs text-muted-foreground">—</span>
+                ) : (
+                  <StatusBadge
+                    status={status === "paid" ? "paid" : "pending"}
+                    label={status === "paid" ? "Pagado" : "Pendiente"}
+                  />
+                )}
+              </TableCell>
+              <TableCell>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  title={
+                    w.deletedAt
+                      ? `Ver información de pago de ${w.name}`
+                      : `Gestionar estado de pago de ${w.name} (${paymentMonth})`
+                  }
+                  aria-label={
+                    w.deletedAt
+                      ? `Ver información de pago de ${w.name}`
+                      : `Gestionar estado de pago de ${w.name} (${paymentMonth})`
+                  }
+                  onClick={() => openPaymentModal(w)}
+                >
+                  <HandCoins className="h-4 w-4" />
+                </Button>
               </TableCell>
             </TableRow>
-          </TableBody>
-        </Table>
-      </div>
+          );
+        }}
+        footer={() => (
+          <TableRow>
+            <TableCell colSpan={7} className="text-sm font-semibold text-muted-foreground">
+              Ganancia total
+            </TableCell>
+            <TableCell className="tabular-nums font-semibold">${totalPayout.toFixed(2)}</TableCell>
+          </TableRow>
+        )}
+      />
 
       {selectedWorker && (
         <Dialog open={!!selectedWorker} onOpenChange={(value) => (!value ? setSelectedWorker(null) : null)}>
