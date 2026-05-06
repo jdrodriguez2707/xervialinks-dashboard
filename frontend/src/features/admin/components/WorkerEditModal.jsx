@@ -30,7 +30,13 @@ import {
  *   onSaved: () => void | Promise<void>,
  * }} props
  */
-export default function WorkerEditModal({ worker, sites, globallyAssignedDomains, onClose, onSaved }) {
+export default function WorkerEditModal({
+  worker,
+  sites,
+  globallyAssignedDomains,
+  onClose,
+  onSaved,
+}) {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [percentage, setPercentage] = useState("");
@@ -47,11 +53,7 @@ export default function WorkerEditModal({ worker, sites, globallyAssignedDomains
     setEmail(worker.email || "");
     setPercentage(String(worker.percentage ?? ""));
     setPassword(worker.password || "");
-    setDomains(
-      (worker.properties || [])
-        .filter((p) => p.type === "domain")
-        .map((p) => p.value)
-    );
+    setDomains((worker.properties || []).filter((p) => p.type === "domain").map((p) => p.value));
     setSelectedSite("");
     setError(null);
     setShowPassword(false);
@@ -170,7 +172,8 @@ export default function WorkerEditModal({ worker, sites, globallyAssignedDomains
             <div>
               <p className="text-sm font-semibold">Subdominios</p>
               <p className="text-xs text-muted-foreground">
-                Puedes quitar o añadir subdominios aquí. Los cambios se guardan al pulsar "Guardar cambios".
+                Puedes quitar o añadir subdominios aquí. Los cambios se guardan al pulsar{" "}
+                <span className="font-medium">&quot;Guardar cambios&quot;</span>.
               </p>
             </div>
 

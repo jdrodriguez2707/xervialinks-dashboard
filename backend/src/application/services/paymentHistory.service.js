@@ -10,10 +10,7 @@ async function listPaymentHistory({ timeZone }) {
 
   for (const month of uniqueMonths) {
     const { startDate, endDate } = getMonthRange(month);
-    const result = await payoutsService.calculatePayouts(
-      { startDate, endDate, timeZone },
-      null
-    );
+    const result = await payoutsService.calculatePayouts({ startDate, endDate, timeZone }, null);
     const byWorker = new Map(result.payouts.map((p) => [p.workerId, p]));
     payoutsByMonth.set(month, byWorker);
   }

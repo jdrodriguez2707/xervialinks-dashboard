@@ -31,7 +31,10 @@ const MESSAGE_RULES = [
   },
 ];
 
-export function toUserErrorMessage(error, fallbackMessage = "Ocurrió un error. Inténtalo nuevamente.") {
+export function toUserErrorMessage(
+  error,
+  fallbackMessage = "Ocurrió un error. Inténtalo nuevamente.",
+) {
   const rawMessage = extractMessage(error);
   if (!rawMessage) return fallbackMessage;
   const normalized = rawMessage.toLowerCase();
@@ -39,4 +42,3 @@ export function toUserErrorMessage(error, fallbackMessage = "Ocurrió un error. 
   if (match) return match.message;
   return rawMessage;
 }
-

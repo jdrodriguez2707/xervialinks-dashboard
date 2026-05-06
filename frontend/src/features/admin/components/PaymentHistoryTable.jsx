@@ -1,9 +1,6 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
-import {
-  TableCell,
-  TableRow,
-} from "@/components/ui/table";
+import { TableCell, TableRow } from "@/components/ui/table";
 import { Skeleton } from "@/components/ui/skeleton";
 import EmptyState from "@/components/EmptyState";
 import StatusBadge from "@/components/StatusBadge";
@@ -71,11 +68,11 @@ export default function PaymentHistoryTable({ rows = [], isLoading = false }) {
     setPickerOpen(false);
   }
 
-  function closePickerDiscardDraft() {
+  const closePickerDiscardDraft = useCallback(() => {
     setDraftStartDate(appliedStartDate);
     setDraftEndDate(appliedEndDate);
     setPickerOpen(false);
-  }
+  }, [appliedStartDate, appliedEndDate]);
 
   function clearRange() {
     setDraftStartDate("");
@@ -94,7 +91,7 @@ export default function PaymentHistoryTable({ rows = [], isLoading = false }) {
     }
     document.addEventListener("mousedown", handleOutsideClick);
     return () => document.removeEventListener("mousedown", handleOutsideClick);
-  }, [isPickerOpen, appliedStartDate, appliedEndDate]);
+  }, [isPickerOpen, closePickerDiscardDraft]);
 
   return (
     <>
@@ -104,11 +101,21 @@ export default function PaymentHistoryTable({ rows = [], isLoading = false }) {
           rows={Array.from({ length: 4 })}
           renderRow={(_, idx) => (
             <TableRow key={`history-skeleton-${idx}`}>
-              <TableCell><Skeleton className="h-4 w-28" /></TableCell>
-              <TableCell><Skeleton className="h-5 w-20 rounded-full" /></TableCell>
-              <TableCell><Skeleton className="h-4 w-28" /></TableCell>
-              <TableCell><Skeleton className="h-4 w-24" /></TableCell>
-              <TableCell><Skeleton className="h-4 w-20" /></TableCell>
+              <TableCell>
+                <Skeleton className="h-4 w-28" />
+              </TableCell>
+              <TableCell>
+                <Skeleton className="h-5 w-20 rounded-full" />
+              </TableCell>
+              <TableCell>
+                <Skeleton className="h-4 w-28" />
+              </TableCell>
+              <TableCell>
+                <Skeleton className="h-4 w-24" />
+              </TableCell>
+              <TableCell>
+                <Skeleton className="h-4 w-20" />
+              </TableCell>
             </TableRow>
           )}
         />

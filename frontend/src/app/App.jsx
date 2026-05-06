@@ -326,6 +326,7 @@ export default function App() {
     } finally {
       setLoading(false);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- meses de pago: otros useEffect; evita recarga completa en bucle
   }, [user, loadWorkerMetrics]);
 
   useEffect(() => {
@@ -495,7 +496,8 @@ export default function App() {
     } catch (err) {
       const rawMessage = String(err?.message || "");
       if (isAuthSessionError(rawMessage)) handleLogout(rawMessage);
-      else setError(toUserErrorMessage(err, "No se pudo actualizar la información de trabajadores."));
+      else
+        setError(toUserErrorMessage(err, "No se pudo actualizar la información de trabajadores."));
     } finally {
       setRefreshingAdmin(false);
     }
@@ -575,6 +577,7 @@ export default function App() {
   useEffect(() => {
     if (!user || user.role !== "worker" || !data?.workerContext) return;
     refreshWorkerContextByPaymentMonth();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- evitar `data.workerContext` completo (re-disparos en cada refresh)
   }, [
     workerPaymentMonth,
     workerHistoryPaymentMonth,

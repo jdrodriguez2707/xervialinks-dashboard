@@ -9,7 +9,7 @@ const env = require("../../infrastructure/config/env");
  * @param {import("express").Response} res
  * @param {import("express").NextFunction} next
  */
-function errorHandler(err, req, res, next) {
+function errorHandler(err, req, res, _next) {
   const statusCode = Number.isInteger(err.statusCode) ? err.statusCode : 500;
   const message = err.message || "Internal Server Error";
 

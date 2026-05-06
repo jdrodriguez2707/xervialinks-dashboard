@@ -7,9 +7,7 @@ async function getWorkerPaymentHistoryByEmail(email, { paymentMonth, timeZone })
     return { period: paymentMonth, rows: [], paymentStatus: "pending" };
   }
 
-  const domains = (worker.properties || [])
-    .filter((p) => p.type === "domain")
-    .map((p) => p.value);
+  const domains = (worker.properties || []).filter((p) => p.type === "domain").map((p) => p.value);
 
   if (domains.length === 0) {
     return {

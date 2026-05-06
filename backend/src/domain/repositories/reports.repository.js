@@ -62,7 +62,7 @@ function queryReportsFromDb(filters = {}) {
       `SELECT date, domain, impressions, revenue, ecpm
        FROM reports
        ${whereClause}
-       ORDER BY date DESC, domain ASC`
+       ORDER BY date DESC, domain ASC`,
     )
     .all(...params);
 
@@ -80,7 +80,7 @@ function upsertMany(rows = []) {
        revenue = excluded.revenue,
        ecpm = excluded.ecpm,
        source = excluded.source,
-       synced_at = datetime('now')`
+       synced_at = datetime('now')`,
   );
 
   db.transaction((items) => {
@@ -93,7 +93,7 @@ function upsertMany(rows = []) {
         normalized.impressions,
         normalized.revenue,
         normalized.ecpm,
-        normalized.source || "sync"
+        normalized.source || "sync",
       );
     }
   })(rows);
@@ -115,7 +115,7 @@ function getSyncStatus() {
        FROM reports
        WHERE synced_at IS NOT NULL
        ORDER BY datetime(synced_at) DESC, id DESC
-       LIMIT 1`
+       LIMIT 1`,
     )
     .get();
 

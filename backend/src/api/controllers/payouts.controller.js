@@ -1,9 +1,6 @@
 const payoutsService = require("../../application/services/payouts.service");
 const paymentHistoryService = require("../../application/services/paymentHistory.service");
-const {
-  todayISO,
-  currentMonthStartISO,
-} = require("../../application/services/clientTimezone");
+const { todayISO, currentMonthStartISO } = require("../../application/services/clientTimezone");
 const { clientTimeZoneFromRequest } = require("../utils/clientTz");
 
 async function getPayouts(req, res) {
@@ -14,7 +11,7 @@ async function getPayouts(req, res) {
   const requesterEmail = req.user.role === "worker" ? req.user.email : null;
   const result = await payoutsService.calculatePayouts(
     { startDate, endDate, timeZone },
-    requesterEmail
+    requesterEmail,
   );
   res.json({ data: result });
 }

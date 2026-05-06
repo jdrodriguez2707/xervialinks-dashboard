@@ -1,8 +1,7 @@
 const workersService = require("../../application/services/workers.service");
 
 async function listWorkers(req, res) {
-  const includeDeleted =
-    req.query.includeDeleted === "true" || req.query.includeDeleted === "1";
+  const includeDeleted = req.query.includeDeleted === "true" || req.query.includeDeleted === "1";
   const workers = workersService.getAllWorkers(includeDeleted, req.query.paymentMonth, true);
   res.json({ data: workers });
 }
@@ -47,7 +46,7 @@ async function updatePaymentStatus(req, res) {
   const paymentStatus = workersService.updateWorkerPaymentStatus(
     req.params.id,
     status,
-    paymentMonth
+    paymentMonth,
   );
   res.json({ data: paymentStatus });
 }

@@ -38,9 +38,7 @@ describe("POST /api/auth/login", () => {
   });
 
   it("returns 400 when fields are missing", async () => {
-    const res = await request(app)
-      .post("/api/auth/login")
-      .send({ email: ADMIN_EMAIL });
+    const res = await request(app).post("/api/auth/login").send({ email: ADMIN_EMAIL });
     expect(res.status).toBe(400);
   });
 });
@@ -50,7 +48,12 @@ describe("POST /api/auth/register", () => {
     const res = await request(app)
       .post("/api/auth/register")
       .set("Authorization", `Bearer ${adminToken}`)
-      .send({ name: "Worker One", email: "worker1@example.com", password: "pass123", role: "worker" });
+      .send({
+        name: "Worker One",
+        email: "worker1@example.com",
+        password: "pass123",
+        role: "worker",
+      });
 
     expect(res.status).toBe(201);
     expect(res.body.data.role).toBe("worker");
@@ -80,9 +83,7 @@ describe("POST /api/auth/register", () => {
 
 describe("GET /api/auth/me", () => {
   it("returns current user info", async () => {
-    const res = await request(app)
-      .get("/api/auth/me")
-      .set("Authorization", `Bearer ${adminToken}`);
+    const res = await request(app).get("/api/auth/me").set("Authorization", `Bearer ${adminToken}`);
 
     expect(res.status).toBe(200);
     expect(res.body.data.email).toBe(ADMIN_EMAIL);

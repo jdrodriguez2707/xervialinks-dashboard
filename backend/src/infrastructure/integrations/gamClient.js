@@ -29,14 +29,10 @@ async function getAccessToken() {
     return tokenResponse.token;
   } catch (err) {
     const raw = String(err?.message || err);
-    if (
-      /invalid_grant|Invalid JWT|short-lived token|reasonable timeframe|iat and exp/i.test(
-        raw
-      )
-    ) {
+    if (/invalid_grant|Invalid JWT|short-lived token|reasonable timeframe|iat and exp/i.test(raw)) {
       throw new GamAuthError(
         "No se pudo autenticar con Google Ad Manager: la fecha u hora del sistema no coincide con la hora real (los JWT deben emitirse en un margen válido). Restaura la fecha y hora correctas del equipo o VM, reinicia el proceso del backend y vuelve a intentar. Si no cambiaste el reloj, revisa las credenciales del servicio (GAM_KEY_FILE / GAM_CREDENTIALS_JSON).",
-        503
+        503,
       );
     }
     throw err;
@@ -55,9 +51,7 @@ function resolveCredentials() {
   if (env.GAM_KEY_FILE) {
     return { keyFile: path.resolve(process.cwd(), env.GAM_KEY_FILE) };
   }
-  throw new Error(
-    "GAM credentials not configured. Set GAM_CREDENTIALS_JSON or GAM_KEY_FILE."
-  );
+  throw new Error("GAM credentials not configured. Set GAM_CREDENTIALS_JSON or GAM_KEY_FILE.");
 }
 
 /**

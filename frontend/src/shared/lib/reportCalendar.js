@@ -3,7 +3,7 @@ import { getClientTimeZone } from "../api/auth";
 /** Must match backend default when the client zone is missing or invalid. */
 const FALLBACK_TZ = "America/Bogota";
 
-const TZ_SAFE = /^[A-Za-z0-9_+\/-]+$/;
+const TZ_SAFE = /^[A-Za-z0-9_/+-]+$/;
 
 function isValidIanaTimeZone(tz) {
   if (!tz || typeof tz !== "string" || tz.length > 120 || !TZ_SAFE.test(tz)) {

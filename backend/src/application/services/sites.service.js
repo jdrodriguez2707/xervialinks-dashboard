@@ -10,11 +10,7 @@ const reportsRepository = require("../../domain/repositories/reports.repository"
 async function getSites(timeZone) {
   const reports = await reportsRepository.findAll({ timeZone });
   const unique = [
-    ...new Set(
-      reports
-        .map((r) => r.domain)
-        .filter((domain) => isAssignableSubdomain(domain))
-    ),
+    ...new Set(reports.map((r) => r.domain).filter((domain) => isAssignableSubdomain(domain))),
   ].sort();
   return unique;
 }

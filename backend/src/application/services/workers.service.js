@@ -30,13 +30,18 @@ class ConflictError extends Error {
 
 function getAllWorkers(includeDeleted = false, paymentMonth = null, includePassword = false) {
   const resolvedMonth = resolvePaymentMonth(paymentMonth);
-  const workers = workersRepo.findAll({ includeDeleted: !!includeDeleted, paymentMonth: resolvedMonth });
+  const workers = workersRepo.findAll({
+    includeDeleted: !!includeDeleted,
+    paymentMonth: resolvedMonth,
+  });
   if (!includePassword) return workers;
   return workers.map(attachPasswordField);
 }
 
 function getWorkerByEmail(email, paymentMonth = null) {
-  return workersRepo.findByEmail(email, { paymentMonth: resolvePaymentMonth(paymentMonth) }) || null;
+  return (
+    workersRepo.findByEmail(email, { paymentMonth: resolvePaymentMonth(paymentMonth) }) || null
+  );
 }
 
 function getWorkerByEmailIncludingDeleted(email) {
@@ -44,7 +49,9 @@ function getWorkerByEmailIncludingDeleted(email) {
 }
 
 function getWorkerById(id, paymentMonth = null, includePassword = false) {
-  const worker = workersRepo.findById(Number(id), { paymentMonth: resolvePaymentMonth(paymentMonth) });
+  const worker = workersRepo.findById(Number(id), {
+    paymentMonth: resolvePaymentMonth(paymentMonth),
+  });
   if (!worker) throw new NotFoundError(`Worker ${id} not found`);
   return includePassword ? attachPasswordField(worker) : worker;
 }
@@ -68,7 +75,8 @@ async function createWorker({ name, email, percentage, password }) {
   if (existingWorker) throw new ConflictError(`El email ${email} ya está en uso`);
 
   const existingUser = authRepo.findByEmail(email);
-  if (existingUser) throw new ConflictError(`Ya existe una cuenta de usuario con el email ${email}`);
+  if (existingUser)
+    throw new ConflictError(`Ya existe una cuenta de usuario con el email ${email}`);
 
   const trimmedPassword = String(password).trim();
   const passwordHash = await bcrypt.hash(trimmedPassword, 10);
@@ -112,14 +120,12 @@ function addPropertyToWorker(workerId, { type, value }) {
   if (type === "domain") {
     if (!isAssignableSubdomain(trimmedValue)) {
       throw new ValidationError(
-        "Solo se permiten subdominios asignables (ej: elvalerobux.barbacoadicto.com)"
+        "Solo se permiten subdominios asignables (ej: elvalerobux.barbacoadicto.com)",
       );
     }
     const existingDomain = workersRepo.findPropertyByTypeAndValue("domain", trimmedValue);
     if (existingDomain && existingDomain.worker_id !== Number(workerId)) {
-      throw new ConflictError(
-        `El subdominio ${trimmedValue} ya está asignado a otro trabajador`
-      );
+      throw new ConflictError(`El subdominio ${trimmedValue} ya está asignado a otro trabajador`);
     }
   }
 
@@ -127,7 +133,9 @@ function addPropertyToWorker(workerId, { type, value }) {
     return workersRepo.addProperty(Number(workerId), { type, value: trimmedValue });
   } catch (err) {
     if (err.message.includes("UNIQUE")) {
-      throw new ConflictError(`La propiedad (${type}: ${value}) ya está asignada a este trabajador`);
+      throw new ConflictError(
+        `La propiedad (${type}: ${value}) ya está asignada a este trabajador`,
+      );
     }
     throw err;
   }
@@ -184,7 +192,7 @@ async function updateWorker(workerId, body) {
   for (const d of normalizedDomains) {
     if (!isAssignableSubdomain(d)) {
       throw new ValidationError(
-        "Solo se permiten subdominios asignables (ej: elvalerobux.barbacoadicto.com)"
+        "Solo se permiten subdominios asignables (ej: elvalerobux.barbacoadicto.com)",
       );
     }
     const existing = workersRepo.findPropertyByTypeAndValue("domain", d);
@@ -227,7 +235,7 @@ async function updateWorker(workerId, body) {
         passwordCipher: passwordCipher || null,
         invalidateSessions,
       },
-      normalizedDomains
+      normalizedDomains,
     );
   } catch (err) {
     if (String(err.message || err).includes("UNIQUE")) {
@@ -255,9 +263,7 @@ function updateWorkerPaymentStatus(workerId, status, paymentMonth = null) {
     throw new NotFoundError(`Worker ${workerId} not found`);
   }
   if (worker.deleted_at) {
-    throw new ValidationError(
-      "No se puede cambiar el estado de pago de trabajadores inactivos"
-    );
+    throw new ValidationError("No se puede cambiar el estado de pago de trabajadores inactivos");
   }
   return workersRepo.upsertPaymentStatus(numericId, status, resolvedMonth);
 }

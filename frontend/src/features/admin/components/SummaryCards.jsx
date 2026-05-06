@@ -13,7 +13,10 @@ export default function SummaryCards({ summary, isLoading = false }) {
     return (
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {Array.from({ length: 3 }).map((_, idx) => (
-          <div key={`summary-skeleton-${idx}`} className="rounded-lg border border-border bg-card p-5">
+          <div
+            key={`summary-skeleton-${idx}`}
+            className="rounded-lg border border-border bg-card p-5"
+          >
             <div className="flex items-start justify-between gap-4">
               <div className="space-y-2">
                 <Skeleton className="h-4 w-24" />

@@ -39,11 +39,9 @@ async function login(email, password) {
   if (!valid) throw new UnauthorizedError("Credenciales inválidas");
   const updatedUser = authRepo.updateLastLogin(user.id) || user;
 
-  const token = jwt.sign(
-    { userId: user.id, email: user.email, role: user.role },
-    env.JWT_SECRET,
-    { expiresIn: "8h" }
-  );
+  const token = jwt.sign({ userId: user.id, email: user.email, role: user.role }, env.JWT_SECRET, {
+    expiresIn: "8h",
+  });
 
   return {
     token,

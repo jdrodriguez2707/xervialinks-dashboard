@@ -12,7 +12,7 @@ async function runReportsSyncOnce(trigger = "manual") {
   runInFlight = syncReportsBatch()
     .then((result) => {
       console.log(
-        `[reports-sync] trigger=${trigger} source=${result.source} rows=${result.rowsSynced} range=${result.startDate}->${result.endDate}`
+        `[reports-sync] trigger=${trigger} source=${result.source} rows=${result.rowsSynced} range=${result.startDate}->${result.endDate}`,
       );
       return result;
     })
@@ -50,7 +50,7 @@ async function runReportsBackfill12MonthsOnce(trigger = "manual-backfill-12m") {
   runInFlight = syncReportsBackfill12Months()
     .then((result) => {
       console.log(
-        `[reports-sync] trigger=${trigger} source=${result.source} rows=${result.rowsSynced} range=${result.startDate}->${result.endDate}`
+        `[reports-sync] trigger=${trigger} source=${result.source} rows=${result.rowsSynced} range=${result.startDate}->${result.endDate}`,
       );
       return result;
     })

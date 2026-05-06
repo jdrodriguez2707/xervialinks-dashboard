@@ -189,7 +189,11 @@ export default function AdminProfile({ onUserUpdated, onForceLogout }) {
                     variant="secondary"
                     size="sm"
                     onClick={() => setShowCurrentPassword((prev) => !prev)}
-                    aria-label={showCurrentPassword ? "Ocultar contraseña actual" : "Mostrar contraseña actual"}
+                    aria-label={
+                      showCurrentPassword
+                        ? "Ocultar contraseña actual"
+                        : "Mostrar contraseña actual"
+                    }
                   >
                     {showCurrentPassword ? "Ocultar" : "Mostrar"}
                   </Button>
@@ -210,7 +214,9 @@ export default function AdminProfile({ onUserUpdated, onForceLogout }) {
                     variant="secondary"
                     size="sm"
                     onClick={() => setShowNewPassword((prev) => !prev)}
-                    aria-label={showNewPassword ? "Ocultar nueva contraseña" : "Mostrar nueva contraseña"}
+                    aria-label={
+                      showNewPassword ? "Ocultar nueva contraseña" : "Mostrar nueva contraseña"
+                    }
                   >
                     {showNewPassword ? "Ocultar" : "Mostrar"}
                   </Button>
@@ -231,7 +237,11 @@ export default function AdminProfile({ onUserUpdated, onForceLogout }) {
                     variant="secondary"
                     size="sm"
                     onClick={() => setShowConfirmPassword((prev) => !prev)}
-                    aria-label={showConfirmPassword ? "Ocultar confirmacion de contraseña" : "Mostrar confirmacion de contraseña"}
+                    aria-label={
+                      showConfirmPassword
+                        ? "Ocultar confirmacion de contraseña"
+                        : "Mostrar confirmacion de contraseña"
+                    }
                   >
                     {showConfirmPassword ? "Ocultar" : "Mostrar"}
                   </Button>

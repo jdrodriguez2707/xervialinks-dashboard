@@ -4,10 +4,7 @@ import { updateWorkerPaymentStatus } from "../../../shared/api/workers";
 import { toUserErrorMessage } from "../../../shared/lib/uiError";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import {
-  TableCell,
-  TableRow,
-} from "@/components/ui/table";
+import { TableCell, TableRow } from "@/components/ui/table";
 import {
   Dialog,
   DialogContent,
@@ -59,7 +56,7 @@ export default function PayoutsTable({
 
   const workersById = useMemo(
     () => new Map(workers.map((worker) => [worker.id, worker])),
-    [workers]
+    [workers],
   );
 
   const payoutsOrdered = useMemo(() => {
@@ -125,14 +122,30 @@ export default function PayoutsTable({
         rows={Array.from({ length: 4 })}
         renderRow={(_, idx) => (
           <TableRow key={`payout-skeleton-${idx}`}>
-            <TableCell><Skeleton className="h-4 w-32" /></TableCell>
-            <TableCell><Skeleton className="h-4 w-44" /></TableCell>
-            <TableCell><Skeleton className="h-4 w-16" /></TableCell>
-            <TableCell><Skeleton className="h-4 w-20" /></TableCell>
-            <TableCell><Skeleton className="h-4 w-8" /></TableCell>
-            <TableCell><Skeleton className="h-4 w-20" /></TableCell>
-            <TableCell><Skeleton className="h-5 w-20 rounded-full" /></TableCell>
-            <TableCell><Skeleton className="h-8 w-8 rounded-md" /></TableCell>
+            <TableCell>
+              <Skeleton className="h-4 w-32" />
+            </TableCell>
+            <TableCell>
+              <Skeleton className="h-4 w-44" />
+            </TableCell>
+            <TableCell>
+              <Skeleton className="h-4 w-16" />
+            </TableCell>
+            <TableCell>
+              <Skeleton className="h-4 w-20" />
+            </TableCell>
+            <TableCell>
+              <Skeleton className="h-4 w-8" />
+            </TableCell>
+            <TableCell>
+              <Skeleton className="h-4 w-20" />
+            </TableCell>
+            <TableCell>
+              <Skeleton className="h-5 w-20 rounded-full" />
+            </TableCell>
+            <TableCell>
+              <Skeleton className="h-8 w-8 rounded-md" />
+            </TableCell>
           </TableRow>
         )}
       />
@@ -202,7 +215,9 @@ export default function PayoutsTable({
                   </div>
                 )}
               </TableCell>
-              <TableCell className="tabular-nums">{w.assignedImpressions.toLocaleString()}</TableCell>
+              <TableCell className="tabular-nums">
+                {w.assignedImpressions.toLocaleString()}
+              </TableCell>
               <TableCell className="tabular-nums">${w.assignedRevenue.toFixed(2)}</TableCell>
               <TableCell className="tabular-nums">{w.percentage}%</TableCell>
               <TableCell className="tabular-nums font-semibold">${w.payout.toFixed(2)}</TableCell>
@@ -250,7 +265,10 @@ export default function PayoutsTable({
       />
 
       {selectedWorker && (
-        <Dialog open={!!selectedWorker} onOpenChange={(value) => (!value ? setSelectedWorker(null) : null)}>
+        <Dialog
+          open={!!selectedWorker}
+          onOpenChange={(value) => (!value ? setSelectedWorker(null) : null)}
+        >
           <DialogContent className="sm:max-w-xl border-border/60">
             <DialogHeader>
               <DialogTitle>
@@ -266,7 +284,10 @@ export default function PayoutsTable({
             <div className="space-y-4">
               <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                 <span className="text-sm font-medium">Pagando periodo: {paymentMonthLabel}</span>
-                <Select value={paymentMonth} onValueChange={(value) => onPaymentMonthChange?.(value)}>
+                <Select
+                  value={paymentMonth}
+                  onValueChange={(value) => onPaymentMonthChange?.(value)}
+                >
                   <SelectTrigger className="sm:w-56">
                     <SelectValue placeholder="Seleccionar mes" />
                   </SelectTrigger>
@@ -282,8 +303,9 @@ export default function PayoutsTable({
 
               {isInactivePayoutRow && (
                 <div className="rounded-lg border border-border bg-muted/40 p-3 text-sm">
-                  Perfil <strong>Inactivo</strong>: puedes revisar método y datos de pago registrados.
-                  El <strong>estado de pago</strong> (pagado/pendiente) no aplica ni se muestra.
+                  Perfil <strong>Inactivo</strong>: puedes revisar método y datos de pago
+                  registrados. El <strong>estado de pago</strong> (pagado/pendiente) no aplica ni se
+                  muestra.
                 </div>
               )}
 
@@ -304,7 +326,9 @@ export default function PayoutsTable({
                   </div>
                   <div>
                     <p className="text-xs text-muted-foreground">Detalle</p>
-                    <p className="text-sm font-semibold">{selectedWorker.paymentInfo.paymentDetails}</p>
+                    <p className="text-sm font-semibold">
+                      {selectedWorker.paymentInfo.paymentDetails}
+                    </p>
                   </div>
                 </div>
               ) : (
@@ -318,7 +342,11 @@ export default function PayoutsTable({
                   <Button type="button" variant="secondary" onClick={() => setSelectedWorker(null)}>
                     Cancelar
                   </Button>
-                  <Button type="button" onClick={handleTogglePaymentStatus} disabled={updatingPaymentStatus}>
+                  <Button
+                    type="button"
+                    onClick={handleTogglePaymentStatus}
+                    disabled={updatingPaymentStatus}
+                  >
                     {updatingPaymentStatus
                       ? "Actualizando…"
                       : selectedWorkerCurrentStatus === "paid"

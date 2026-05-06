@@ -4,9 +4,7 @@ function findAll({ includeDeleted = false, paymentMonth = null } = {}) {
   const db = getDb();
   const workers = includeDeleted
     ? db.prepare("SELECT * FROM workers ORDER BY name ASC").all()
-    : db
-        .prepare("SELECT * FROM workers WHERE deleted_at IS NULL ORDER BY name ASC")
-        .all();
+    : db.prepare("SELECT * FROM workers WHERE deleted_at IS NULL ORDER BY name ASC").all();
   return workers.map((worker) => attachProperties(worker, { paymentMonth }));
 }
 
@@ -14,9 +12,7 @@ function findById(id, { includeDeleted = false, paymentMonth = null } = {}) {
   const db = getDb();
   const worker = includeDeleted
     ? db.prepare("SELECT * FROM workers WHERE id = ?").get(id)
-    : db
-        .prepare("SELECT * FROM workers WHERE id = ? AND deleted_at IS NULL")
-        .get(id);
+    : db.prepare("SELECT * FROM workers WHERE id = ? AND deleted_at IS NULL").get(id);
   if (!worker) return null;
   return attachProperties(worker, { paymentMonth });
 }
@@ -25,9 +21,7 @@ function findByEmail(email, { includeDeleted = false, paymentMonth = null } = {}
   const db = getDb();
   const worker = includeDeleted
     ? db.prepare("SELECT * FROM workers WHERE email = ?").get(email)
-    : db
-        .prepare("SELECT * FROM workers WHERE email = ? AND deleted_at IS NULL")
-        .get(email);
+    : db.prepare("SELECT * FROM workers WHERE email = ? AND deleted_at IS NULL").get(email);
   return worker ? attachProperties(worker, { paymentMonth }) : null;
 }
 
@@ -50,7 +44,7 @@ function createWithUser({ name, email, percentage }, { passwordHash, passwordCip
   const db = getDb();
   return db.transaction(() => {
     db.prepare(
-      "INSERT INTO users (name, email, password_hash, password_cipher, role) VALUES (?, ?, ?, ?, 'worker')"
+      "INSERT INTO users (name, email, password_hash, password_cipher, role) VALUES (?, ?, ?, ?, 'worker')",
     ).run(name, email, passwordHash, passwordCipher);
 
     const result = db
@@ -77,8 +71,6 @@ function deleteById(id) {
 
   return true;
 }
-
-
 
 function hardDeleteById(id) {
   const db = getDb();
@@ -115,13 +107,9 @@ function hardDeleteInactiveById(id) {
 function addProperty(workerId, { type, value }) {
   const db = getDb();
   const result = db
-    .prepare(
-      "INSERT INTO properties (worker_id, type, value) VALUES (?, ?, ?)"
-    )
+    .prepare("INSERT INTO properties (worker_id, type, value) VALUES (?, ?, ?)")
     .run(workerId, type, value);
-  return db
-    .prepare("SELECT * FROM properties WHERE id = ?")
-    .get(result.lastInsertRowid);
+  return db.prepare("SELECT * FROM properties WHERE id = ?").get(result.lastInsertRowid);
 }
 
 function findPropertyByTypeAndValue(type, value) {
@@ -132,7 +120,7 @@ function findPropertyByTypeAndValue(type, value) {
        FROM properties p
        INNER JOIN workers w ON w.id = p.worker_id
        WHERE p.type = ? AND p.value = ? AND w.deleted_at IS NULL
-       LIMIT 1`
+       LIMIT 1`,
     )
     .get(type, value);
 }
@@ -151,7 +139,7 @@ function getPaymentInfo(workerId) {
       .prepare(
         `SELECT method_type AS methodType, payment_details AS paymentDetails, updated_at AS updatedAt
          FROM worker_payment_info
-         WHERE worker_id = ?`
+         WHERE worker_id = ?`,
       )
       .get(workerId) || null
   );
@@ -167,7 +155,7 @@ function getPaymentStatus(workerId, paymentMonth) {
     .prepare(
       `SELECT status AS paymentStatus, updated_at AS paymentStatusUpdatedAt, payment_month AS paymentMonth
        FROM worker_payment_status
-       WHERE worker_id = ? AND payment_month = ?`
+       WHERE worker_id = ? AND payment_month = ?`,
     )
     .get(workerId, month);
   return row || { paymentStatus: "pending", paymentStatusUpdatedAt: null, paymentMonth: month };
@@ -181,7 +169,7 @@ function upsertPaymentStatus(workerId, status, paymentMonth) {
      VALUES (?, ?, ?, datetime('now'))
      ON CONFLICT(worker_id, payment_month) DO UPDATE SET
        status = excluded.status,
-       updated_at = datetime('now')`
+       updated_at = datetime('now')`,
   ).run(workerId, month, status);
   return getPaymentStatus(workerId, month);
 }
@@ -194,7 +182,7 @@ function upsertPaymentInfo(workerId, { methodType, paymentDetails }) {
      ON CONFLICT(worker_id) DO UPDATE SET
        method_type = excluded.method_type,
        payment_details = excluded.payment_details,
-       updated_at = datetime('now')`
+       updated_at = datetime('now')`,
   ).run(workerId, methodType, paymentDetails);
   return getPaymentInfo(workerId);
 }
@@ -213,7 +201,7 @@ function listPaidPaymentStatuses() {
        INNER JOIN workers w ON w.id = ps.worker_id
        LEFT JOIN worker_payment_info p ON p.worker_id = ps.worker_id
        WHERE ps.status = 'paid'
-       ORDER BY ps.updated_at DESC, ps.id DESC`
+       ORDER BY ps.updated_at DESC, ps.id DESC`,
     )
     .all();
 }
@@ -237,14 +225,14 @@ function updateWorkerComplete(
   workerId,
   oldEmail,
   { name, email, percentage, passwordHash, passwordCipher, invalidateSessions = false },
-  domainValues
+  domainValues,
 ) {
   const db = getDb();
   return db.transaction(() => {
     const wr = db
       .prepare(
         `UPDATE workers SET name = ?, email = ?, percentage = ?
-         WHERE id = ? AND deleted_at IS NULL`
+         WHERE id = ? AND deleted_at IS NULL`,
       )
       .run(name, email, percentage, workerId);
     if (wr.changes === 0) {
@@ -254,7 +242,7 @@ function updateWorkerComplete(
     const ur = db
       .prepare(
         `UPDATE users SET name = ?, email = ?, password_hash = COALESCE(?, password_hash), password_cipher = COALESCE(?, password_cipher), session_invalidated_at = CASE WHEN ? = 1 THEN datetime('now') ELSE session_invalidated_at END
-         WHERE email = ? AND role = 'worker' AND deleted_at IS NULL`
+         WHERE email = ? AND role = 'worker' AND deleted_at IS NULL`,
       )
       .run(name, email, passwordHash, passwordCipher, invalidateSessions ? 1 : 0, oldEmail);
     if (ur.changes === 0) {
@@ -274,7 +262,7 @@ function updateWorkerComplete(
       if (!props.some((row) => row.value === d)) {
         db.prepare("INSERT INTO properties (worker_id, type, value) VALUES (?, 'domain', ?)").run(
           workerId,
-          d
+          d,
         );
       }
     }

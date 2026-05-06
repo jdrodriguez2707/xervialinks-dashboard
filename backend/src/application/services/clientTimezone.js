@@ -1,9 +1,8 @@
 const env = require("../../infrastructure/config/env");
 
-const DEFAULT_TZ =
-  process.env.DEFAULT_REPORT_TIMEZONE || "America/Bogota";
+const DEFAULT_TZ = process.env.DEFAULT_REPORT_TIMEZONE || "America/Bogota";
 
-const TZ_SAFE = /^[A-Za-z0-9_+\/-]+$/;
+const TZ_SAFE = /^[A-Za-z0-9_/+-]+$/;
 
 /**
  * Validates IANA timezone names (throws RangeError if invalid).
@@ -74,10 +73,7 @@ function currentMonthStartISO(timeZone, referenceDateISO) {
 }
 
 function isValidISODate(value) {
-  return (
-    typeof value === "string" &&
-    /^\d{4}-\d{2}-\d{2}$/.test(value)
-  );
+  return typeof value === "string" && /^\d{4}-\d{2}-\d{2}$/.test(value);
 }
 
 module.exports = {

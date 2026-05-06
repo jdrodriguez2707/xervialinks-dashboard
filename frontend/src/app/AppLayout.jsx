@@ -11,7 +11,7 @@ export default function AppLayout({
   activeModule,
   onModuleChange,
   syncStatus,
-  children
+  children,
 }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const { theme, setTheme } = useTheme();
@@ -37,7 +37,7 @@ export default function AppLayout({
     <div className="flex h-screen w-full bg-background overflow-hidden relative">
       {/* Mobile sidebar overlay */}
       {sidebarOpen && (
-        <div 
+        <div
           className="fixed inset-0 bg-background/80 backdrop-blur-sm z-40 lg:hidden"
           onClick={toggleSidebar}
         />
@@ -47,7 +47,7 @@ export default function AppLayout({
       <aside
         className={cn(
           "fixed inset-y-0 left-0 z-50 w-64 border-r bg-card shadow-lg lg:static lg:shadow-none transition-transform duration-300 flex flex-col",
-          sidebarOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
+          sidebarOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0",
         )}
       >
         <div className="p-6 border-b flex items-center justify-between lg:justify-center">
@@ -74,7 +74,7 @@ export default function AppLayout({
                   "w-full flex items-center gap-3 px-3 py-2.5 rounded-md text-sm font-medium transition-colors",
                   isActive
                     ? "bg-primary/10 text-primary hover:bg-primary/20"
-                    : "text-muted-foreground hover:bg-accent hover:text-foreground"
+                    : "text-muted-foreground hover:bg-accent hover:text-foreground",
                 )}
               >
                 {Icon && <Icon className="w-5 h-5" />}
@@ -89,7 +89,7 @@ export default function AppLayout({
             <p className="text-sm font-semibold truncate">{user?.name || "Usuario"}</p>
             <p className="text-xs text-muted-foreground capitalize truncate">{user?.role || ""}</p>
           </div>
-          
+
           <Button variant="destructive" className="w-full justify-start gap-2" onClick={onLogout}>
             <LogOut className="w-4 h-4" />
             Cerrar Sesión
@@ -120,7 +120,7 @@ export default function AppLayout({
           </div>
 
           <div className="flex items-center gap-3">
-             <Button variant="ghost" size="icon" onClick={toggleTheme}>
+            <Button variant="ghost" size="icon" onClick={toggleTheme}>
               {theme === "dark" ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
             </Button>
             <div className="text-right hidden sm:block">
@@ -131,9 +131,7 @@ export default function AppLayout({
 
         {/* Page Content */}
         <main className="flex-1 overflow-y-auto p-4 lg:p-8 bg-background">
-          <div className="max-w-6xl mx-auto">
-            {children}
-          </div>
+          <div className="max-w-6xl mx-auto">{children}</div>
         </main>
       </div>
     </div>

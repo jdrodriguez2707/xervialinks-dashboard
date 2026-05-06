@@ -8,9 +8,7 @@ async function getContext(req, res) {
   const workerIncludingDeleted = workersService.getWorkerByEmailIncludingDeleted(req.user.email);
 
   if (!workerIncludingDeleted) {
-    return res
-      .status(404)
-      .json({ error: "No tienes un perfil de trabajador asignado" });
+    return res.status(404).json({ error: "No tienes un perfil de trabajador asignado" });
   }
   if (workerIncludingDeleted.deleted_at) {
     return res
@@ -34,9 +32,7 @@ async function getDashboard(req, res) {
   const worker = workersService.getWorkerByEmailIncludingDeleted(req.user.email);
 
   if (!worker) {
-    return res
-      .status(404)
-      .json({ error: "No tienes un perfil de trabajador asignado" });
+    return res.status(404).json({ error: "No tienes un perfil de trabajador asignado" });
   }
   if (worker.deleted_at) {
     return res
@@ -84,9 +80,7 @@ async function upsertPaymentInfo(req, res) {
 async function getPaymentHistory(req, res) {
   const workerIncludingDeleted = workersService.getWorkerByEmailIncludingDeleted(req.user.email);
   if (!workerIncludingDeleted) {
-    return res
-      .status(404)
-      .json({ error: "No tienes un perfil de trabajador asignado" });
+    return res.status(404).json({ error: "No tienes un perfil de trabajador asignado" });
   }
   if (workerIncludingDeleted.deleted_at) {
     return res

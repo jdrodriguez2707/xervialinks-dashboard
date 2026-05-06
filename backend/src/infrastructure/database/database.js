@@ -3,10 +3,7 @@ const bcrypt = require("bcryptjs");
 const path = require("path");
 const env = require("../config/env");
 
-const DB_PATH =
-  env.NODE_ENV === "test"
-    ? ":memory:"
-    : path.join(__dirname, "../../../data/app.db");
+const DB_PATH = env.NODE_ENV === "test" ? ":memory:" : path.join(__dirname, "../../../data/app.db");
 
 let db;
 
@@ -107,18 +104,14 @@ function ensureColumn(database, table, column, ddlType) {
 
 function seedAdminUser(database) {
   const adminEmail = env.ADMIN_EMAIL || "admin@example.com";
-  const existing = database
-    .prepare("SELECT id FROM users WHERE email = ?")
-    .get(adminEmail);
+  const existing = database.prepare("SELECT id FROM users WHERE email = ?").get(adminEmail);
   if (existing) return;
 
   const adminPassword = env.ADMIN_PASSWORD || "admin123";
   const passwordHash = bcrypt.hashSync(adminPassword, 10);
 
   database
-    .prepare(
-      "INSERT INTO users (name, email, password_hash, role) VALUES (?, ?, ?, 'admin')"
-    )
+    .prepare("INSERT INTO users (name, email, password_hash, role) VALUES (?, ?, ?, 'admin')")
     .run("Admin", adminEmail, passwordHash);
 }
 

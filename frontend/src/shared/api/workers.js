@@ -78,7 +78,6 @@ export async function updateWorkerPaymentStatus(workerId, status, paymentMonth) 
   return json.data;
 }
 
-
 export async function purgeInactiveWorker(workerId) {
   const res = await fetch(`/api/workers/${workerId}/purge-inactive`, {
     method: "DELETE",

@@ -27,17 +27,11 @@ async function aggregateForRange(startDate, endDate, domains = null, timeZone) {
   const reports = await reportsRepo.findAll({ startDate, endDate, timeZone: tz });
 
   const filtered =
-    domains && domains.length > 0
-      ? reports.filter((r) => domains.includes(r.domain))
-      : reports;
+    domains && domains.length > 0 ? reports.filter((r) => domains.includes(r.domain)) : reports;
 
-  const revenue = parseFloat(
-    filtered.reduce((sum, r) => sum + r.revenue, 0).toFixed(6)
-  );
+  const revenue = parseFloat(filtered.reduce((sum, r) => sum + r.revenue, 0).toFixed(6));
   const impressions = filtered.reduce((sum, r) => sum + r.impressions, 0);
-  const ecpm = impressions > 0
-    ? parseFloat(((revenue / impressions) * 1000).toFixed(4))
-    : 0;
+  const ecpm = impressions > 0 ? parseFloat(((revenue / impressions) * 1000).toFixed(4)) : 0;
 
   return { revenue, impressions, ecpm };
 }
@@ -60,7 +54,7 @@ async function getLast7DaysRevenue(domains = null, timeZone, referenceDate) {
     daysAgoISO(7, tz, referenceDate),
     daysAgoISO(1, tz, referenceDate),
     domains,
-    tz
+    tz,
   );
 }
 
@@ -70,7 +64,7 @@ async function getCurrentMonthRevenue(domains = null, timeZone, referenceDate) {
     currentMonthStartISO(tz, referenceDate),
     todayISO(tz, referenceDate),
     domains,
-    tz
+    tz,
   );
 }
 
@@ -92,14 +86,10 @@ async function getWorkerDashboardPeriods(worker, timeZone, filters = {}) {
   const tz = timeZone || getDefaultTimeZone();
   const referenceDate = filters.referenceDate || undefined;
 
-  const assignedDomains = worker.properties
-    .filter((p) => p.type === "domain")
-    .map((p) => p.value);
+  const assignedDomains = worker.properties.filter((p) => p.type === "domain").map((p) => p.value);
 
   const requestedDomain =
-    typeof filters.domain === "string" && filters.domain.trim()
-      ? filters.domain.trim()
-      : null;
+    typeof filters.domain === "string" && filters.domain.trim() ? filters.domain.trim() : null;
   const scopedDomains = requestedDomain ? [requestedDomain] : assignedDomains;
 
   if (scopedDomains.length === 0) {
@@ -132,28 +122,24 @@ async function getWorkerDashboardPeriods(worker, timeZone, filters = {}) {
 
   const pct = worker.percentage;
   const build = (raw) => ({
-    revenue:     applyPercentage(raw.revenue, pct),
-    ecpm:        raw.ecpm,
+    revenue: applyPercentage(raw.revenue, pct),
+    ecpm: raw.ecpm,
     impressions: raw.impressions,
   });
 
   return {
-    today:        build(rawToday),
-    yesterday:    build(rawYesterday),
-    last7Days:    build(rawLast7),
+    today: build(rawToday),
+    yesterday: build(rawYesterday),
+    last7Days: build(rawLast7),
     currentMonth: build(rawMonth),
   };
 }
 
 function aggregateReports(reports, startDate, endDate) {
   const filtered = reports.filter((r) => r.date >= startDate && r.date <= endDate);
-  const revenue = parseFloat(
-    filtered.reduce((sum, r) => sum + r.revenue, 0).toFixed(6)
-  );
+  const revenue = parseFloat(filtered.reduce((sum, r) => sum + r.revenue, 0).toFixed(6));
   const impressions = filtered.reduce((sum, r) => sum + r.impressions, 0);
-  const ecpm = impressions > 0
-    ? parseFloat(((revenue / impressions) * 1000).toFixed(4))
-    : 0;
+  const ecpm = impressions > 0 ? parseFloat(((revenue / impressions) * 1000).toFixed(4)) : 0;
   return { revenue, impressions, ecpm };
 }
 

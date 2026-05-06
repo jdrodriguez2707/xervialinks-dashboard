@@ -8,14 +8,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import {
   Dialog,
   DialogContent,
   DialogDescription,
@@ -38,9 +30,9 @@ import StatusBadge from "@/components/StatusBadge";
 const PERIODS = ["today", "yesterday", "last7Days", "currentMonth"];
 
 const PERIOD_LABELS = {
-  today:        "Hoy",
-  yesterday:    "Ayer",
-  last7Days:    "Últimos 7 días",
+  today: "Hoy",
+  yesterday: "Ayer",
+  last7Days: "Últimos 7 días",
   currentMonth: "Este mes",
 };
 
@@ -59,8 +51,7 @@ const fmtEcpm = (n) =>
     maximumFractionDigits: 2,
   }).format(n ?? 0);
 
-const fmtImpressions = (n) =>
-  new Intl.NumberFormat("es-MX").format(n ?? 0);
+const fmtImpressions = (n) => new Intl.NumberFormat("es-MX").format(n ?? 0);
 
 const WORKER_TAB_STORAGE_PREFIX = "workerDashboardActiveTab";
 
@@ -121,9 +112,7 @@ export default function WorkerDashboard({
 }) {
   const [activeTab, setActiveTab] = useState("stats");
   const [selectedRange, setSelectedRange] = useState("today");
-  const [paymentInfo, setPaymentInfo] = useState(
-    () => workerContext?.paymentInfo ?? null
-  );
+  const [paymentInfo, setPaymentInfo] = useState(() => workerContext?.paymentInfo ?? null);
 
   const mergedDashboard = useMemo(() => {
     if (!workerContext && !workerMetrics) return null;
@@ -141,7 +130,7 @@ export default function WorkerDashboard({
       { id: "payment", label: "Pago", icon: CreditCard },
       { id: "payment-history", label: "Historial de pagos", icon: CircleDollarSign },
     ],
-    []
+    [],
   );
 
   const [openPaymentModal, setOpenPaymentModal] = useState(false);
@@ -174,8 +163,7 @@ export default function WorkerDashboard({
   const domains = properties.filter((p) => p.type === "domain");
   const hasDomains = domains.length > 0;
   const paymentStatus = workerContext?.paymentStatus || "pending";
-  const paymentStatusLabel =
-    paymentStatus === "paid" ? "Pagado" : "Pendiente de pago";
+  const paymentStatusLabel = paymentStatus === "paid" ? "Pagado" : "Pendiente de pago";
   const paymentMonthOptions = useMemo(() => buildPaymentMonthOptions(), []);
   const paymentMonthLabel = formatPaymentMonthLabel(paymentMonth);
   const paymentHistoryMonthLabel = formatPaymentMonthLabel(paymentHistoryMonth);
@@ -237,7 +225,6 @@ export default function WorkerDashboard({
 
   return (
     <div className="space-y-6 pb-16">
-
       {!hasDomains ? (
         <EmptyState
           title="Panel no disponible aun"
@@ -246,9 +233,7 @@ export default function WorkerDashboard({
       ) : activeTab === "stats" ? (
         <div className="space-y-4">
           {syncStatusLabel ? (
-            <div className="text-center text-xs text-muted-foreground">
-              {syncStatusLabel}
-            </div>
+            <div className="text-center text-xs text-muted-foreground">{syncStatusLabel}</div>
           ) : null}
           {hasDomains && (
             <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-center">
@@ -370,7 +355,10 @@ export default function WorkerDashboard({
             <CardContent className="space-y-4 pt-6">
               <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                 <span className="text-sm font-medium">Periodo de pago: {paymentMonthLabel}</span>
-                <Select value={paymentMonth} onValueChange={(value) => onPaymentMonthChange?.(value)}>
+                <Select
+                  value={paymentMonth}
+                  onValueChange={(value) => onPaymentMonthChange?.(value)}
+                >
                   <SelectTrigger className="sm:w-56">
                     <SelectValue placeholder="Seleccionar periodo" />
                   </SelectTrigger>
@@ -428,8 +416,12 @@ export default function WorkerDashboard({
         <div className="space-y-4">
           <SectionHeader
             title="Historial de pagos"
+            description={`Periodo: ${paymentHistoryMonthLabel}`}
             action={
-              <Select value={paymentHistoryMonth} onValueChange={(value) => onPaymentHistoryMonthChange?.(value)}>
+              <Select
+                value={paymentHistoryMonth}
+                onValueChange={(value) => onPaymentHistoryMonthChange?.(value)}
+              >
                 <SelectTrigger className="sm:w-56">
                   <SelectValue placeholder="Seleccionar periodo" />
                 </SelectTrigger>
@@ -460,11 +452,15 @@ export default function WorkerDashboard({
                     </div>
                     <div className="flex items-center justify-between">
                       <p className="text-xs text-muted-foreground">Impresiones</p>
-                      <p className="text-sm font-semibold tabular-nums">{fmtImpressions(row.impressions)}</p>
+                      <p className="text-sm font-semibold tabular-nums">
+                        {fmtImpressions(row.impressions)}
+                      </p>
                     </div>
                     <div className="flex items-center justify-between">
                       <p className="text-xs text-muted-foreground">Ganancias</p>
-                      <p className="text-sm font-semibold tabular-nums">{fmtCurrency(row.payout)}</p>
+                      <p className="text-sm font-semibold tabular-nums">
+                        {fmtCurrency(row.payout)}
+                      </p>
                     </div>
                     <div className="flex items-center justify-between">
                       <p className="text-xs text-muted-foreground">Estado de pago</p>
@@ -489,7 +485,10 @@ export default function WorkerDashboard({
         </div>
       )}
 
-      <Dialog open={openPaymentModal} onOpenChange={(value) => (!value ? closePaymentDialog() : null)}>
+      <Dialog
+        open={openPaymentModal}
+        onOpenChange={(value) => (!value ? closePaymentDialog() : null)}
+      >
         <DialogContent className="sm:max-w-lg border-border/60">
           <DialogHeader>
             <DialogTitle>Informacion de pago</DialogTitle>

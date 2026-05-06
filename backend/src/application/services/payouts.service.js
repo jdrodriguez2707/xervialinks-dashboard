@@ -24,49 +24,46 @@ async function calculatePayouts(filters = {}, requesterEmail = null) {
 
   const payouts = workers
     .map((worker) => {
-    const workerDeletedCalendar = deletedAtToBusinessCalendarISO(worker.deleted_at, tz);
-    const filterStart = filters.startDate || "0000-00-00";
-    const filterEnd = filters.endDate || "9999-12-31";
-    const effectiveStart = filterStart;
-    const effectiveEnd =
-      workerDeletedCalendar && workerDeletedCalendar < filterEnd
-        ? workerDeletedCalendar
-        : filterEnd;
-    if (effectiveStart > effectiveEnd) return null;
+      const workerDeletedCalendar = deletedAtToBusinessCalendarISO(worker.deleted_at, tz);
+      const filterStart = filters.startDate || "0000-00-00";
+      const filterEnd = filters.endDate || "9999-12-31";
+      const effectiveStart = filterStart;
+      const effectiveEnd =
+        workerDeletedCalendar && workerDeletedCalendar < filterEnd
+          ? workerDeletedCalendar
+          : filterEnd;
+      if (effectiveStart > effectiveEnd) return null;
 
-    const assignedDomains = getAssignedDomains(worker.properties);
-    const matchingReports = reports.filter((r) =>
-      assignedDomains.includes(r.domain) &&
-      r.date >= effectiveStart &&
-      r.date <= effectiveEnd
-    );
+      const assignedDomains = getAssignedDomains(worker.properties);
+      const matchingReports = reports.filter(
+        (r) =>
+          assignedDomains.includes(r.domain) && r.date >= effectiveStart && r.date <= effectiveEnd,
+      );
 
-    const assignedRevenue = sumRevenue(matchingReports);
-    const assignedImpressions = sumImpressions(matchingReports);
-    const payout = computePayout(assignedRevenue, worker.percentage);
+      const assignedRevenue = sumRevenue(matchingReports);
+      const assignedImpressions = sumImpressions(matchingReports);
+      const payout = computePayout(assignedRevenue, worker.percentage);
 
-    if (workerDeletedCalendar && assignedRevenue === 0 && assignedImpressions === 0) {
-      return null;
-    }
+      if (workerDeletedCalendar && assignedRevenue === 0 && assignedImpressions === 0) {
+        return null;
+      }
 
-    return {
-      workerId: worker.id,
-      name: worker.name,
-      email: worker.email,
-      percentage: worker.percentage,
-      deletedAt: workerDeletedCalendar || null,
-      assignedDomains,
-      assignedProperties: worker.properties,
-      assignedRevenue,
-      assignedImpressions,
-      payout,
-    };
+      return {
+        workerId: worker.id,
+        name: worker.name,
+        email: worker.email,
+        percentage: worker.percentage,
+        deletedAt: workerDeletedCalendar || null,
+        assignedDomains,
+        assignedProperties: worker.properties,
+        assignedRevenue,
+        assignedImpressions,
+        payout,
+      };
     })
     .filter(Boolean);
 
-  const totalPayout = parseFloat(
-    payouts.reduce((sum, w) => sum + w.payout, 0).toFixed(6)
-  );
+  const totalPayout = parseFloat(payouts.reduce((sum, w) => sum + w.payout, 0).toFixed(6));
 
   return { payouts, totalPayout };
 }
@@ -74,9 +71,7 @@ async function calculatePayouts(filters = {}, requesterEmail = null) {
 // ─── Pure helpers (easy to unit-test in isolation) ────────────────────────────
 
 function getAssignedDomains(properties) {
-  return properties
-    .filter((p) => p.type === "domain")
-    .map((p) => p.value);
+  return properties.filter((p) => p.type === "domain").map((p) => p.value);
 }
 
 function computePayout(revenue, percentage) {
@@ -84,9 +79,7 @@ function computePayout(revenue, percentage) {
 }
 
 function sumRevenue(reports) {
-  return parseFloat(
-    reports.reduce((sum, r) => sum + r.revenue, 0).toFixed(6)
-  );
+  return parseFloat(reports.reduce((sum, r) => sum + r.revenue, 0).toFixed(6));
 }
 
 function sumImpressions(reports) {
@@ -119,10 +112,7 @@ function deletedAtToBusinessCalendarISO(deletedAtRaw, timeZone) {
   if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) {
     return trimmed;
   }
-  const tz =
-    typeof timeZone === "string" && timeZone.trim()
-      ? timeZone.trim()
-      : "America/Bogota";
+  const tz = typeof timeZone === "string" && timeZone.trim() ? timeZone.trim() : "America/Bogota";
   const ms = parseDeletedAtToUtcMs(trimmed);
   if (!Number.isFinite(ms)) return normalizeDate(deletedAtRaw);
   try {

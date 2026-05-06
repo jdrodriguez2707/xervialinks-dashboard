@@ -17,9 +17,7 @@ async function getSummary(filters = {}) {
   const totalImpressions = reports.reduce((sum, r) => sum + r.impressions, 0);
   const totalRevenue = reports.reduce((sum, r) => sum + r.revenue, 0);
   const ecpm =
-    totalImpressions > 0
-      ? parseFloat(((totalRevenue / totalImpressions) * 1000).toFixed(4))
-      : 0;
+    totalImpressions > 0 ? parseFloat(((totalRevenue / totalImpressions) * 1000).toFixed(4)) : 0;
 
   return {
     totalImpressions,

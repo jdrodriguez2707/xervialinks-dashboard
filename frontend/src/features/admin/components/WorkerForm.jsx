@@ -84,7 +84,9 @@ export default function WorkerForm({
       <DialogContent className="sm:max-w-lg border-border/60">
         <DialogHeader>
           <DialogTitle>Nuevo trabajador</DialogTitle>
-          <DialogDescription>Completa los datos para crear el perfil del trabajador.</DialogDescription>
+          <DialogDescription>
+            Completa los datos para crear el perfil del trabajador.
+          </DialogDescription>
         </DialogHeader>
 
         <form className="space-y-4" onSubmit={handleSubmit}>

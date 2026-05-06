@@ -11,7 +11,6 @@ const {
   getYesterdayRevenue,
   getLast7DaysRevenue,
   getCurrentMonthRevenue,
-  getWorkerDashboardPeriods,
 } = require("../src/application/services/revenue.service");
 
 let adminToken;
@@ -121,10 +120,7 @@ describe("getLast7DaysRevenue", () => {
 
 describe("getCurrentMonthRevenue", () => {
   it("includes at least today's revenue", async () => {
-    const [month, today] = await Promise.all([
-      getCurrentMonthRevenue(),
-      getTodayRevenue(),
-    ]);
+    const [month, today] = await Promise.all([getCurrentMonthRevenue(), getTodayRevenue()]);
     expect(month.revenue).toBeGreaterThanOrEqual(today.revenue);
   });
 });
@@ -265,7 +261,7 @@ describe("GET /api/worker/dashboard", () => {
     const { data } = res.body;
     // elvalerobux today: ecpm = (279.42 / 29714) * 1000 ≈ 9.40
     expect(data.today.ecpm).toBeGreaterThan(0);
-    expect(data.today.ecpm).toBeCloseTo(9.40, 0);
+    expect(data.today.ecpm).toBeCloseTo(9.4, 0);
   });
 
   it("currentMonth includes at least today's data", async () => {

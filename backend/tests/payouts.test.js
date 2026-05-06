@@ -1,17 +1,14 @@
 const request = require("supertest");
 const app = require("../src/app");
 const { closeDb, resetDb } = require("../src/infrastructure/database/database");
-const { getAdminToken, ADMIN_EMAIL } = require("./helpers/auth");
+const { getAdminToken } = require("./helpers/auth");
 const {
   computePayout,
   getAssignedDomains,
   sumRevenue,
   deletedAtToBusinessCalendarISO,
 } = require("../src/application/services/payouts.service");
-const {
-  todayISO,
-  daysAgoISO,
-} = require("../src/application/services/clientTimezone");
+const { todayISO, daysAgoISO } = require("../src/application/services/clientTimezone");
 
 let token;
 
@@ -49,7 +46,7 @@ describe("getAssignedDomains", () => {
   it("returns values for domain-type properties only", () => {
     const properties = [
       { type: "domain", value: "elvalerobux.barbacoadicto.com" },
-      { type: "other",  value: "ignored" },
+      { type: "other", value: "ignored" },
       { type: "domain", value: "parceitorobux.barbacoadicto.com" },
     ];
     expect(getAssignedDomains(properties)).toEqual([
@@ -70,10 +67,10 @@ describe("getAssignedDomains", () => {
 describe("deletedAtToBusinessCalendarISO", () => {
   it("maps SQLite UTC deletion instant to calendar date in America/Bogota", () => {
     expect(deletedAtToBusinessCalendarISO("2026-05-01 04:30:00", "America/Bogota")).toBe(
-      "2026-04-30"
+      "2026-04-30",
     );
     expect(deletedAtToBusinessCalendarISO("2026-05-01 18:00:00", "America/Bogota")).toBe(
-      "2026-05-01"
+      "2026-05-01",
     );
   });
 
@@ -120,9 +117,7 @@ describe("GET /api/payouts", () => {
   });
 
   it("returns payouts for all workers (admin)", async () => {
-    const res = await request(app)
-      .get("/api/payouts")
-      .set("Authorization", `Bearer ${token}`);
+    const res = await request(app).get("/api/payouts").set("Authorization", `Bearer ${token}`);
     expect(res.status).toBe(200);
     expect(res.body.data).toHaveProperty("payouts");
     expect(res.body.data).toHaveProperty("totalPayout");
@@ -148,12 +143,15 @@ describe("GET /api/payouts", () => {
     const workerRes = await request(app)
       .post("/api/workers")
       .set("Authorization", `Bearer ${token}`)
-      .send({ name: "Unassigned", email: "unassigned@example.com", percentage: 50, password: "pass123" });
+      .send({
+        name: "Unassigned",
+        email: "unassigned@example.com",
+        percentage: 50,
+        password: "pass123",
+      });
     const unassignedId = workerRes.body.data.id;
 
-    const res = await request(app)
-      .get("/api/payouts")
-      .set("Authorization", `Bearer ${token}`);
+    const res = await request(app).get("/api/payouts").set("Authorization", `Bearer ${token}`);
     const unassigned = res.body.data.payouts.find((w) => w.workerId === unassignedId);
 
     expect(unassigned.assignedRevenue).toBe(0);
@@ -175,7 +173,12 @@ describe("GET /api/payouts", () => {
     const res = await request(app)
       .post("/api/workers")
       .set("Authorization", `Bearer ${token}`)
-      .send({ name: "Deleted Hist", email: "deletedhist@example.com", percentage: 60, password: "pass123" });
+      .send({
+        name: "Deleted Hist",
+        email: "deletedhist@example.com",
+        percentage: 60,
+        password: "pass123",
+      });
     const deletedWorkerId = res.body.data.id;
 
     await request(app)
@@ -209,7 +212,12 @@ describe("GET /api/payouts/history", () => {
     const workerRes = await request(app)
       .post("/api/workers")
       .set("Authorization", `Bearer ${token}`)
-      .send({ name: "History Worker", email: "history.worker@example.com", percentage: 50, password: "pass123" });
+      .send({
+        name: "History Worker",
+        email: "history.worker@example.com",
+        percentage: 50,
+        password: "pass123",
+      });
     const workerId = workerRes.body.data.id;
 
     await request(app)
@@ -231,7 +239,7 @@ describe("GET /api/payouts/history", () => {
       .set("Authorization", `Bearer ${token}`);
     expect(history.status).toBe(200);
     const row = history.body.data.find(
-      (entry) => entry.workerName === "History Worker" && entry.paymentMonth === paymentMonth
+      (entry) => entry.workerName === "History Worker" && entry.paymentMonth === paymentMonth,
     );
     expect(row).toBeDefined();
     expect(row.status).toBe("success");
@@ -247,7 +255,7 @@ describe("GET /api/payouts/history", () => {
       .get("/api/payouts/history")
       .set("Authorization", `Bearer ${token}`);
     const removed = historyAfterPending.body.data.find(
-      (entry) => entry.workerName === "History Worker" && entry.paymentMonth === paymentMonth
+      (entry) => entry.workerName === "History Worker" && entry.paymentMonth === paymentMonth,
     );
     expect(removed).toBeUndefined();
   });

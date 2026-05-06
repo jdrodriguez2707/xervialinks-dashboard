@@ -65,9 +65,7 @@ describe("POST /api/workers", () => {
 
 describe("GET /api/workers", () => {
   it("returns list with at least the previously created workers", async () => {
-    const res = await request(app)
-      .get("/api/workers")
-      .set("Authorization", `Bearer ${token}`);
+    const res = await request(app).get("/api/workers").set("Authorization", `Bearer ${token}`);
     expect(res.status).toBe(200);
     expect(Array.isArray(res.body.data)).toBe(true);
     expect(res.body.data.length).toBeGreaterThanOrEqual(1);
@@ -108,7 +106,12 @@ describe("PATCH /api/workers/:id", () => {
     const res = await request(app)
       .post("/api/workers")
       .set("Authorization", `Bearer ${token}`)
-      .send({ name: "Patchable", email: "patchable@example.com", percentage: 50, password: "pass123" });
+      .send({
+        name: "Patchable",
+        email: "patchable@example.com",
+        percentage: 50,
+        password: "pass123",
+      });
     workerId = res.body.data.id;
     await request(app)
       .post(`/api/workers/${workerId}/properties`)
@@ -333,9 +336,7 @@ describe("DELETE /api/workers/:id", () => {
       .set("Authorization", `Bearer ${token}`);
     expect(del.status).toBe(204);
 
-    const list = await request(app)
-      .get("/api/workers")
-      .set("Authorization", `Bearer ${token}`);
+    const list = await request(app).get("/api/workers").set("Authorization", `Bearer ${token}`);
     expect(list.status).toBe(200);
     const deleted = list.body.data.find((w) => w.id === workerId);
     expect(deleted).toBeUndefined();
@@ -402,7 +403,12 @@ describe("DELETE /api/workers/:id/purge-inactive", () => {
     const createRes = await request(app)
       .post("/api/workers")
       .set("Authorization", `Bearer ${token}`)
-      .send({ name: "Purge Worker", email: "purge@example.com", percentage: 35, password: "pass123" });
+      .send({
+        name: "Purge Worker",
+        email: "purge@example.com",
+        percentage: 35,
+        password: "pass123",
+      });
     const workerId = createRes.body.data.id;
 
     await request(app)
@@ -430,7 +436,12 @@ describe("DELETE /api/workers/:id/purge-inactive", () => {
     const createRes = await request(app)
       .post("/api/workers")
       .set("Authorization", `Bearer ${token}`)
-      .send({ name: "Still Active", email: "still.active@example.com", percentage: 25, password: "pass123" });
+      .send({
+        name: "Still Active",
+        email: "still.active@example.com",
+        percentage: 25,
+        password: "pass123",
+      });
     const workerId = createRes.body.data.id;
 
     const purge = await request(app)
@@ -442,7 +453,12 @@ describe("DELETE /api/workers/:id/purge-inactive", () => {
     const createRes = await request(app)
       .post("/api/workers")
       .set("Authorization", `Bearer ${token}`)
-      .send({ name: "Reusable Mail", email: "reusable@example.com", percentage: 30, password: "pass123" });
+      .send({
+        name: "Reusable Mail",
+        email: "reusable@example.com",
+        percentage: 30,
+        password: "pass123",
+      });
     const workerId = createRes.body.data.id;
 
     await request(app)
@@ -450,9 +466,7 @@ describe("DELETE /api/workers/:id/purge-inactive", () => {
       .set("Authorization", `Bearer ${token}`)
       .send({ type: "domain", value: "reusable.path.example.com" });
 
-    await request(app)
-      .delete(`/api/workers/${workerId}`)
-      .set("Authorization", `Bearer ${token}`);
+    await request(app).delete(`/api/workers/${workerId}`).set("Authorization", `Bearer ${token}`);
 
     await request(app)
       .delete(`/api/workers/${workerId}/purge-inactive`)
@@ -461,7 +475,12 @@ describe("DELETE /api/workers/:id/purge-inactive", () => {
     const recreate = await request(app)
       .post("/api/workers")
       .set("Authorization", `Bearer ${token}`)
-      .send({ name: "Reusable Mail 2", email: "reusable@example.com", percentage: 40, password: "pass123" });
+      .send({
+        name: "Reusable Mail 2",
+        email: "reusable@example.com",
+        percentage: 40,
+        password: "pass123",
+      });
 
     expect(recreate.status).toBe(201);
     expect(recreate.body.data.email).toBe("reusable@example.com");

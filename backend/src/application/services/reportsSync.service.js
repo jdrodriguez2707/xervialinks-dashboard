@@ -2,11 +2,7 @@ const env = require("../../infrastructure/config/env");
 const reportsRepo = require("../../domain/repositories/reports.repository");
 const { fetchReports } = require("../../infrastructure/integrations/gamReports");
 const { buildMockReports } = require("../../infrastructure/integrations/mockReports");
-const {
-  getDefaultTimeZone,
-  todayISO,
-  daysAgoISO,
-} = require("./clientTimezone");
+const { getDefaultTimeZone, todayISO, daysAgoISO } = require("./clientTimezone");
 
 const DEFAULT_BATCH_WINDOW_DAYS = env.REPORTS_BATCH_WINDOW_DAYS;
 const TWELVE_MONTHS_WINDOW_DAYS = env.REPORTS_BACKFILL_WINDOW_DAYS;

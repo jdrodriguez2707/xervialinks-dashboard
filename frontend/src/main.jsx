@@ -9,5 +9,5 @@ createRoot(document.getElementById("root")).render(
     <ThemeProvider defaultTheme="dark" storageKey="ad-manager-theme">
       <App />
     </ThemeProvider>
-  </StrictMode>
+  </StrictMode>,
 );

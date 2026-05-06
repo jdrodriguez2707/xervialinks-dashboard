@@ -450,7 +450,9 @@ function WorkerManagementPanel({
         <DialogContent className="sm:max-w-md border-border/60">
           <DialogHeader>
             <DialogTitle>
-              {confirmAction === "purge" ? "Eliminar trabajador definitivamente" : "Desactivar trabajador"}
+              {confirmAction === "purge"
+                ? "Eliminar trabajador definitivamente"
+                : "Desactivar trabajador"}
             </DialogTitle>
             <DialogDescription>
               {confirmAction === "purge"
@@ -459,7 +461,12 @@ function WorkerManagementPanel({
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
-            <Button type="button" variant="secondary" onClick={closeConfirmDialog} disabled={deleting || purging}>
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={closeConfirmDialog}
+              disabled={deleting || purging}
+            >
               Cancelar
             </Button>
             <Button

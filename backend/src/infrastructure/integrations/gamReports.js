@@ -21,18 +21,10 @@ async function fetchReports({ startDate, endDate }) {
   const token = await getAccessToken();
   const headers = { Authorization: `Bearer ${token}` };
 
-  const reportId = await step("createReport", () =>
-    createReport(headers, { startDate, endDate })
-  );
-  const operationId = await step("runReport", () =>
-    runReport(headers, reportId)
-  );
-  const resultId = await step("pollOperation", () =>
-    pollOperation(headers, operationId)
-  );
-  const rows = await step("fetchRows", () =>
-    fetchAllRows(headers, reportId, resultId)
-  );
+  const reportId = await step("createReport", () => createReport(headers, { startDate, endDate }));
+  const operationId = await step("runReport", () => runReport(headers, reportId));
+  const resultId = await step("pollOperation", () => pollOperation(headers, operationId));
+  const rows = await step("fetchRows", () => fetchAllRows(headers, reportId, resultId));
 
   return normalizeRows(rows);
 }
@@ -50,22 +42,19 @@ async function step(name, fn) {
       // Log the full response so we can see every detail from Google
       console.error(
         `[GAM] ${name} failed — status: ${status}\n`,
-        JSON.stringify(err.response.data, null, 2)
+        JSON.stringify(err.response.data, null, 2),
       );
       const gamError = err.response.data?.error || err.response.data;
       const message =
         gamError?.message ||
         gamError?.details?.map((d) => d.description || d.reason).join("; ") ||
         JSON.stringify(gamError);
-      throw createGamHttpError(
-        status,
-        `GAM API error at ${name}: ${message}`
-      );
+      throw createGamHttpError(status, `GAM API error at ${name}: ${message}`);
     }
     if (err.statusCode) throw err;
     throw createGamHttpError(
       503,
-      `GAM API error at ${name}: ${err.message || "Service unavailable"}`
+      `GAM API error at ${name}: ${err.message || "Service unavailable"}`,
     );
   }
 }
@@ -81,23 +70,23 @@ async function createReport(headers, { startDate, endDate }) {
   // Metrics "AD_SERVER_IMPRESSIONS" and "AD_SERVER_REVENUE" are HISTORICAL-compatible.
   const body = {
     displayName: `Revenue ${startDate}→${endDate}`,
-      reportDefinition: {
-        // IMPRESSIONS + REVENUE map to "Total impressions" and "Total revenue" in the GAM UI,
-        // which include Ad Server, AdSense, Ad Exchange, and yield group partners.
-        // AD_SERVER_* metrics only cover direct-sold line items (not Ad Exchange).
-        // SITE dimension groups by subdomain (e.g. "elvalerobux.barbacoadicto.com"),
-        // matching the "Site" column in the GAM UI — this is what we assign to workers.
-        dimensions: ["DATE", "SITE"],
-        metrics: ["IMPRESSIONS", "REVENUE"],
-        dateRange: {
-          // DateRange is a union: use "fixed" for explicit dates, "relative" for enums like YESTERDAY.
-          fixed: {
-            startDate: { year: sy, month: sm, day: sd },
-            endDate:   { year: ey, month: em, day: ed },
-          },
+    reportDefinition: {
+      // IMPRESSIONS + REVENUE map to "Total impressions" and "Total revenue" in the GAM UI,
+      // which include Ad Server, AdSense, Ad Exchange, and yield group partners.
+      // AD_SERVER_* metrics only cover direct-sold line items (not Ad Exchange).
+      // SITE dimension groups by subdomain (e.g. "elvalerobux.barbacoadicto.com"),
+      // matching the "Site" column in the GAM UI — this is what we assign to workers.
+      dimensions: ["DATE", "SITE"],
+      metrics: ["IMPRESSIONS", "REVENUE"],
+      dateRange: {
+        // DateRange is a union: use "fixed" for explicit dates, "relative" for enums like YESTERDAY.
+        fixed: {
+          startDate: { year: sy, month: sm, day: sd },
+          endDate: { year: ey, month: em, day: ed },
         },
-        reportType: "HISTORICAL",
       },
+      reportType: "HISTORICAL",
+    },
   };
 
   const res = await axios.post(networkUrl("/reports"), body, { headers });
@@ -108,18 +97,14 @@ async function createReport(headers, { startDate, endDate }) {
 async function runReport(headers, reportId) {
   // :run returns a long-running Operation, not a report status.
   // Operation name: "networks/{networkCode}/operations/reports/runs/{operationId}"
-  const res = await axios.post(
-    networkUrl(`/reports/${reportId}:run`),
-    {},
-    { headers }
-  );
+  const res = await axios.post(networkUrl(`/reports/${reportId}:run`), {}, { headers });
   return lastSegment(res.data.name); // extract operationId
 }
 
 async function pollOperation(headers, operationId) {
   for (let attempt = 0; attempt < MAX_POLL_ATTEMPTS; attempt++) {
     const res = await withRetry(() =>
-      axios.get(networkUrl(`/operations/reports/runs/${operationId}`), { headers })
+      axios.get(networkUrl(`/operations/reports/runs/${operationId}`), { headers }),
     );
 
     if (res.data.done) {
@@ -134,9 +119,7 @@ async function pollOperation(headers, operationId) {
     if (res.data.error) {
       throw createGamHttpError(
         502,
-        `GAM operation failed: ${
-          res.data.error.message || JSON.stringify(res.data.error)
-        }`
+        `GAM operation failed: ${res.data.error.message || JSON.stringify(res.data.error)}`,
       );
     }
 
@@ -145,7 +128,7 @@ async function pollOperation(headers, operationId) {
 
   throw createGamHttpError(
     504,
-    "Google Ad Manager tardó demasiado en responder. Intenta nuevamente en unos segundos."
+    "Google Ad Manager tardó demasiado en responder. Intenta nuevamente en unos segundos.",
   );
 }
 
@@ -188,19 +171,15 @@ async function fetchAllRows(headers, reportId, resultId) {
  */
 function normalizeRows(rows) {
   return rows.map((row) => {
-    const dimValues     = row.dimensionValues ?? [];
+    const dimValues = row.dimensionValues ?? [];
     const primaryValues = row.metricValueGroups?.[0]?.primaryValues ?? [];
 
-    const date   = parseGamDate(dimValues[0]?.intValue);
+    const date = parseGamDate(dimValues[0]?.intValue);
     const domain = dimValues[1]?.stringValue ?? "";
 
     const impressions = parseInt(primaryValues[0]?.intValue ?? "0", 10);
-    const revenue = parseFloat(
-      (primaryValues[1]?.doubleValue ?? 0).toFixed(6)
-    );
-    const ecpm = impressions > 0
-      ? parseFloat(((revenue / impressions) * 1000).toFixed(4))
-      : 0;
+    const revenue = parseFloat((primaryValues[1]?.doubleValue ?? 0).toFixed(6));
+    const ecpm = impressions > 0 ? parseFloat(((revenue / impressions) * 1000).toFixed(4)) : 0;
 
     return { date, domain, impressions, revenue, ecpm };
   });
