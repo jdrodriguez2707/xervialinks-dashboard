@@ -91,6 +91,7 @@ function MetricSection({ title, loading, data, getValue, format, highlight }) {
               title={PERIOD_LABELS[period]}
               value={format(getValue(data, period))}
               active={period === "currentMonth" && highlight}
+              gradientBorder
             />
           ))}
         </div>
@@ -249,7 +250,7 @@ export default function WorkerDashboard({
             </div>
           ) : null}
           {hasDomains && (
-            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-center">
               <Select
                 value={selectedDomainValue}
                 onValueChange={handleDomainSwitch}
@@ -307,6 +308,7 @@ export default function WorkerDashboard({
               <MetricCard
                 title={PERIOD_LABELS[selectedRange]}
                 value={fmtEcpm(mergedDashboard?.[selectedRange]?.ecpm)}
+                gradientBorder
               />
             )}
           </section>
@@ -319,6 +321,7 @@ export default function WorkerDashboard({
               <MetricCard
                 title={PERIOD_LABELS[selectedRange]}
                 value={fmtImpressions(mergedDashboard?.[selectedRange]?.impressions)}
+                gradientBorder
               />
             )}
           </section>

@@ -10,6 +10,7 @@ export function MetricCard({
   icon: Icon,
   loading = false,
   active = false,
+  gradientBorder = false,
   onClick,
 }) {
   return (
@@ -17,7 +18,7 @@ export function MetricCard({
       onClick={onClick}
       className={cn(
         "transition-all duration-200 cursor-pointer overflow-hidden relative group",
-        active
+        (active || gradientBorder)
           ? "metric-card-active shadow-lg shadow-primary/10"
           : "hover:border-primary/50",
         !onClick && "cursor-default",
