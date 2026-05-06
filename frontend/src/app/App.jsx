@@ -11,6 +11,7 @@ import {
 } from "../shared/api/worker";
 import { fetchSites } from "../shared/api/sites";
 import { fetchSyncStatus } from "../shared/api/sync";
+import { toUserErrorMessage } from "../shared/lib/uiError";
 import LoginForm from "../features/auth/components/LoginForm";
 import SummaryCards from "../features/admin/components/SummaryCards";
 import PayoutsTable from "../features/admin/components/PayoutsTable";
@@ -218,10 +219,11 @@ export default function App() {
         const metrics = await fetchWorkerDashboard({ domain: targetDomain });
         setData((prev) => ({ ...prev, workerMetrics: metrics }));
       } catch (err) {
-        if (isAuthSessionError(err.message)) handleLogout(err.message);
-        else if (err.message.includes("cuenta de trabajador fue eliminada")) {
-          handleLogout(err.message);
-        } else if (err.message.includes("subdominio solicitado no está asignado")) {
+        const rawMessage = String(err?.message || "");
+        if (isAuthSessionError(rawMessage)) handleLogout(rawMessage);
+        else if (rawMessage.includes("cuenta de trabajador fue eliminada")) {
+          handleLogout(rawMessage);
+        } else if (rawMessage.includes("subdominio solicitado no está asignado")) {
           try {
             const ctx = await fetchWorkerContext({
               paymentMonth: workerPaymentMonthRef.current,
@@ -237,7 +239,9 @@ export default function App() {
           } catch {
             setWorkerMetricsError("No se pudieron cargar métricas del subdominio seleccionado");
           }
-        } else setWorkerMetricsError(err.message || "Error al cargar métricas");
+        } else {
+          setWorkerMetricsError(toUserErrorMessage(err, "No se pudieron cargar las métricas."));
+        }
       } finally {
         setWorkerMetricsLoading(false);
       }
@@ -312,10 +316,13 @@ export default function App() {
         }
       }
     } catch (err) {
-      if (isAuthSessionError(err.message)) handleLogout(err.message);
-      else if (err.message.includes("cuenta de trabajador fue eliminada")) {
-        handleLogout(err.message);
-      } else setError(err.message);
+      const rawMessage = String(err?.message || "");
+      if (isAuthSessionError(rawMessage)) handleLogout(rawMessage);
+      else if (rawMessage.includes("cuenta de trabajador fue eliminada")) {
+        handleLogout(rawMessage);
+      } else {
+        setError(toUserErrorMessage(err, "No se pudo cargar la información del panel."));
+      }
     } finally {
       setLoading(false);
     }
@@ -407,8 +414,9 @@ export default function App() {
         setCachedDashboardSummary(adminDashboardRange, summary);
         setData((prev) => ({ ...prev, summary }));
       } catch (err) {
-        if (isAuthSessionError(err.message)) handleLogout(err.message);
-        else setError(err.message);
+        const rawMessage = String(err?.message || "");
+        if (isAuthSessionError(rawMessage)) handleLogout(rawMessage);
+        else setError(toUserErrorMessage(err, "No se pudo actualizar el resumen."));
       } finally {
         setRefreshingAdmin(false);
       }
@@ -432,8 +440,9 @@ export default function App() {
         setCachedEarningsPayouts(adminEarningsRange, payouts);
         setData((prev) => ({ ...prev, payouts }));
       } catch (err) {
-        if (isAuthSessionError(err.message)) handleLogout(err.message);
-        else setError(err.message);
+        const rawMessage = String(err?.message || "");
+        if (isAuthSessionError(rawMessage)) handleLogout(rawMessage);
+        else setError(toUserErrorMessage(err, "No se pudo actualizar la tabla de ganancias."));
       } finally {
         setRefreshingAdmin(false);
       }
@@ -484,8 +493,9 @@ export default function App() {
       setCachedEarningsPayouts(adminEarningsRange, payouts);
       setData((prev) => ({ ...prev, workers, payouts, summary, paymentHistory }));
     } catch (err) {
-      if (isAuthSessionError(err.message)) handleLogout(err.message);
-      else setError(err.message);
+      const rawMessage = String(err?.message || "");
+      if (isAuthSessionError(rawMessage)) handleLogout(rawMessage);
+      else setError(toUserErrorMessage(err, "No se pudo actualizar la información de trabajadores."));
     } finally {
       setRefreshingAdmin(false);
     }
@@ -505,8 +515,9 @@ export default function App() {
       ]);
       setData((prev) => ({ ...prev, workers, paymentHistory }));
     } catch (err) {
-      if (isAuthSessionError(err.message)) handleLogout(err.message);
-      else setError(err.message);
+      const rawMessage = String(err?.message || "");
+      if (isAuthSessionError(rawMessage)) handleLogout(rawMessage);
+      else setError(toUserErrorMessage(err, "No se pudo actualizar el estado de pagos."));
     } finally {
       setRefreshingAdmin(false);
     }
@@ -528,9 +539,9 @@ export default function App() {
       setData((prev) => ({ ...prev, workerContext: ctx, workerPaymentHistory: paymentHistory }));
       setError(null);
     } catch (err) {
-      if (isAuthSessionError(err.message)) handleLogout(err.message);
-      else if (err.message.includes("cuenta de trabajador fue eliminada"))
-        handleLogout(err.message);
+      const rawMessage = String(err?.message || "");
+      if (isAuthSessionError(rawMessage)) handleLogout(rawMessage);
+      else if (rawMessage.includes("cuenta de trabajador fue eliminada")) handleLogout(rawMessage);
       // No elevamos este error al estado global para no romper la UI del worker
       // por fallos transitorios del refresco liviano de contexto.
     }
@@ -551,8 +562,9 @@ export default function App() {
         ]);
         setData((prev) => ({ ...prev, workers, paymentHistory }));
       } catch (err) {
-        if (isAuthSessionError(err.message)) handleLogout(err.message);
-        else setError(err.message);
+        const rawMessage = String(err?.message || "");
+        if (isAuthSessionError(rawMessage)) handleLogout(rawMessage);
+        else setError(toUserErrorMessage(err, "No se pudo actualizar el periodo de pagos."));
       } finally {
         setRefreshingAdmin(false);
       }
@@ -737,7 +749,7 @@ export default function App() {
 
           <main className="app-main">
             {loading && <p className="status-msg">Cargando dashboard…</p>}
-            {error && <p className="status-msg error">Error: {error}</p>}
+            {error && <p className="status-msg error">{error}</p>}
             {!loading && data && (
               <AdminDashboard
                 data={data}

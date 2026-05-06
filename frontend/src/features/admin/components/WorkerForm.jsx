@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { createWorker } from "../../../shared/api/workers";
+import { toUserErrorMessage } from "../../../shared/lib/uiError";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -66,7 +67,7 @@ export default function WorkerForm({
       handleClose();
       onCreated();
     } catch (err) {
-      setError(err.message);
+      setError(toUserErrorMessage(err, "No se pudo crear el trabajador."));
     } finally {
       setSubmitting(false);
     }

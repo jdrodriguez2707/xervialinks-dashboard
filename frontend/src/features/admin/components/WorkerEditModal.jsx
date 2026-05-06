@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { updateWorker } from "../../../shared/api/workers";
+import { toUserErrorMessage } from "../../../shared/lib/uiError";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -92,7 +93,7 @@ export default function WorkerEditModal({ worker, sites, globallyAssignedDomains
       await onSaved();
       onClose();
     } catch (err) {
-      setError(err.message || "No se pudo guardar");
+      setError(toUserErrorMessage(err, "No se pudieron guardar los cambios del trabajador."));
     } finally {
       setSubmitting(false);
     }

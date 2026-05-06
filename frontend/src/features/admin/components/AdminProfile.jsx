@@ -4,6 +4,7 @@ import {
   updateAdminProfile,
   changeAdminPassword,
 } from "../../../shared/api/auth";
+import { toUserErrorMessage } from "../../../shared/lib/uiError";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -56,7 +57,9 @@ export default function AdminProfile({ onUserUpdated, onForceLogout }) {
         setEmail(profile.email || "");
         setLastLoginAt(profile.lastLoginAt || null);
       } catch (err) {
-        if (!cancelled) setProfileErr(err.message || "No se pudo cargar el perfil");
+        if (!cancelled) {
+          setProfileErr(toUserErrorMessage(err, "No se pudo cargar el perfil."));
+        }
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -80,7 +83,7 @@ export default function AdminProfile({ onUserUpdated, onForceLogout }) {
       setProfileMsg("Perfil actualizado correctamente.");
       onUserUpdated?.({ name: updated.name, email: updated.email });
     } catch (err) {
-      setProfileErr(err.message || "No se pudo actualizar el perfil");
+      setProfileErr(toUserErrorMessage(err, "No se pudo actualizar el perfil."));
     } finally {
       setProfileSaving(false);
     }
@@ -110,7 +113,7 @@ export default function AdminProfile({ onUserUpdated, onForceLogout }) {
       setShowConfirmPassword(false);
       onForceLogout?.("Tu contraseña fue actualizada. Inicia sesión nuevamente.");
     } catch (err) {
-      setPasswordErr(err.message || "No se pudo cambiar la contraseña");
+      setPasswordErr(toUserErrorMessage(err, "No se pudo cambiar la contraseña."));
     } finally {
       setPasswordSaving(false);
     }

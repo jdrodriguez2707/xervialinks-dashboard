@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { login } from "../../../shared/api/auth";
+import { toUserErrorMessage } from "../../../shared/lib/uiError";
 
 /**
  * @param {{ onLogin: (user: object) => void, notice?: string | null }} props
@@ -18,7 +19,7 @@ export default function LoginForm({ onLogin, notice = null }) {
       const { user } = await login(email, password);
       onLogin(user);
     } catch (err) {
-      setError(err.message);
+      setError(toUserErrorMessage(err, "No se pudo iniciar sesión. Inténtalo nuevamente."));
     } finally {
       setSubmitting(false);
     }

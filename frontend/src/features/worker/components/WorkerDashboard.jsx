@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { BarChart3, Globe, CreditCard, CircleDollarSign } from "lucide-react";
 import { upsertWorkerPaymentInfo } from "../../../shared/api/worker";
+import { toUserErrorMessage } from "../../../shared/lib/uiError";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -228,7 +229,7 @@ export default function WorkerDashboard({
       }
       closePaymentDialog();
     } catch (err) {
-      setPaymentError(err.message || "No se pudo guardar la información de pago");
+      setPaymentError(toUserErrorMessage(err, "No se pudo guardar la información de pago."));
     } finally {
       setSavingPaymentInfo(false);
     }

@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { HandCoins } from "lucide-react";
 import { updateWorkerPaymentStatus } from "../../../shared/api/workers";
+import { toUserErrorMessage } from "../../../shared/lib/uiError";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -54,6 +55,7 @@ export default function PayoutsTable({
 }) {
   const [selectedWorker, setSelectedWorker] = useState(null);
   const [updatingPaymentStatus, setUpdatingPaymentStatus] = useState(false);
+  const [modalError, setModalError] = useState("");
 
   const workersById = useMemo(
     () => new Map(workers.map((worker) => [worker.id, worker])),
@@ -81,6 +83,7 @@ export default function PayoutsTable({
     const currentStatus = selectedWorkerCurrentStatus;
     const nextStatus = currentStatus === "paid" ? "pending" : "paid";
     setUpdatingPaymentStatus(true);
+    setModalError("");
     try {
       await updateWorkerPaymentStatus(selectedWorker.workerId, nextStatus, paymentMonth);
       setSelectedWorker(null);
@@ -88,7 +91,7 @@ export default function PayoutsTable({
         await onRefresh();
       }
     } catch (err) {
-      window.alert(err.message || "No se pudo actualizar el estado de pago");
+      setModalError(toUserErrorMessage(err, "No se pudo actualizar el estado de pago."));
     } finally {
       setUpdatingPaymentStatus(false);
     }
@@ -96,6 +99,7 @@ export default function PayoutsTable({
 
   function openPaymentModal(payoutWorker) {
     const workerDetail = workersById.get(payoutWorker.workerId) || {};
+    setModalError("");
     setSelectedWorker({
       ...payoutWorker,
       paymentStatus: workerDetail.paymentStatus || "pending",
@@ -289,6 +293,8 @@ export default function PayoutsTable({
                   label={selectedWorkerCurrentStatus === "paid" ? "Pagado" : "Pendiente de pago"}
                 />
               )}
+
+              {modalError ? <p className="text-sm font-medium text-danger">{modalError}</p> : null}
 
               {selectedWorker.paymentInfo ? (
                 <div className="rounded-lg border border-border bg-card p-4 space-y-2">
