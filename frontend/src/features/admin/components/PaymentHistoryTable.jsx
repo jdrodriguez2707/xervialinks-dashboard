@@ -172,7 +172,7 @@ export default function PaymentHistoryTable({ rows = [] }) {
                       className={[
                         "h-8 w-8 rounded-md text-xs transition-colors",
                         inRange ? "bg-primary/15 text-primary" : "hover:bg-accent",
-                        isStart || isEnd ? "bg-primary text-primary-foreground" : "",
+                        isStart || isEnd ? "bg-primary" : "",
                       ]
                         .filter(Boolean)
                         .join(" ")}
