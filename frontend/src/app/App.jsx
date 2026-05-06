@@ -741,6 +741,7 @@ export default function App() {
               <AdminDashboard
                 data={data}
                 user={user}
+                isRefreshing={refreshingAdmin}
                 onWorkersUpdate={refreshAdminWorkersAndPayouts}
                 onWorkersPaymentStatusRefresh={refreshAdminWorkerStatusesOnly}
                 adminDashboardRange={adminDashboardRange}
@@ -859,6 +860,7 @@ export default function App() {
 function AdminDashboard({
   data,
   user,
+  isRefreshing = false,
   onWorkersUpdate,
   onWorkersPaymentStatusRefresh,
   adminDashboardRange,
@@ -922,6 +924,7 @@ function AdminDashboard({
           paymentMonth={adminPaymentMonth}
           onPaymentMonthChange={onChangeAdminPaymentMonth}
           onRefresh={onWorkersPaymentStatusRefresh}
+          isLoading={isRefreshing}
         />
       </section>
     );
@@ -931,7 +934,7 @@ function AdminDashboard({
     return (
       <section>
         <h2>Historial de pagos</h2>
-        <PaymentHistoryTable rows={paymentHistory} />
+        <PaymentHistoryTable rows={paymentHistory} isLoading={isRefreshing} />
       </section>
     );
   }
@@ -969,7 +972,7 @@ function AdminDashboard({
           </select>
         </div>
         <h2>Resumen</h2>
-        <SummaryCards summary={summary} />
+        <SummaryCards summary={summary} isLoading={isRefreshing} />
       </section>
 
       <section>

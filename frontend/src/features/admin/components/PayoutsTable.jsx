@@ -26,6 +26,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Skeleton } from "@/components/ui/skeleton";
 import EmptyState from "@/components/EmptyState";
 import StatusBadge from "@/components/StatusBadge";
 
@@ -52,6 +53,7 @@ export default function PayoutsTable({
   paymentMonth,
   onPaymentMonthChange,
   onRefresh,
+  isLoading = false,
 }) {
   const [selectedWorker, setSelectedWorker] = useState(null);
   const [updatingPaymentStatus, setUpdatingPaymentStatus] = useState(false);
@@ -106,6 +108,41 @@ export default function PayoutsTable({
 
   const isInactivePayoutRow = !!selectedWorker?.deletedAt;
 
+  if (isLoading) {
+    return (
+      <div className="w-full overflow-x-auto rounded-lg border border-border bg-card">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Trabajador</TableHead>
+              <TableHead>Subdominios asignados</TableHead>
+              <TableHead>Impresiones</TableHead>
+              <TableHead>Ingresos asignados</TableHead>
+              <TableHead>%</TableHead>
+              <TableHead>Ganancia</TableHead>
+              <TableHead>Estado de pago</TableHead>
+              <TableHead>Pagos</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {Array.from({ length: 4 }).map((_, idx) => (
+              <TableRow key={`payout-skeleton-${idx}`}>
+                <TableCell><Skeleton className="h-4 w-32" /></TableCell>
+                <TableCell><Skeleton className="h-4 w-44" /></TableCell>
+                <TableCell><Skeleton className="h-4 w-16" /></TableCell>
+                <TableCell><Skeleton className="h-4 w-20" /></TableCell>
+                <TableCell><Skeleton className="h-4 w-8" /></TableCell>
+                <TableCell><Skeleton className="h-4 w-20" /></TableCell>
+                <TableCell><Skeleton className="h-5 w-20 rounded-full" /></TableCell>
+                <TableCell><Skeleton className="h-8 w-8 rounded-md" /></TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </div>
+    );
+  }
+
   if (payouts.length === 0) {
     return (
       <EmptyState
@@ -137,7 +174,11 @@ export default function PayoutsTable({
               return (
                 <TableRow
                   key={w.workerId}
-                  className={w.workerId === highlightedWorkerId ? "bg-primary/5" : ""}
+                  className={`transition-colors hover:bg-muted/20 ${
+                    w.workerId === highlightedWorkerId
+                      ? "bg-primary/20 ring-1 ring-inset ring-primary/40"
+                      : ""
+                  }`}
                 >
                   <TableCell>
                     <div className="space-y-1">

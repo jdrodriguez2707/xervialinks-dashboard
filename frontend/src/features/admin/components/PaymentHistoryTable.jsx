@@ -8,10 +8,11 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { Skeleton } from "@/components/ui/skeleton";
 import EmptyState from "@/components/EmptyState";
 import StatusBadge from "@/components/StatusBadge";
 
-export default function PaymentHistoryTable({ rows = [] }) {
+export default function PaymentHistoryTable({ rows = [], isLoading = false }) {
   const [isPickerOpen, setPickerOpen] = useState(false);
   const [viewMonth, setViewMonth] = useState(() => monthStart(new Date()));
   const [appliedStartDate, setAppliedStartDate] = useState("");
@@ -100,12 +101,39 @@ export default function PaymentHistoryTable({ rows = [] }) {
 
   return (
     <>
-      {orderedRows.length === 0 ? (
+      {isLoading ? (
+        <div className="w-full overflow-x-auto rounded-lg border border-border bg-card">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Fecha de pago</TableHead>
+                <TableHead>Estado</TableHead>
+                <TableHead>Trabajador</TableHead>
+                <TableHead>Método de pago</TableHead>
+                <TableHead>Cantidad</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {Array.from({ length: 4 }).map((_, idx) => (
+                <TableRow key={`history-skeleton-${idx}`}>
+                  <TableCell><Skeleton className="h-4 w-28" /></TableCell>
+                  <TableCell><Skeleton className="h-5 w-20 rounded-full" /></TableCell>
+                  <TableCell><Skeleton className="h-4 w-28" /></TableCell>
+                  <TableCell><Skeleton className="h-4 w-24" /></TableCell>
+                  <TableCell><Skeleton className="h-4 w-20" /></TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
+      ) : null}
+
+      {!isLoading && orderedRows.length === 0 ? (
         <EmptyState
           title="Sin historial de pagos"
           description="Aún no hay pagos registrados. Cuando marques trabajadores como pagados aparecerán aquí."
         />
-      ) : (
+      ) : !isLoading ? (
         <>
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <Button type="button" variant="outline" onClick={openPicker}>
@@ -216,7 +244,10 @@ export default function PaymentHistoryTable({ rows = [] }) {
                 </TableHeader>
                 <TableBody>
                   {filteredRows.map((row, idx) => (
-                    <TableRow key={`${row.workerName}-${row.paymentMonth}-${row.paidAt}-${idx}`}>
+                    <TableRow
+                      key={`${row.workerName}-${row.paymentMonth}-${row.paidAt}-${idx}`}
+                      className="transition-colors hover:bg-muted/20"
+                    >
                       <TableCell>{formatPaidAt(row.paidAt)}</TableCell>
                       <TableCell>
                         <StatusBadge status="paid" label={row.statusLabel || "Pago realizado"} />
@@ -238,7 +269,7 @@ export default function PaymentHistoryTable({ rows = [] }) {
             </div>
           )}
         </>
-      )}
+      ) : null}
     </>
   );
 }
