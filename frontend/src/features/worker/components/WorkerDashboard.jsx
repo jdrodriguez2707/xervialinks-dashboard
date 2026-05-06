@@ -242,39 +242,34 @@ export default function WorkerDashboard({
           description="Tu cuenta no tiene subdominios asignados. Una vez que el administrador configure tu acceso, aqui veras tus ingresos, eCPM e impresiones en tiempo real."
         />
       ) : activeTab === "stats" ? (
-        <div className="space-y-6">
+        <div className="space-y-4">
           {syncStatusLabel ? (
             <div className="text-center text-xs text-muted-foreground">
               {syncStatusLabel}
             </div>
           ) : null}
           {hasDomains && (
-            <Card>
-              <CardHeader className="pb-3">
-                <CardTitle className="text-base">Subdominio en vista</CardTitle>
-              </CardHeader>
-              <CardContent className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                <Select
-                  value={selectedDomainValue}
-                  onValueChange={handleDomainSwitch}
-                  disabled={!canSwitchDomain}
-                >
-                  <SelectTrigger className="sm:w-72">
-                    <SelectValue placeholder="Seleccionar subdominio" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {domains.map((domain) => (
-                      <SelectItem key={domain.id} value={domain.value}>
-                        {domain.value}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                {!canSwitchDomain && (
-                  <p className="text-xs text-muted-foreground">Solo tienes un subdominio asignado.</p>
-                )}
-              </CardContent>
-            </Card>
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+              <Select
+                value={selectedDomainValue}
+                onValueChange={handleDomainSwitch}
+                disabled={!canSwitchDomain}
+              >
+                <SelectTrigger className="sm:w-72">
+                  <SelectValue placeholder="Seleccionar subdominio" />
+                </SelectTrigger>
+                <SelectContent>
+                  {domains.map((domain) => (
+                    <SelectItem key={domain.id} value={domain.value}>
+                      {domain.value}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {!canSwitchDomain && (
+                <p className="text-xs text-muted-foreground">Solo tienes un subdominio asignado.</p>
+              )}
+            </div>
           )}
           {metricsError && (
             <p className="status-msg error" role="alert">
@@ -537,7 +532,7 @@ export default function WorkerDashboard({
       </Dialog>
 
       {hasDomains && (
-        <nav className="fixed bottom-4 left-1/2 -translate-x-1/2 z-30 flex items-center justify-center gap-2 rounded-full border border-border/60 bg-card/95 px-3 py-2 shadow-lg backdrop-blur">
+        <nav className="fixed bottom-4 left-1/2 -translate-x-1/2 z-30 flex items-center justify-center gap-2 rounded-full border border-border/70 bg-card/80 px-3 py-2 shadow-xl backdrop-blur-xl supports-[backdrop-filter]:bg-card/70">
           {tabs.map((tab) => {
             const Icon = tab.icon;
             const isActive = activeTab === tab.id;

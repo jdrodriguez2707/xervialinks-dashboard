@@ -425,4 +425,11 @@
   .worker-edit-password-row {
     @apply flex items-center gap-2;
   }
+
+  .metric-card-active {
+    border: 1px solid transparent;
+    background:
+      linear-gradient(hsl(var(--card)), hsl(var(--card))) padding-box,
+      linear-gradient(90deg, hsl(var(--primary)), hsl(var(--secondary))) border-box;
+  }
 }

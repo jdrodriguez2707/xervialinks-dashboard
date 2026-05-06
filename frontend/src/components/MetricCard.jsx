@@ -18,14 +18,11 @@ export function MetricCard({
       className={cn(
         "transition-all duration-200 cursor-pointer overflow-hidden relative group",
         active
-          ? "border-primary ring-1 ring-primary shadow-lg shadow-primary/10"
+          ? "metric-card-active shadow-lg shadow-primary/10"
           : "hover:border-primary/50",
         !onClick && "cursor-default",
       )}
     >
-      {active && (
-        <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-primary to-secondary" />
-      )}
       <CardHeader className="flex flex-row items-center justify-between pb-2">
         <CardTitle className="text-sm font-medium text-muted-foreground">{title}</CardTitle>
         {Icon && <Icon className={cn("w-4 h-4 text-muted-foreground", active && "text-primary")} />}
