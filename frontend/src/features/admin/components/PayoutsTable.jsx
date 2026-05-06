@@ -143,7 +143,14 @@ export default function PayoutsTable({
                     <div className="space-y-1">
                       <p className="text-sm font-semibold">{w.name}</p>
                       <p className="text-xs text-muted-foreground">{w.email}</p>
-                      <Badge variant="primary" className="text-xs">
+                      <Badge
+                        variant="outline"
+                        className={`text-xs ${
+                          w.deletedAt
+                            ? "border-border text-muted-foreground bg-background"
+                            : "border-emerald-500/40 text-emerald-700 bg-emerald-50"
+                        }`}
+                      >
                         {w.deletedAt ? "Inactivo" : "Activo"}
                       </Badge>
                     </div>
