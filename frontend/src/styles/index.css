@@ -406,6 +406,14 @@
     @apply inline-flex items-center justify-center rounded-md border border-input bg-background px-3 py-2 text-sm font-medium hover:bg-accent transition-colors;
   }
 
+  .btn-logout-icon {
+    @apply h-9 w-9 p-0;
+  }
+
+  .worker-header-brand {
+    @apply text-xl font-bold bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent;
+  }
+
   .form-success {
     @apply text-sm font-medium text-success;
   }

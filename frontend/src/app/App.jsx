@@ -790,7 +790,7 @@ export default function App() {
     <div className="app">
       <header className="app-header">
         <div className="header-title-group">
-          <h1>XerviaLinks Metrics</h1>
+          <h1 className="worker-header-brand">XerviaLinks Metrics</h1>
           <p className="app-current-date">{currentDateLabel}</p>
         </div>
         <div className="header-right">
@@ -799,8 +799,14 @@ export default function App() {
               <span className="header-user-name">{user.name}</span>
               <span className="role-badge">Trabajador</span>
             </div>
-            <button type="button" className="btn-logout" onClick={() => handleLogout()}>
-              Cerrar sesión
+            <button
+              type="button"
+              className="btn-logout btn-logout-icon"
+              onClick={() => handleLogout()}
+              aria-label="Cerrar sesión"
+              title="Cerrar sesión"
+            >
+              <LogOut size={16} aria-hidden />
             </button>
           </div>
         </div>
