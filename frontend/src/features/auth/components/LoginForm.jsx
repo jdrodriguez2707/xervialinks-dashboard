@@ -27,6 +27,7 @@ export default function LoginForm({ onLogin, notice = null }) {
 
   return (
     <div className="login-wrapper">
+      <div className="login-bg-art" aria-hidden="true" />
       <div className="login-card">
         <h1 className="login-title">XerviaLinks Metrics</h1>
         <p className="login-subtitle">Ingresa tus credenciales para continuar</p>
@@ -35,30 +36,26 @@ export default function LoginForm({ onLogin, notice = null }) {
         ) : null}
 
         <form className="login-form" onSubmit={handleSubmit}>
-          <label className="form-label">
-            Correo electrónico
-            <input
-              type="email"
-              className="form-input"
-              placeholder="tu@correo.com"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-              autoFocus
-            />
-          </label>
+          <input
+            type="email"
+            className="form-input"
+            placeholder="Correo electrónico"
+            aria-label="Correo electrónico"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            required
+            autoFocus
+          />
 
-          <label className="form-label">
-            Contraseña
-            <input
-              type="password"
-              className="form-input"
-              placeholder="••••••••"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-            />
-          </label>
+          <input
+            type="password"
+            className="form-input"
+            placeholder="Contraseña"
+            aria-label="Contraseña"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            required
+          />
 
           {error && <p className="form-error">{error}</p>}
 

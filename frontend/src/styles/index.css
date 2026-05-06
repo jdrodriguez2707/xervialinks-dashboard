@@ -67,19 +67,58 @@
 /* Legacy component styles - to be replaced with refactored components */
 @layer components {
   .login-wrapper {
-    @apply min-h-screen flex items-center justify-center bg-background px-4;
+    @apply min-h-screen flex items-center justify-center bg-background px-4 relative overflow-hidden;
+  }
+
+  .login-bg-art {
+    @apply absolute inset-0 pointer-events-none;
+    background:
+      radial-gradient(circle at 12% 18%, hsl(var(--primary) / 0.16), transparent 36%),
+      radial-gradient(circle at 86% 14%, hsl(var(--secondary) / 0.14), transparent 34%),
+      radial-gradient(circle at 78% 78%, hsl(var(--primary) / 0.12), transparent 40%),
+      linear-gradient(120deg, transparent 0%, hsl(var(--primary) / 0.06) 35%, transparent 70%);
+  }
+
+  .login-bg-art::before,
+  .login-bg-art::after {
+    content: "";
+    position: absolute;
+    border-radius: 9999px;
+    border: 1px solid hsl(var(--border) / 0.55);
+    filter: blur(0.2px);
+  }
+
+  .login-bg-art::before {
+    width: min(52vw, 520px);
+    height: min(52vw, 520px);
+    top: 8%;
+    left: -10%;
+    transform: rotate(-16deg);
+  }
+
+  .login-bg-art::after {
+    width: min(44vw, 420px);
+    height: min(44vw, 420px);
+    bottom: -8%;
+    right: -8%;
+    transform: rotate(24deg);
   }
 
   .login-card {
-    @apply w-full max-w-md rounded-lg border border-border bg-card p-8 shadow-lg;
+    @apply w-full max-w-md rounded-xl px-8 py-12 shadow-lg relative z-10 text-center;
+    border: 1px solid transparent;
+    background:
+      linear-gradient(hsl(var(--card) / 0.96), hsl(var(--card) / 0.96)) padding-box,
+      linear-gradient(130deg, hsl(var(--primary) / 0.75), hsl(var(--secondary) / 0.75)) border-box;
+    backdrop-filter: blur(6px);
   }
 
   .login-title {
-    @apply text-3xl font-bold text-foreground mb-2;
+    @apply text-3xl font-bold mb-2 bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent;
   }
 
   .login-subtitle {
-    @apply text-muted-foreground mb-6;
+    @apply text-muted-foreground mb-6 text-center;
   }
 
   .login-form {
@@ -91,7 +130,7 @@
   }
 
   .form-input {
-    @apply rounded-md border border-input bg-background px-3 py-2 text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary disabled:opacity-50 transition-colors;
+    @apply w-full rounded-md border border-input bg-background px-3 py-2 text-foreground placeholder-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary disabled:opacity-50 transition-colors;
   }
 
   .form-error {
