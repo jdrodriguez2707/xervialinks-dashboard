@@ -1,6 +1,33 @@
 import { useMemo, useState } from "react";
 import { HandCoins } from "lucide-react";
 import { updateWorkerPaymentStatus } from "../../../shared/api/workers";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import EmptyState from "@/components/EmptyState";
+import StatusBadge from "@/components/StatusBadge";
 
 /**
  * @param {{
@@ -81,213 +108,189 @@ export default function PayoutsTable({
 
   if (payouts.length === 0) {
     return (
-      <p className="empty-state">
-        Aún no hay trabajadores configurados. Agrega uno y asígnale subdominios para ver sus ganancias.
-      </p>
+      <EmptyState
+        title="Sin ganancias registradas"
+        description="Aún no hay trabajadores configurados. Agrega uno y asígnale subdominios para ver sus ganancias."
+      />
     );
   }
 
   return (
     <>
-      <div className="table-wrapper">
-        <table className="reports-table">
-          <thead>
-            <tr>
-              <th>Trabajador</th>
-              <th>Subdominios asignados</th>
-              <th>Impresiones</th>
-              <th>Ingresos asignados</th>
-              <th>%</th>
-              <th>Ganancia</th>
-              <th>Estado de pago</th>
-              <th>Pagos</th>
-            </tr>
-          </thead>
-          <tbody>
-            {payoutsOrdered.map((w) => (
-              <tr
-                key={w.workerId}
-                className={w.workerId === highlightedWorkerId ? "row-highlight" : ""}
-              >
-                <td>
-                  <span className="worker-name">{w.name}</span>
-                  <span className="worker-email">{w.email}</span>
-                  <span
-                    className={`worker-activity-badge ${w.deletedAt ? "is-inactive" : "is-active"}`}
-                  >
-                    {w.deletedAt ? "Inactivo" : "Activo"}
-                  </span>
-                </td>
-                <td>
-                  {w.assignedDomains.length === 0 ? (
-                    <span className="no-domains">—</span>
-                  ) : (
-                    <div className="domain-tags">
-                      {w.assignedDomains.map((d) => (
-                        <span key={d} className="tag">
-                          {d}
-                        </span>
-                      ))}
+      <div className="w-full overflow-x-auto rounded-lg border border-border bg-card">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Trabajador</TableHead>
+              <TableHead>Subdominios asignados</TableHead>
+              <TableHead>Impresiones</TableHead>
+              <TableHead>Ingresos asignados</TableHead>
+              <TableHead>%</TableHead>
+              <TableHead>Ganancia</TableHead>
+              <TableHead>Estado de pago</TableHead>
+              <TableHead>Pagos</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {payoutsOrdered.map((w) => {
+              const status = workersById.get(w.workerId)?.paymentStatus || "pending";
+              return (
+                <TableRow
+                  key={w.workerId}
+                  className={w.workerId === highlightedWorkerId ? "bg-primary/5" : ""}
+                >
+                  <TableCell>
+                    <div className="space-y-1">
+                      <p className="text-sm font-semibold">{w.name}</p>
+                      <p className="text-xs text-muted-foreground">{w.email}</p>
+                      <Badge variant="outline" className="text-xs">
+                        {w.deletedAt ? "Inactivo" : "Activo"}
+                      </Badge>
                     </div>
-                  )}
-                </td>
-                <td>{w.assignedImpressions.toLocaleString()}</td>
-                <td>${w.assignedRevenue.toFixed(2)}</td>
-                <td>{w.percentage}%</td>
-                <td>
-                  <span className="payout-amount">${w.payout.toFixed(2)}</span>
-                </td>
-                <td>
-                  {w.deletedAt ? (
-                    <span
-                      className="payment-status-na"
-                      title="El estado de pago no aplica a trabajadores inactivos"
+                  </TableCell>
+                  <TableCell>
+                    {w.assignedDomains.length === 0 ? (
+                      <span className="text-xs text-muted-foreground">—</span>
+                    ) : (
+                      <div className="flex flex-wrap gap-2">
+                        {w.assignedDomains.map((d) => (
+                          <Badge key={d} variant="outline">
+                            {d}
+                          </Badge>
+                        ))}
+                      </div>
+                    )}
+                  </TableCell>
+                  <TableCell className="tabular-nums">
+                    {w.assignedImpressions.toLocaleString()}
+                  </TableCell>
+                  <TableCell className="tabular-nums">${w.assignedRevenue.toFixed(2)}</TableCell>
+                  <TableCell className="tabular-nums">{w.percentage}%</TableCell>
+                  <TableCell className="tabular-nums font-semibold">${w.payout.toFixed(2)}</TableCell>
+                  <TableCell>
+                    {w.deletedAt ? (
+                      <span className="text-xs text-muted-foreground">—</span>
+                    ) : (
+                      <StatusBadge
+                        status={status === "paid" ? "paid" : "pending"}
+                        label={status === "paid" ? "Pagado" : "Pendiente"}
+                      />
+                    )}
+                  </TableCell>
+                  <TableCell>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      title={
+                        w.deletedAt
+                          ? `Ver información de pago de ${w.name}`
+                          : `Gestionar estado de pago de ${w.name} (${paymentMonth})`
+                      }
+                      aria-label={
+                        w.deletedAt
+                          ? `Ver información de pago de ${w.name}`
+                          : `Gestionar estado de pago de ${w.name} (${paymentMonth})`
+                      }
+                      onClick={() => openPaymentModal(w)}
                     >
-                      —
-                    </span>
-                  ) : (
-                    (() => {
-                      const status = workersById.get(w.workerId)?.paymentStatus || "pending";
-                      const statusLabel = status === "paid" ? "Pagado" : "Pendiente";
-                      const statusClass = `payment-status-badge ${status === "paid" ? "is-paid" : "is-pending"}`;
-                      return <span className={statusClass}>{statusLabel}</span>;
-                    })()
-                  )}
-                </td>
-                <td>
-                  <button
-                    type="button"
-                    className="btn-icon btn-payment"
-                    title={
-                      w.deletedAt
-                        ? `Ver información de pago de ${w.name}`
-                        : `Gestionar estado de pago de ${w.name} (${paymentMonth})`
-                    }
-                    aria-label={
-                      w.deletedAt
-                        ? `Ver información de pago de ${w.name}`
-                        : `Gestionar estado de pago de ${w.name} (${paymentMonth})`
-                    }
-                    onClick={() => openPaymentModal(w)}
-                  >
-                    <HandCoins size={16} />
-                  </button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-          <tfoot>
-            <tr>
-              <td colSpan={7} className="tfoot-label">
+                      <HandCoins className="h-4 w-4" />
+                    </Button>
+                  </TableCell>
+                </TableRow>
+              );
+            })}
+            <TableRow>
+              <TableCell colSpan={7} className="text-sm font-semibold text-muted-foreground">
                 Ganancia total
-              </td>
-              <td>
-                <span className="payout-amount">${totalPayout.toFixed(2)}</span>
-              </td>
-            </tr>
-          </tfoot>
-        </table>
+              </TableCell>
+              <TableCell className="tabular-nums font-semibold">
+                ${totalPayout.toFixed(2)}
+              </TableCell>
+            </TableRow>
+          </TableBody>
+        </Table>
       </div>
 
       {selectedWorker && (
-        <div className="modal-overlay" onClick={() => setSelectedWorker(null)}>
-          <div
-            className="modal payment-status-modal"
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby={`payment-modal-title-${selectedWorker.workerId}`}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="modal-header">
-              <h3 id={`payment-modal-title-${selectedWorker.workerId}`} className="modal-title">
+        <Dialog open={!!selectedWorker} onOpenChange={(value) => (!value ? setSelectedWorker(null) : null)}>
+          <DialogContent className="sm:max-w-xl border-border/60">
+            <DialogHeader>
+              <DialogTitle>
                 {isInactivePayoutRow
                   ? `Información de pago · ${selectedWorker.name}`
                   : `Estado de pago de ${selectedWorker.name}`}
-              </h3>
-              <button
-                className="modal-close"
-                aria-label="Cerrar"
-                onClick={() => setSelectedWorker(null)}
-              >
-                ✕
-              </button>
-            </div>
+              </DialogTitle>
+              <DialogDescription>
+                Gestiona el estado y revisa los datos de pago del trabajador.
+              </DialogDescription>
+            </DialogHeader>
 
-            <div className="payment-status-modal-content">
-              <div className="worker-edit-label">
-                <span>Pagando periodo: {paymentMonthLabel}</span>
-                <select
-                  className="form-select"
-                  value={paymentMonth}
-                  onChange={(e) => onPaymentMonthChange?.(e.target.value)}
-                  aria-label="Seleccionar mes de pago"
-                >
-                  {paymentMonthOptions.map((option) => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
-                    </option>
-                  ))}
-                </select>
+            <div className="space-y-4">
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                <span className="text-sm font-medium">Pagando periodo: {paymentMonthLabel}</span>
+                <Select value={paymentMonth} onValueChange={(value) => onPaymentMonthChange?.(value)}>
+                  <SelectTrigger className="sm:w-56">
+                    <SelectValue placeholder="Seleccionar mes" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {paymentMonthOptions.map((option) => (
+                      <SelectItem key={option.value} value={option.value}>
+                        {option.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
 
               {isInactivePayoutRow && (
-                <p className="payment-inactive-banner">
+                <div className="rounded-lg border border-border bg-muted/40 p-3 text-sm">
                   Perfil <strong>Inactivo</strong>: puedes revisar método y datos de pago registrados.
                   El <strong>estado de pago</strong> (pagado/pendiente) no aplica ni se muestra.
-                </p>
-              )}
-              {!isInactivePayoutRow && (
-                <div className="payment-status-summary">
-                  <span
-                    className={`payment-status-badge ${selectedWorkerCurrentStatus === "paid" ? "is-paid" : "is-pending"}`}
-                  >
-                    {selectedWorkerCurrentStatus === "paid" ? "Pagado" : "Pendiente de pago"}
-                  </span>
                 </div>
+              )}
+
+              {!isInactivePayoutRow && (
+                <StatusBadge
+                  status={selectedWorkerCurrentStatus === "paid" ? "paid" : "pending"}
+                  label={selectedWorkerCurrentStatus === "paid" ? "Pagado" : "Pendiente de pago"}
+                />
               )}
 
               {selectedWorker.paymentInfo ? (
-                <div className="payment-info-card payment-info-card--admin">
-                  <p className="payment-info-label">Método</p>
-                  <p className="payment-info-value">{selectedWorker.paymentInfo.methodType}</p>
-                  <p className="payment-info-label">Detalle</p>
-                  <p className="payment-info-value">{selectedWorker.paymentInfo.paymentDetails}</p>
+                <div className="rounded-lg border border-border bg-card p-4 space-y-2">
+                  <div>
+                    <p className="text-xs text-muted-foreground">Método</p>
+                    <p className="text-sm font-semibold">{selectedWorker.paymentInfo.methodType}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground">Detalle</p>
+                    <p className="text-sm font-semibold">{selectedWorker.paymentInfo.paymentDetails}</p>
+                  </div>
                 </div>
               ) : (
-                <div className="payment-empty payment-empty--admin">
-                  <p className="payment-empty-title">Información de pago pendiente</p>
-                  <p className="payment-empty-text">
-                    El trabajador aún no ha registrado su método e información de pago.
-                  </p>
+                <div className="rounded-lg border border-dashed border-border bg-muted/30 p-4 text-sm text-muted-foreground">
+                  El trabajador aún no ha registrado su método e información de pago.
                 </div>
               )}
-            </div>
 
-            <div className="modal-actions">
-              <button
-                type="button"
-                className="btn btn-secondary"
-                onClick={() => setSelectedWorker(null)}
-              >
-                Cerrar
-              </button>
               {!isInactivePayoutRow && (
-                <button
-                  type="button"
-                  className={`btn ${selectedWorkerCurrentStatus === "paid" ? "btn-warning" : "btn-success"}`}
-                  onClick={handleTogglePaymentStatus}
-                  disabled={updatingPaymentStatus}
-                >
-                  {updatingPaymentStatus
-                    ? "Actualizando…"
-                    : selectedWorkerCurrentStatus === "paid"
-                      ? "Marcar como pendiente"
-                      : "Marcar como pagado"}
-                </button>
+                <DialogFooter>
+                  <Button type="button" variant="secondary" onClick={() => setSelectedWorker(null)}>
+                    Cancelar
+                  </Button>
+                  <Button type="button" onClick={handleTogglePaymentStatus} disabled={updatingPaymentStatus}>
+                    {updatingPaymentStatus
+                      ? "Actualizando…"
+                      : selectedWorkerCurrentStatus === "paid"
+                        ? "Marcar como pendiente"
+                        : "Marcar como pagado"}
+                  </Button>
+                </DialogFooter>
               )}
             </div>
-          </div>
-        </div>
+          </DialogContent>
+        </Dialog>
       )}
     </>
   );

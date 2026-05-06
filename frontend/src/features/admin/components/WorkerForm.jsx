@@ -1,5 +1,17 @@
 import { useState, useEffect, useRef } from "react";
 import { createWorker } from "../../../shared/api/workers";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 
 /**
  * @param {{
@@ -61,86 +73,83 @@ export default function WorkerForm({
   }
 
   return (
-    <>
-      <button type="button" className={triggerClassName} onClick={() => setOpen(true)}>
-        {triggerLabel}
-      </button>
+    <Dialog open={open} onOpenChange={(value) => (value ? setOpen(true) : handleClose())}>
+      <DialogTrigger asChild>
+        <button type="button" className={triggerClassName} onClick={() => setOpen(true)}>
+          {triggerLabel}
+        </button>
+      </DialogTrigger>
 
-      {open && (
-        <div className="modal-overlay" onClick={handleClose}>
-          <div
-            className="modal"
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="modal-title"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="modal-header">
-              <h3 id="modal-title" className="modal-title">
-                Nuevo trabajador
-              </h3>
-              <button
-                className="modal-close"
-                aria-label="Cerrar"
-                onClick={handleClose}
-              >
-                ✕
-              </button>
-            </div>
+      <DialogContent className="sm:max-w-lg border-border/60">
+        <DialogHeader>
+          <DialogTitle>Nuevo trabajador</DialogTitle>
+          <DialogDescription>Completa los datos para crear el perfil del trabajador.</DialogDescription>
+        </DialogHeader>
 
-            <form className="worker-form" onSubmit={handleSubmit}>
-              <input
-                type="text"
-                className="form-input"
-                placeholder="Nombre"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                required
-              />
-              <input
-                type="email"
-                className="form-input"
-                placeholder="Email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-              />
-              <input
-                type="number"
-                className="form-input form-input-short"
-                placeholder="% (ej. 70)"
-                min="0.01"
-                max="100"
-                step="0.01"
-                value={percentage}
-                onChange={(e) => setPercentage(e.target.value)}
-                required
-              />
-              <input
-                type="password"
-                className="form-input"
-                placeholder="Contraseña (para acceso al sistema)"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-              />
-              {error && <p className="form-error">{error}</p>}
-              <div className="modal-actions">
-                <button
-                  type="button"
-                  className="btn btn-secondary"
-                  onClick={handleClose}
-                >
-                  Cancelar
-                </button>
-                <button type="submit" className="btn" disabled={submitting}>
-                  {submitting ? "Creando…" : "Guardar trabajador"}
-                </button>
-              </div>
-            </form>
+        <form className="space-y-4" onSubmit={handleSubmit}>
+          <div className="space-y-2">
+            <Label htmlFor="worker-name">Nombre</Label>
+            <Input
+              id="worker-name"
+              type="text"
+              placeholder="Nombre"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              required
+            />
           </div>
-        </div>
-      )}
-    </>
+
+          <div className="space-y-2">
+            <Label htmlFor="worker-email">Email</Label>
+            <Input
+              id="worker-email"
+              type="email"
+              placeholder="correo@dominio.com"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              required
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="worker-percentage">Porcentaje</Label>
+            <Input
+              id="worker-percentage"
+              type="number"
+              placeholder="% (ej. 70)"
+              min="0.01"
+              max="100"
+              step="0.01"
+              value={percentage}
+              onChange={(e) => setPercentage(e.target.value)}
+              required
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="worker-password">Contraseña</Label>
+            <Input
+              id="worker-password"
+              type="password"
+              placeholder="Contraseña para acceso"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+            />
+          </div>
+
+          {error && <p className="text-sm font-medium text-danger">{error}</p>}
+
+          <DialogFooter>
+            <Button type="button" variant="secondary" onClick={handleClose}>
+              Cancelar
+            </Button>
+            <Button type="submit" disabled={submitting}>
+              {submitting ? "Creando…" : "Guardar trabajador"}
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
   );
 }

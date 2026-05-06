@@ -1,3 +1,6 @@
+import { DollarSign, Eye, Percent } from "lucide-react";
+import { MetricCard } from "@/components/MetricCard";
+
 /**
  * @param {{ summary: { totalRevenue: number, totalImpressions: number, ecpm: number } }} props
  */
@@ -6,24 +9,24 @@ export default function SummaryCards({ summary }) {
     {
       label: "Ingresos",
       value: `$${summary.totalRevenue.toFixed(2)}`,
+      icon: DollarSign,
     },
     {
       label: "Impresiones",
       value: summary.totalImpressions.toLocaleString(),
+      icon: Eye,
     },
     {
       label: "eCPM",
       value: `$${summary.ecpm.toFixed(4)}`,
+      icon: Percent,
     },
   ];
 
   return (
-    <div className="summary-cards">
+    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
       {cards.map((card) => (
-        <div key={card.label} className="card">
-          <span className="card-label">{card.label}</span>
-          <span className="card-value">{card.value}</span>
-        </div>
+        <MetricCard key={card.label} title={card.label} value={card.value} icon={card.icon} />
       ))}
     </div>
   );

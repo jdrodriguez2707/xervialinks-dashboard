@@ -1,4 +1,15 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { Button } from "@/components/ui/button";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import EmptyState from "@/components/EmptyState";
+import StatusBadge from "@/components/StatusBadge";
 
 export default function PaymentHistoryTable({ rows = [] }) {
   const [isPickerOpen, setPickerOpen] = useState(false);
@@ -12,10 +23,9 @@ export default function PaymentHistoryTable({ rows = [] }) {
   const orderedRows = useMemo(
     () =>
       [...rows].sort(
-        (a, b) =>
-          new Date(b.paidAt || 0).getTime() - new Date(a.paidAt || 0).getTime()
+        (a, b) => new Date(b.paidAt || 0).getTime() - new Date(a.paidAt || 0).getTime(),
       ),
-    [rows]
+    [rows],
   );
 
   const filteredRows = useMemo(() => {
@@ -91,134 +101,142 @@ export default function PaymentHistoryTable({ rows = [] }) {
   return (
     <>
       {orderedRows.length === 0 ? (
-        <p className="empty-state">
-          Aún no hay pagos registrados. Cuando marques trabajadores como pagados aparecerán aquí.
-        </p>
+        <EmptyState
+          title="Sin historial de pagos"
+          description="Aún no hay pagos registrados. Cuando marques trabajadores como pagados aparecerán aquí."
+        />
       ) : (
         <>
-      <div className="payment-history-filter">
-        <button
-          type="button"
-          className="form-select admin-range-select payment-history-filter-trigger"
-          onClick={openPicker}
-        >
-          {hasRangeFilter
-            ? `${formatCompactDate(appliedStartDate)} - ${formatCompactDate(appliedEndDate)}`
-            : "Seleccionar rango de fechas"}
-        </button>
-        {hasRangeFilter && (
-          <button type="button" className="btn btn-secondary" onClick={clearRange}>
-            Limpiar filtros
-          </button>
-        )}
-      </div>
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <Button type="button" variant="outline" onClick={openPicker}>
+              {hasRangeFilter
+                ? `${formatCompactDate(appliedStartDate)} - ${formatCompactDate(appliedEndDate)}`
+                : "Seleccionar rango de fechas"}
+            </Button>
+            {hasRangeFilter && (
+              <Button type="button" variant="secondary" onClick={clearRange}>
+                Limpiar filtros
+              </Button>
+            )}
+          </div>
 
-      {isPickerOpen && (
-        <div className="payment-history-calendar-popover" ref={popoverRef}>
-          <div className="payment-history-calendar-head">
-            <button
-              type="button"
-              className="btn-icon"
-              aria-label="Mes anterior"
-              onClick={() => setViewMonth(addMonths(viewMonth, -1))}
+          {isPickerOpen && (
+            <div
+              className="mt-4 w-full max-w-md rounded-lg border border-border bg-card p-4 shadow-lg"
+              ref={popoverRef}
             >
-              ‹
-            </button>
-            <strong>{formatMonthYear(viewMonth)}</strong>
-            <button
-              type="button"
-              className="btn-icon"
-              aria-label="Mes siguiente"
-              onClick={() => setViewMonth(addMonths(viewMonth, 1))}
-            >
-              ›
-            </button>
-          </div>
-          <div className="payment-history-calendar-weekdays">
-            {["D", "L", "M", "M", "J", "V", "S"].map((d, idx) => (
-              <span key={`${d}-${idx}`}>{d}</span>
-            ))}
-          </div>
-          <div className="payment-history-calendar-grid">
-            {calendarDays.map((day, idx) => {
-              if (!day) return <span key={`blank-${idx}`} className="payment-history-day-empty" />;
-              const iso = toISODate(day);
-              const inRange =
-                normalizedDraftRange.start &&
-                normalizedDraftRange.end &&
-                iso >= normalizedDraftRange.start &&
-                iso <= normalizedDraftRange.end;
-              const isStart = normalizedDraftRange.start === iso;
-              const isEnd = normalizedDraftRange.end === iso;
-              const className = [
-                "payment-history-day",
-                inRange ? "is-in-range" : "",
-                isStart ? "is-range-start" : "",
-                isEnd ? "is-range-end" : "",
-              ]
-                .filter(Boolean)
-                .join(" ");
-              return (
-                <button key={iso} type="button" className={className} onClick={() => handleDatePick(iso)}>
-                  {day.getDate()}
-                </button>
-              );
-            })}
-          </div>
-          <div className="payment-history-calendar-actions">
-            <button type="button" className="btn btn-secondary" onClick={closePickerDiscardDraft}>
-              Cancelar
-            </button>
-            <button type="button" className="btn" onClick={applyRange}>
-              Aplicar
-            </button>
-          </div>
-        </div>
-      )}
+              <div className="flex items-center justify-between mb-3">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  aria-label="Mes anterior"
+                  onClick={() => setViewMonth(addMonths(viewMonth, -1))}
+                >
+                  ‹
+                </Button>
+                <strong className="text-sm">{formatMonthYear(viewMonth)}</strong>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  aria-label="Mes siguiente"
+                  onClick={() => setViewMonth(addMonths(viewMonth, 1))}
+                >
+                  ›
+                </Button>
+              </div>
+              <div className="grid grid-cols-7 text-xs text-muted-foreground mb-2">
+                {["D", "L", "M", "M", "J", "V", "S"].map((d, idx) => (
+                  <span key={`${d}-${idx}`} className="text-center">
+                    {d}
+                  </span>
+                ))}
+              </div>
+              <div className="grid grid-cols-7 gap-1">
+                {calendarDays.map((day, idx) => {
+                  if (!day) return <span key={`blank-${idx}`} />;
+                  const iso = toISODate(day);
+                  const inRange =
+                    normalizedDraftRange.start &&
+                    normalizedDraftRange.end &&
+                    iso >= normalizedDraftRange.start &&
+                    iso <= normalizedDraftRange.end;
+                  const isStart = normalizedDraftRange.start === iso;
+                  const isEnd = normalizedDraftRange.end === iso;
+                  return (
+                    <button
+                      key={iso}
+                      type="button"
+                      onClick={() => handleDatePick(iso)}
+                      className={[
+                        "h-8 w-8 rounded-md text-xs transition-colors",
+                        inRange ? "bg-primary/15 text-primary" : "hover:bg-accent",
+                        isStart || isEnd ? "bg-primary text-primary-foreground" : "",
+                      ]
+                        .filter(Boolean)
+                        .join(" ")}
+                    >
+                      {day.getDate()}
+                    </button>
+                  );
+                })}
+              </div>
+              <div className="mt-4 flex justify-end gap-2">
+                <Button type="button" variant="secondary" onClick={closePickerDiscardDraft}>
+                  Cancelar
+                </Button>
+                <Button type="button" onClick={applyRange}>
+                  Aplicar
+                </Button>
+              </div>
+            </div>
+          )}
 
-      {filteredRows.length === 0 ? (
-        <p className="empty-state">
-          {hasRangeFilter
-            ? "No existen pagos realizados en el rango de fechas seleccionado. Ajusta el filtro para consultar otros periodos."
-            : "No hay pagos para mostrar en este momento."}
-        </p>
-      ) : (
-        <div className="table-wrapper">
-          <table className="reports-table">
-            <thead>
-              <tr>
-                <th>Fecha de pago</th>
-                <th>Estado</th>
-                <th>Trabajador</th>
-                <th>Método de pago</th>
-                <th>Cantidad</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filteredRows.map((row, idx) => (
-                <tr key={`${row.workerName}-${row.paymentMonth}-${row.paidAt}-${idx}`}>
-                  <td>{formatPaidAt(row.paidAt)}</td>
-                  <td>
-                    <span className="payment-status-badge is-paid">{row.statusLabel || "Pago realizado"}</span>
-                  </td>
-                  <td>{row.workerName}</td>
-                  <td>{row.methodType || "-"}</td>
-                  <td>
-                    <span className="payout-amount">
-                      {new Intl.NumberFormat("es-ES", {
-                        style: "currency",
-                        currency: "USD",
-                        minimumFractionDigits: 2,
-                        maximumFractionDigits: 2,
-                      }).format(row.amount || 0)}
-                    </span>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
+          {filteredRows.length === 0 ? (
+            <EmptyState
+              title="Sin pagos en este rango"
+              description={
+                hasRangeFilter
+                  ? "No existen pagos realizados en el rango de fechas seleccionado. Ajusta el filtro para consultar otros periodos."
+                  : "No hay pagos para mostrar en este momento."
+              }
+            />
+          ) : (
+            <div className="w-full overflow-x-auto rounded-lg border border-border bg-card">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Fecha de pago</TableHead>
+                    <TableHead>Estado</TableHead>
+                    <TableHead>Trabajador</TableHead>
+                    <TableHead>Método de pago</TableHead>
+                    <TableHead>Cantidad</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {filteredRows.map((row, idx) => (
+                    <TableRow key={`${row.workerName}-${row.paymentMonth}-${row.paidAt}-${idx}`}>
+                      <TableCell>{formatPaidAt(row.paidAt)}</TableCell>
+                      <TableCell>
+                        <StatusBadge status="paid" label={row.statusLabel || "Pago realizado"} />
+                      </TableCell>
+                      <TableCell>{row.workerName}</TableCell>
+                      <TableCell>{row.methodType || "-"}</TableCell>
+                      <TableCell className="tabular-nums font-semibold">
+                        {new Intl.NumberFormat("es-ES", {
+                          style: "currency",
+                          currency: "USD",
+                          minimumFractionDigits: 2,
+                          maximumFractionDigits: 2,
+                        }).format(row.amount || 0)}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          )}
         </>
       )}
     </>
@@ -227,9 +245,7 @@ export default function PaymentHistoryTable({ rows = [] }) {
 
 function formatPaidAt(raw) {
   if (!raw) return "-";
-  const normalized = String(raw).includes("T")
-    ? String(raw)
-    : String(raw).replace(" ", "T") + "Z";
+  const normalized = String(raw).includes("T") ? String(raw) : String(raw).replace(" ", "T") + "Z";
   const date = new Date(normalized);
   if (Number.isNaN(date.getTime())) return String(raw);
   return new Intl.DateTimeFormat("es-ES", {
@@ -243,9 +259,7 @@ function formatPaidAt(raw) {
 
 function parsePaidAtMs(raw) {
   if (!raw) return NaN;
-  const normalized = String(raw).includes("T")
-    ? String(raw)
-    : String(raw).replace(" ", "T") + "Z";
+  const normalized = String(raw).includes("T") ? String(raw) : String(raw).replace(" ", "T") + "Z";
   return Date.parse(normalized);
 }
 

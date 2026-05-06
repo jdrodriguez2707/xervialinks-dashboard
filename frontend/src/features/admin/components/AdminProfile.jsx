@@ -4,6 +4,11 @@ import {
   updateAdminProfile,
   changeAdminPassword,
 } from "../../../shared/api/auth";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import SectionHeader from "@/components/SectionHeader";
 
 function formatLastLogin(value) {
   const raw = String(value || "").trim();
@@ -116,117 +121,140 @@ export default function AdminProfile({ onUserUpdated, onForceLogout }) {
   }
 
   return (
-    <section className="admin-profile">
-      <h2>Perfil</h2>
+    <section className="space-y-6">
+      <SectionHeader
+        title="Perfil"
+        description="Actualiza tu informacion personal y credenciales de acceso."
+      />
 
-      <div className="admin-profile-grid">
-        <form className="admin-profile-card" onSubmit={handleProfileSubmit}>
-          <h3>Tu cuenta</h3>
-          <label className="worker-edit-label">
-            Nombre
-            <input
-              className="form-input"
-              type="text"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              required
-            />
-          </label>
-          <label className="worker-edit-label">
-            Correo
-            <input
-              className="form-input"
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-            />
-          </label>
-          {profileErr && <p className="form-error">{profileErr}</p>}
-          {profileMsg && <p className="form-success">{profileMsg}</p>}
-          <div className="modal-actions">
-            <button type="submit" className="btn" disabled={profileSaving}>
-              {profileSaving ? "Guardando…" : "Guardar cambios"}
-            </button>
-          </div>
-        </form>
+      <div className="grid gap-6 lg:grid-cols-2">
+        <Card>
+          <CardHeader>
+            <CardTitle>Tu cuenta</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <form className="space-y-4" onSubmit={handleProfileSubmit}>
+              <div className="space-y-2">
+                <Label htmlFor="admin-name">Nombre</Label>
+                <Input
+                  id="admin-name"
+                  type="text"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  required
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="admin-email">Correo</Label>
+                <Input
+                  id="admin-email"
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  required
+                />
+              </div>
+              {profileErr && <p className="text-sm font-medium text-danger">{profileErr}</p>}
+              {profileMsg && <p className="text-sm font-medium text-success">{profileMsg}</p>}
+              <div className="flex justify-end">
+                <Button type="submit" disabled={profileSaving}>
+                  {profileSaving ? "Guardando…" : "Guardar cambios"}
+                </Button>
+              </div>
+            </form>
+          </CardContent>
+        </Card>
 
-        <form className="admin-profile-card" onSubmit={handlePasswordSubmit}>
-          <h3>Contraseña</h3>
-          <label className="worker-edit-label">
-            Contraseña actual
-            <div className="worker-edit-password-row">
-              <input
-                className="form-input"
-                type={showCurrentPassword ? "text" : "password"}
-                value={currentPassword}
-                onChange={(e) => setCurrentPassword(e.target.value)}
-                required
-              />
-              <button
-                type="button"
-                className="btn btn-secondary btn-sm"
-                onClick={() => setShowCurrentPassword((prev) => !prev)}
-                aria-label={showCurrentPassword ? "Ocultar contraseña actual" : "Mostrar contraseña actual"}
-              >
-                {showCurrentPassword ? "Ocultar" : "Mostrar"}
-              </button>
-            </div>
-          </label>
-          <label className="worker-edit-label">
-            Nueva contraseña
-            <div className="worker-edit-password-row">
-              <input
-                className="form-input"
-                type={showNewPassword ? "text" : "password"}
-                value={newPassword}
-                onChange={(e) => setNewPassword(e.target.value)}
-                required
-              />
-              <button
-                type="button"
-                className="btn btn-secondary btn-sm"
-                onClick={() => setShowNewPassword((prev) => !prev)}
-                aria-label={showNewPassword ? "Ocultar nueva contraseña" : "Mostrar nueva contraseña"}
-              >
-                {showNewPassword ? "Ocultar" : "Mostrar"}
-              </button>
-            </div>
-          </label>
-          <label className="worker-edit-label">
-            Confirmar nueva contraseña
-            <div className="worker-edit-password-row">
-              <input
-                className="form-input"
-                type={showConfirmPassword ? "text" : "password"}
-                value={confirmPassword}
-                onChange={(e) => setConfirmPassword(e.target.value)}
-                required
-              />
-              <button
-                type="button"
-                className="btn btn-secondary btn-sm"
-                onClick={() => setShowConfirmPassword((prev) => !prev)}
-                aria-label={showConfirmPassword ? "Ocultar confirmación de contraseña" : "Mostrar confirmación de contraseña"}
-              >
-                {showConfirmPassword ? "Ocultar" : "Mostrar"}
-              </button>
-            </div>
-          </label>
-          {passwordErr && <p className="form-error">{passwordErr}</p>}
-          {passwordMsg && <p className="form-success">{passwordMsg}</p>}
-          <div className="modal-actions">
-            <button type="submit" className="btn" disabled={passwordSaving}>
-              {passwordSaving ? "Actualizando…" : "Cambiar contraseña"}
-            </button>
-          </div>
-        </form>
+        <Card>
+          <CardHeader>
+            <CardTitle>Contraseña</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <form className="space-y-4" onSubmit={handlePasswordSubmit}>
+              <div className="space-y-2">
+                <Label htmlFor="admin-current-password">Contraseña actual</Label>
+                <div className="flex items-center gap-2">
+                  <Input
+                    id="admin-current-password"
+                    type={showCurrentPassword ? "text" : "password"}
+                    value={currentPassword}
+                    onChange={(e) => setCurrentPassword(e.target.value)}
+                    required
+                  />
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    size="sm"
+                    onClick={() => setShowCurrentPassword((prev) => !prev)}
+                    aria-label={showCurrentPassword ? "Ocultar contraseña actual" : "Mostrar contraseña actual"}
+                  >
+                    {showCurrentPassword ? "Ocultar" : "Mostrar"}
+                  </Button>
+                </div>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="admin-new-password">Nueva contraseña</Label>
+                <div className="flex items-center gap-2">
+                  <Input
+                    id="admin-new-password"
+                    type={showNewPassword ? "text" : "password"}
+                    value={newPassword}
+                    onChange={(e) => setNewPassword(e.target.value)}
+                    required
+                  />
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    size="sm"
+                    onClick={() => setShowNewPassword((prev) => !prev)}
+                    aria-label={showNewPassword ? "Ocultar nueva contraseña" : "Mostrar nueva contraseña"}
+                  >
+                    {showNewPassword ? "Ocultar" : "Mostrar"}
+                  </Button>
+                </div>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="admin-confirm-password">Confirmar nueva contraseña</Label>
+                <div className="flex items-center gap-2">
+                  <Input
+                    id="admin-confirm-password"
+                    type={showConfirmPassword ? "text" : "password"}
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    required
+                  />
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    size="sm"
+                    onClick={() => setShowConfirmPassword((prev) => !prev)}
+                    aria-label={showConfirmPassword ? "Ocultar confirmacion de contraseña" : "Mostrar confirmacion de contraseña"}
+                  >
+                    {showConfirmPassword ? "Ocultar" : "Mostrar"}
+                  </Button>
+                </div>
+              </div>
+              {passwordErr && <p className="text-sm font-medium text-danger">{passwordErr}</p>}
+              {passwordMsg && <p className="text-sm font-medium text-success">{passwordMsg}</p>}
+              <div className="flex justify-end">
+                <Button type="submit" disabled={passwordSaving}>
+                  {passwordSaving ? "Actualizando…" : "Cambiar contraseña"}
+                </Button>
+              </div>
+            </form>
+          </CardContent>
+        </Card>
       </div>
 
-      <div className="admin-profile-card admin-profile-readonly">
-        <h3>Última sesión</h3>
-        <p className="admin-profile-readonly-value">Último login: {formatLastLogin(lastLoginAt)}</p>
-      </div>
+      <Card>
+        <CardHeader>
+          <CardTitle>Ultima sesion</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <p className="text-sm text-muted-foreground">Ultimo login</p>
+          <p className="text-lg font-semibold tabular-nums">{formatLastLogin(lastLoginAt)}</p>
+        </CardContent>
+      </Card>
     </section>
   );
 }

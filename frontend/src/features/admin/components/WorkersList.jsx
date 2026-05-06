@@ -3,6 +3,19 @@ import { CircleDollarSign, SquarePen, Trash2, UserX } from "lucide-react";
 import { addProperty, deleteWorker, purgeInactiveWorker } from "../../../shared/api/workers";
 import WorkerForm from "./WorkerForm";
 import WorkerEditModal from "./WorkerEditModal";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import SectionHeader from "@/components/SectionHeader";
+import EmptyState from "@/components/EmptyState";
+import StatusBadge from "@/components/StatusBadge";
 
 /**
  * @param {{
@@ -42,10 +55,10 @@ export default function WorkersList({
         workers
           .filter((w) => !w.deleted_at)
           .flatMap((w) =>
-            (w.properties || []).filter((p) => p.type === "domain").map((p) => p.value)
-          )
+            (w.properties || []).filter((p) => p.type === "domain").map((p) => p.value),
+          ),
       ),
-    [workers]
+    [workers],
   );
 
   const orderedForManagement = useMemo(() => {
@@ -62,9 +75,10 @@ export default function WorkersList({
 
   if (renderedWorkers.length === 0 && mode !== "management") {
     return (
-      <p className="empty-state">
-        Aún no hay trabajadores. Agrégalos desde el módulo Trabajadores.
-      </p>
+      <EmptyState
+        title="Sin trabajadores"
+        description="Aún no hay trabajadores. Agrégalos desde el módulo Trabajadores."
+      />
     );
   }
 
@@ -72,26 +86,27 @@ export default function WorkersList({
 
   if (isMgmt) {
     return (
-      <div className="workers-module">
-        <div className="workers-module-toolbar">
-          <p className="workers-module-copy">
-            Activa o desactiva perfiles, asigna subdominios y libera cuentas de forma permanente cuando
-            corresponda.
-          </p>
-          <WorkerForm
-            onCreated={onUpdate}
-            triggerLabel="Agregar trabajador"
-            triggerClassName="btn workers-module-add-btn"
-            openRequestId={workerFormOpenRequestId}
-          />
-        </div>
+      <div className="space-y-6">
+        <SectionHeader
+          title="Trabajadores"
+          description="Activa o desactiva perfiles, asigna subdominios y libera cuentas cuando corresponda."
+          action={
+            <WorkerForm
+              onCreated={onUpdate}
+              triggerLabel="Agregar trabajador"
+              triggerClassName="btn workers-module-add-btn"
+              openRequestId={workerFormOpenRequestId}
+            />
+          }
+        />
 
         {renderedWorkers.length === 0 ? (
-          <p className="empty-state">
-            Aún no hay trabajadores. Usa el botón anterior para crear uno.
-          </p>
+          <EmptyState
+            title="Aún no hay trabajadores"
+            description="Usa el botón para crear el primero y asignar subdominios."
+          />
         ) : (
-          <div className="workers-mgmt-list">
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {renderedWorkers.map((worker) => (
               <WorkerManagementPanel
                 key={worker.id}
@@ -110,7 +125,7 @@ export default function WorkersList({
   }
 
   return (
-    <div className="workers-list">
+    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
       {renderedWorkers.map((worker) => (
         <WorkerDashboardCard
           key={worker.id}
@@ -129,15 +144,13 @@ function WorkerDashboardCard({ worker, onGoToEarnings, onNavigateToWorkerEdit })
   const paymentStatus = worker.paymentStatus || "pending";
   const isPaid = paymentStatus === "paid";
 
-  const statusClassName = `payment-status-badge ${isPaid ? "is-paid" : "is-pending"}`;
-
   function handleCardActivate() {
     onNavigateToWorkerEdit?.(worker.id);
   }
 
   return (
-    <article
-      className="worker-card worker-card--dashboard-clickable"
+    <Card
+      className="cursor-pointer transition-all hover:border-primary/40"
       role="button"
       tabIndex={0}
       aria-label={`Editar trabajador ${worker.name}`}
@@ -149,47 +162,48 @@ function WorkerDashboardCard({ worker, onGoToEarnings, onNavigateToWorkerEdit })
         }
       }}
     >
-      <div className="worker-card-corner">
-        <span className="percentage-badge">{worker.percentage}%</span>
-        <button
-          type="button"
-          className="btn-icon btn-earnings"
-          aria-label={`Ver ganancias de ${worker.name}`}
-          title="Ir al módulo de Ganancias"
-          onClick={(e) => {
-            e.stopPropagation();
-            onGoToEarnings?.(worker.id);
-          }}
-        >
-          <CircleDollarSign size={16} />
-        </button>
-      </div>
-
-      <div className="worker-card-header">
-        <div className="worker-card-info">
-          <p className="worker-name">{worker.name}</p>
-          <p className="worker-email">{worker.email}</p>
+      <CardHeader className="pb-2">
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <p className="text-sm font-semibold">{worker.name}</p>
+            <p className="text-xs text-muted-foreground">{worker.email}</p>
+          </div>
+          <div className="flex items-center gap-2">
+            <Badge className="bg-primary/15 text-primary tabular-nums">{worker.percentage}%</Badge>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              aria-label={`Ver ganancias de ${worker.name}`}
+              title="Ir al módulo de Ganancias"
+              onClick={(e) => {
+                e.stopPropagation();
+                onGoToEarnings?.(worker.id);
+              }}
+            >
+              <CircleDollarSign className="h-4 w-4" />
+            </Button>
+          </div>
         </div>
-      </div>
-
-      <div className="worker-properties">
+      </CardHeader>
+      <CardContent className="space-y-3">
         {domains.length > 0 ? (
-          <div className="domain-tags">
+          <div className="flex flex-wrap gap-2">
             {domains.map((p) => (
-              <span key={p.id} className="tag tag-domain">
+              <Badge key={p.id} variant="outline">
                 {p.value}
-              </span>
+              </Badge>
             ))}
           </div>
         ) : (
-          <p className="no-domains">Sin subdominios asignados.</p>
+          <p className="text-xs text-muted-foreground">Sin subdominios asignados.</p>
         )}
-      </div>
-
-      <div className="worker-payment-status-row">
-        <span className={statusClassName}>{isPaid ? "Pagado" : "Pendiente de pago"}</span>
-      </div>
-    </article>
+        <StatusBadge
+          status={isPaid ? "paid" : "pending"}
+          label={isPaid ? "Pagado" : "Pendiente de pago"}
+        />
+      </CardContent>
+    </Card>
   );
 }
 
@@ -268,7 +282,7 @@ function WorkerManagementPanel({
   async function handlePurge() {
     if (
       !confirm(
-        `¿Eliminar definitivamente el perfil inactivo de ${worker.name}? Se borrará el historial asociado a este usuario y no se puede deshacer.`
+        `¿Eliminar definitivamente el perfil inactivo de ${worker.name}? Se borrará el historial asociado a este usuario y no se puede deshacer.`,
       )
     )
       return;
@@ -284,124 +298,124 @@ function WorkerManagementPanel({
   }
 
   return (
-    <article className={`worker-mgmt-panel ${isInactive ? "is-inactive" : ""}`}>
-      <div className="worker-mgmt-accent" aria-hidden />
-      <div className="worker-mgmt-main">
-        <div className="worker-mgmt-head">
-          <div className="worker-mgmt-avatar" aria-hidden="true">
-            {initial}
-          </div>
-          <div className="worker-mgmt-identity">
-            <div className="worker-mgmt-name-row">
-              <p className="worker-mgmt-name">{worker.name}</p>
-              {isInactive && (
-                <span className="worker-activity-badge is-inactive">Inactivo</span>
-              )}
+    <Card className={isInactive ? "opacity-80" : ""}>
+      <CardHeader className="pb-2">
+        <div className="flex items-start justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <div className="h-10 w-10 rounded-full bg-primary/10 text-primary font-semibold flex items-center justify-center">
+              {initial}
             </div>
-            <p className="worker-mgmt-email">{worker.email}</p>
+            <div>
+              <div className="flex items-center gap-2">
+                <p className="text-sm font-semibold">{worker.name}</p>
+                {isInactive && <StatusBadge status="inactive" label="Inactivo" />}
+              </div>
+              <p className="text-xs text-muted-foreground">{worker.email}</p>
+            </div>
           </div>
-          <div className="worker-mgmt-actions">
-            <span className="worker-mgmt-pct">{worker.percentage}%</span>
+          <div className="flex items-center gap-2">
+            <Badge className="bg-primary/15 text-primary tabular-nums">{worker.percentage}%</Badge>
             {!isInactive && (
               <>
-                <button
+                <Button
                   type="button"
-                  className="btn-icon btn-mgmt-soft-delete"
+                  variant="ghost"
+                  size="icon"
                   aria-label={`Desactivar a ${worker.name}`}
                   title="Desactivar trabajador"
                   disabled={deleting}
                   onClick={handleDelete}
                 >
-                  {deleting ? "…" : <UserX size={18} strokeWidth={2} />}
-                </button>
-                <button
+                  {deleting ? "…" : <UserX className="h-4 w-4" />}
+                </Button>
+                <Button
                   type="button"
-                  className="btn-icon btn-mgmt-edit"
+                  variant="ghost"
+                  size="icon"
                   aria-label={`Editar datos de ${worker.name}`}
                   title="Editar trabajador"
                   onClick={() => setEditOpen(true)}
                 >
-                  <SquarePen size={18} strokeWidth={2} />
-                </button>
+                  <SquarePen className="h-4 w-4" />
+                </Button>
               </>
             )}
             {isInactive && (
-              <button
+              <Button
                 type="button"
-                className="btn-icon btn-mgmt-purge"
+                variant="destructive"
+                size="icon"
                 aria-label={`Eliminar definitivamente a ${worker.name}`}
                 title="Eliminar definitivamente (solo inactivos)"
                 disabled={purging}
                 onClick={handlePurge}
               >
-                {purging ? "…" : <Trash2 size={18} strokeWidth={2} />}
-              </button>
+                {purging ? "…" : <Trash2 className="h-4 w-4" />}
+              </Button>
             )}
           </div>
         </div>
+      </CardHeader>
 
-        <div className="worker-mgmt-domains-block">
-          <span className="worker-mgmt-field-label">Subdominios</span>
+      <CardContent className="space-y-4">
+        <div>
+          <p className="text-xs font-semibold text-muted-foreground mb-2">Subdominios</p>
           {domains.length > 0 ? (
-            <div className="worker-mgmt-chip-row">
+            <div className="flex flex-wrap gap-2">
               {domains.map((p) => (
-                <span key={p.id} className="worker-mgmt-chip">
+                <Badge key={p.id} variant="outline">
                   {p.value}
-                </span>
+                </Badge>
               ))}
             </div>
           ) : (
-            <p className="worker-mgmt-empty-tags">Sin subdominios asignados.</p>
+            <p className="text-xs text-muted-foreground">Sin subdominios asignados.</p>
           )}
         </div>
 
         {!isInactive && (
-          <form className="worker-mgmt-assign" onSubmit={handleAddDomain}>
-            <select
-              className="form-select worker-mgmt-select worker-mgmt-select--domains"
-              value={selectedSite}
-              onChange={(e) => setSelectedSite(e.target.value)}
-              required
-              aria-label="Elegir subdominio disponible"
-            >
-              <option value="" disabled>
-                Elegir subdominio disponible…
-              </option>
-              {sites.map((s) => {
-                const assignedGlobally = globallyAssignedDomains.has(s);
-                const ownedHere = domains.some((p) => p.value === s);
-                const disabled = assignedGlobally;
-                const hint = assignedGlobally
-                  ? ownedHere
-                    ? " · ya asignado aquí"
-                    : " · no disponible"
-                  : "";
-                return (
-                  <option key={s} value={s} disabled={disabled} className="worker-mgmt-site-option">
-                    {`${s}${hint}`}
-                  </option>
-                );
-              })}
-            </select>
-            <button
+          <form className="flex flex-col gap-2" onSubmit={handleAddDomain}>
+            <Select value={selectedSite} onValueChange={setSelectedSite}>
+              <SelectTrigger>
+                <SelectValue placeholder="Elegir subdominio disponible…" />
+              </SelectTrigger>
+              <SelectContent>
+                {sites.map((s) => {
+                  const assignedGlobally = globallyAssignedDomains.has(s);
+                  const ownedHere = domains.some((p) => p.value === s);
+                  const disabled = assignedGlobally && !ownedHere;
+                  const hint = assignedGlobally
+                    ? ownedHere
+                      ? " (asignado aquí)"
+                      : " (no disponible)"
+                    : "";
+                  return (
+                    <SelectItem key={s} value={s} disabled={disabled}>
+                      {`${s}${hint}`}
+                    </SelectItem>
+                  );
+                })}
+              </SelectContent>
+            </Select>
+            <Button
               type="submit"
-              className="btn btn-sm worker-mgmt-assign-btn"
+              size="sm"
               disabled={submitting || !hasAssignableSubdomain || !selectedSite}
             >
               {submitting ? "Asignando…" : "Asignar subdominio"}
-            </button>
+            </Button>
           </form>
         )}
 
         {isInactive && (
-          <p className="worker-mgmt-inactive-hint">
-            Este perfil está desactivado. Los subdominios quedaron libres. Puedes eliminar el registro
-            definitivamente con el icono de papelera.
+          <p className="text-xs text-muted-foreground">
+            Este perfil está desactivado. Los subdominios quedaron libres. Puedes eliminar el
+            registro definitivamente con el icono de papelera.
           </p>
         )}
 
-        {error && <p className="form-error worker-mgmt-error">{error}</p>}
-      </div>
+        {error && <p className="text-sm font-medium text-danger">{error}</p>}
+      </CardContent>
 
       {editOpen && !isInactive && (
         <WorkerEditModal
@@ -412,6 +426,6 @@ function WorkerManagementPanel({
           onSaved={onUpdate}
         />
       )}
-    </article>
+    </Card>
   );
 }

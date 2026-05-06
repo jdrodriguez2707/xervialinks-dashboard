@@ -18,7 +18,17 @@ import PaymentHistoryTable from "../features/admin/components/PaymentHistoryTabl
 import WorkersList from "../features/admin/components/WorkersList";
 import WorkerDashboard from "../features/worker/components/WorkerDashboard";
 import AdminProfile from "../features/admin/components/AdminProfile";
-import { LayoutDashboard, Wallet, Banknote, Users, Network, UserCircle2, LogOut, Menu, X } from "lucide-react";
+import {
+  LayoutDashboard,
+  Wallet,
+  Banknote,
+  Users,
+  Network,
+  UserCircle2,
+  LogOut,
+  Menu,
+  X,
+} from "lucide-react";
 
 const ADMIN_RANGE_LABELS = {
   today: "Hoy",
@@ -49,9 +59,7 @@ function readStoredAdminActiveModule() {
 }
 
 function getWorkerDomains(context) {
-  return (context?.properties || [])
-    .filter((p) => p.type === "domain")
-    .map((p) => p.value);
+  return (context?.properties || []).filter((p) => p.type === "domain").map((p) => p.value);
 }
 
 function getWorkerDomainStorageKey(workerId) {
@@ -129,7 +137,7 @@ export default function App() {
   const [adminPaymentMonth, setAdminPaymentMonth] = useState(() => getDefaultPaymentMonth());
   const [workerPaymentMonth, setWorkerPaymentMonth] = useState(() => getDefaultPaymentMonth());
   const [workerHistoryPaymentMonth, setWorkerHistoryPaymentMonth] = useState(() =>
-    getDefaultPaymentMonth()
+    getDefaultPaymentMonth(),
   );
   const [adminReady, setAdminReady] = useState(false);
   const [error, setError] = useState(null);
@@ -228,13 +236,12 @@ export default function App() {
           } catch {
             setWorkerMetricsError("No se pudieron cargar métricas del subdominio seleccionado");
           }
-        }
-        else setWorkerMetricsError(err.message || "Error al cargar métricas");
+        } else setWorkerMetricsError(err.message || "Error al cargar métricas");
       } finally {
         setWorkerMetricsLoading(false);
       }
     },
-    [user]
+    [user],
   );
 
   const loadInitial = useCallback(async () => {
@@ -285,13 +292,17 @@ export default function App() {
         let initialDomain = domains[0] || null;
         if (typeof window !== "undefined") {
           const savedDomain = window.localStorage.getItem(
-            getWorkerDomainStorageKey(context?.workerId)
+            getWorkerDomainStorageKey(context?.workerId),
           );
           if (savedDomain && domains.includes(savedDomain)) {
             initialDomain = savedDomain;
           }
         }
-        setData({ workerContext: context, workerMetrics: null, workerPaymentHistory: paymentHistory });
+        setData({
+          workerContext: context,
+          workerMetrics: null,
+          workerPaymentHistory: paymentHistory,
+        });
         setSyncStatus(sync);
         setWorkerSelectedDomain(initialDomain);
         setWorkerMetricsError(null);
@@ -303,8 +314,7 @@ export default function App() {
       if (isAuthSessionError(err.message)) handleLogout(err.message);
       else if (err.message.includes("cuenta de trabajador fue eliminada")) {
         handleLogout(err.message);
-      }
-      else setError(err.message);
+      } else setError(err.message);
     } finally {
       setLoading(false);
     }
@@ -371,7 +381,6 @@ export default function App() {
     }
     document.body.style.overflow = "";
   }, [adminMenuOpen, user?.role]);
-
 
   useEffect(() => {
     if (!highlightedEarningsWorkerId) return;
@@ -519,7 +528,8 @@ export default function App() {
       setError(null);
     } catch (err) {
       if (isAuthSessionError(err.message)) handleLogout(err.message);
-      else if (err.message.includes("cuenta de trabajador fue eliminada")) handleLogout(err.message);
+      else if (err.message.includes("cuenta de trabajador fue eliminada"))
+        handleLogout(err.message);
       // No elevamos este error al estado global para no romper la UI del worker
       // por fallos transitorios del refresco liviano de contexto.
     }
@@ -592,9 +602,7 @@ export default function App() {
 
   function handleLogout(noticeMessage = null) {
     const notice =
-      typeof noticeMessage === "string" && noticeMessage.trim()
-        ? noticeMessage.trim()
-        : null;
+      typeof noticeMessage === "string" && noticeMessage.trim() ? noticeMessage.trim() : null;
     logout();
     if (notice) setSessionNotice(notice);
     setUser(null);
@@ -715,13 +723,15 @@ export default function App() {
             <div className="header-title-group">
               <h1>{activeAdminModule.label}</h1>
               <p className="app-current-date">{currentDateLabel}</p>
+            </div>
+            <div className="header-right">
               <p className="app-sync-status">
                 {formatSyncStatusLabel(syncStatus?.lastSyncedAt, "admin")}
               </p>
+              {(loading || refreshingAdmin) && (
+                <div className="header-progress" aria-hidden="true" />
+              )}
             </div>
-            {(loading || refreshingAdmin) && (
-              <div className="header-progress" aria-hidden="true" />
-            )}
           </header>
 
           <main className="app-main">
@@ -782,22 +792,20 @@ export default function App() {
         <div className="header-title-group">
           <h1>XerviaLinks Metrics</h1>
           <p className="app-current-date">{currentDateLabel}</p>
+        </div>
+        <div className="header-right">
           <p className="app-sync-status">
             {formatSyncStatusLabel(syncStatus?.lastSyncedAt, "worker")}
           </p>
-        </div>
-        <div className="header-user">
-          <div className="header-user-info">
-            <span className="header-user-name">{user.name}</span>
-            <span className="role-badge">Trabajador</span>
+          <div className="header-user">
+            <div className="header-user-info">
+              <span className="header-user-name">{user.name}</span>
+              <span className="role-badge">Trabajador</span>
+            </div>
+            <button type="button" className="btn-logout" onClick={() => handleLogout()}>
+              Cerrar sesión
+            </button>
           </div>
-          <button
-            type="button"
-            className="btn-logout"
-            onClick={() => handleLogout()}
-          >
-            Cerrar sesión
-          </button>
         </div>
       </header>
 
@@ -926,11 +934,7 @@ function AdminDashboard({
 
   if (activeModule === "profile") {
     return (
-      <AdminProfile
-        user={user}
-        onUserUpdated={onAdminUserUpdated}
-        onForceLogout={onForceLogout}
-      />
+      <AdminProfile user={user} onUserUpdated={onAdminUserUpdated} onForceLogout={onForceLogout} />
     );
   }
 
@@ -969,7 +973,8 @@ function AdminDashboard({
         {activeWorkers.length === 0 ? (
           <div className="admin-dashboard-workers-empty">
             <p className="empty-state">
-              Aún no hay trabajadores activos. Crea el primero para asignar subdominios y ver ganancias.
+              Aún no hay trabajadores activos. Crea el primero para asignar subdominios y ver
+              ganancias.
             </p>
             <button
               type="button"

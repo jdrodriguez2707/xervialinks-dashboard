@@ -1,5 +1,24 @@
 import { useEffect, useMemo, useState } from "react";
 import { updateWorker } from "../../../shared/api/workers";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Badge } from "@/components/ui/badge";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 /**
  * @param {{
@@ -80,140 +99,136 @@ export default function WorkerEditModal({ worker, sites, globallyAssignedDomains
   }
 
   return (
-    <div className="modal-overlay" onClick={onClose}>
-      <div
-        className="modal worker-edit-modal"
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby={`worker-edit-title-${worker.id}`}
-        onClick={(ev) => ev.stopPropagation()}
-      >
-        <div className="modal-header">
-          <h3 id={`worker-edit-title-${worker.id}`} className="modal-title">
-            Editar trabajador · {worker.name}
-          </h3>
-          <button type="button" className="modal-close" aria-label="Cerrar" onClick={onClose}>
-            ✕
-          </button>
-        </div>
+    <Dialog open={!!worker} onOpenChange={(value) => (!value ? onClose() : null)}>
+      <DialogContent className="sm:max-w-2xl border-border/60">
+        <DialogHeader>
+          <DialogTitle>Editar trabajador · {worker.name}</DialogTitle>
+          <DialogDescription>Actualiza datos y subdominios asociados.</DialogDescription>
+        </DialogHeader>
 
-        <form className="worker-form worker-edit-form" onSubmit={handleSubmit}>
-          <label className="worker-edit-label">
-            Nombre
-            <input
-              type="text"
-              className="form-input"
-              value={name}
-              onChange={(ev) => setName(ev.target.value)}
-              required
-            />
-          </label>
-          <label className="worker-edit-label">
-            Correo
-            <input
-              type="email"
-              className="form-input"
-              value={email}
-              onChange={(ev) => setEmail(ev.target.value)}
-              required
-            />
-          </label>
-          <label className="worker-edit-label">
-            Contraseña
-            <div className="worker-edit-password-row">
-              <input
-                type={showPassword ? "text" : "password"}
-                className="form-input"
-                value={password}
-                onChange={(ev) => setPassword(ev.target.value)}
-                placeholder="Contraseña del trabajador"
-                autoComplete="off"
+        <form className="space-y-4" onSubmit={handleSubmit}>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="space-y-2">
+              <Label htmlFor="worker-edit-name">Nombre</Label>
+              <Input
+                id="worker-edit-name"
+                type="text"
+                value={name}
+                onChange={(ev) => setName(ev.target.value)}
+                required
               />
-              <button
-                type="button"
-                className="btn btn-secondary btn-sm"
-                onClick={() => setShowPassword((prev) => !prev)}
-                aria-label={showPassword ? "Ocultar contraseña" : "Mostrar contraseña"}
-              >
-                {showPassword ? "Ocultar" : "Mostrar"}
-              </button>
             </div>
-          </label>
-          <label className="worker-edit-label">
-            Porcentaje (%)
-            <input
-              type="number"
-              className="form-input form-input-short"
-              min="0.01"
-              max="100"
-              step="0.01"
-              value={percentage}
-              onChange={(ev) => setPercentage(ev.target.value)}
-              required
-            />
-          </label>
+            <div className="space-y-2">
+              <Label htmlFor="worker-edit-email">Correo</Label>
+              <Input
+                id="worker-edit-email"
+                type="email"
+                value={email}
+                onChange={(ev) => setEmail(ev.target.value)}
+                required
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="worker-edit-password">Contraseña</Label>
+              <div className="flex items-center gap-2">
+                <Input
+                  id="worker-edit-password"
+                  type={showPassword ? "text" : "password"}
+                  value={password}
+                  onChange={(ev) => setPassword(ev.target.value)}
+                  placeholder="Contraseña del trabajador"
+                  autoComplete="off"
+                />
+                <Button
+                  type="button"
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => setShowPassword((prev) => !prev)}
+                  aria-label={showPassword ? "Ocultar contraseña" : "Mostrar contraseña"}
+                >
+                  {showPassword ? "Ocultar" : "Mostrar"}
+                </Button>
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="worker-edit-percentage">Porcentaje (%)</Label>
+              <Input
+                id="worker-edit-percentage"
+                type="number"
+                min="0.01"
+                max="100"
+                step="0.01"
+                value={percentage}
+                onChange={(ev) => setPercentage(ev.target.value)}
+                required
+              />
+            </div>
+          </div>
 
-          <div className="worker-edit-domains">
-            <span className="worker-edit-domains-title">Subdominios</span>
-            <p className="worker-edit-domains-hint">
-              Puedes quitar o añadir subdominios aquí. Los cambios se guardan al pulsar «Guardar cambios».
-            </p>
+          <div className="rounded-lg border border-border bg-muted/40 p-4 space-y-3">
+            <div>
+              <p className="text-sm font-semibold">Subdominios</p>
+              <p className="text-xs text-muted-foreground">
+                Puedes quitar o añadir subdominios aquí. Los cambios se guardan al pulsar "Guardar cambios".
+              </p>
+            </div>
+
             {domains.length > 0 ? (
-              <ul className="worker-edit-domain-list">
+              <div className="flex flex-wrap gap-2">
                 {domains.map((d) => (
-                  <li key={d} className="worker-edit-domain-row">
-                    <span className="worker-edit-domain-value">{d}</span>
+                  <Badge key={d} variant="outline" className="gap-2">
+                    {d}
                     <button
                       type="button"
-                      className="btn-icon btn-edit-domain-remove"
+                      className="text-muted-foreground hover:text-foreground"
                       aria-label={`Quitar ${d}`}
                       onClick={() => removeDomain(d)}
                     >
                       ✕
                     </button>
-                  </li>
+                  </Badge>
                 ))}
-              </ul>
+              </div>
             ) : (
-              <p className="worker-edit-domains-empty">Sin subdominios en este perfil.</p>
+              <p className="text-xs text-muted-foreground">Sin subdominios en este perfil.</p>
             )}
-            <div className="worker-edit-domain-add">
-              <select
-                className="form-select"
-                value={selectedSite}
-                onChange={(ev) => setSelectedSite(ev.target.value)}
-                aria-label="Subdominio a añadir"
-              >
-                <option value="">Elegir subdominio disponible…</option>
-                {availableSites.map((s) => (
-                  <option key={s} value={s} disabled={domains.includes(s)}>
-                    {s}
-                  </option>
-                ))}
-              </select>
-              <button
+
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+              <Select value={selectedSite} onValueChange={setSelectedSite}>
+                <SelectTrigger className="sm:w-72">
+                  <SelectValue placeholder="Elegir subdominio disponible…" />
+                </SelectTrigger>
+                <SelectContent>
+                  {availableSites.map((s) => (
+                    <SelectItem key={s} value={s} disabled={domains.includes(s)}>
+                      {s}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Button
                 type="button"
-                className="btn btn-sm"
+                size="sm"
                 disabled={!selectedSite || availableSites.length === 0}
                 onClick={addDomainFromSelect}
               >
                 Añadir
-              </button>
+              </Button>
             </div>
           </div>
 
-          {error && <p className="form-error">{error}</p>}
+          {error && <p className="text-sm font-medium text-danger">{error}</p>}
 
-          <div className="modal-actions">
-            <button type="button" className="btn btn-secondary" onClick={onClose}>
+          <DialogFooter>
+            <Button type="button" variant="secondary" onClick={onClose}>
               Cancelar
-            </button>
-            <button type="submit" className="btn" disabled={submitting}>
+            </Button>
+            <Button type="submit" disabled={submitting}>
               {submitting ? "Guardando…" : "Guardar cambios"}
-            </button>
-          </div>
+            </Button>
+          </DialogFooter>
         </form>
-      </div>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 }
