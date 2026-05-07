@@ -342,11 +342,11 @@ export default function WorkerDashboard({
       {activeTab === "payment" && (
         <div className="space-y-4">
           <SectionHeader
-            title="Informacion de pago"
-            description="Revisa tu estado y actualiza el metodo de pago."
+            title="Información de pago"
+            description="Revisa tu estado y actualiza el método de pago."
             action={
               <Button type="button" onClick={openPaymentDialog}>
-                {paymentInfo ? "Editar informacion" : "Agregar informacion"}
+                {paymentInfo ? "Editar información" : "Agregar información"}
               </Button>
             }
           />
@@ -354,13 +354,13 @@ export default function WorkerDashboard({
           <Card>
             <CardContent className="space-y-4 pt-6">
               <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                <span className="text-sm font-medium">Periodo de pago: {paymentMonthLabel}</span>
+                <span className="text-sm font-medium">Período de pago: {paymentMonthLabel}</span>
                 <Select
                   value={paymentMonth}
                   onValueChange={(value) => onPaymentMonthChange?.(value)}
                 >
                   <SelectTrigger className="sm:w-56">
-                    <SelectValue placeholder="Seleccionar periodo" />
+                    <SelectValue placeholder="Seleccionar período" />
                   </SelectTrigger>
                   <SelectContent>
                     {paymentMonthOptions.map((option) => (
@@ -385,26 +385,26 @@ export default function WorkerDashboard({
           {paymentInfo ? (
             <Card>
               <CardHeader className="pb-2">
-                <CardTitle className="text-base">Metodo registrado</CardTitle>
+                <CardTitle className="text-base">Método registrado</CardTitle>
               </CardHeader>
               <CardContent className="space-y-2">
                 <div>
-                  <p className="text-xs text-muted-foreground">Tipo de metodo</p>
+                  <p className="text-xs text-muted-foreground">Tipo de método</p>
                   <p className="text-sm font-semibold">{paymentInfo.methodType}</p>
                 </div>
                 <div>
-                  <p className="text-xs text-muted-foreground">Informacion</p>
+                  <p className="text-xs text-muted-foreground">Información</p>
                   <p className="text-sm font-semibold">{paymentInfo.paymentDetails}</p>
                 </div>
               </CardContent>
             </Card>
           ) : (
             <EmptyState
-              title="Informacion de pago pendiente"
-              description="Aun no has agregado tu metodo de pago. Completa esta informacion para facilitar la gestion de tus pagos."
+              title="Información de pago pendiente"
+              description="Aun no has agregado tu método de pago. Completa esta información para facilitar la gestión de tus pagos."
               action={
                 <Button type="button" onClick={openPaymentDialog}>
-                  Agregar informacion de pago
+                  Agregar información de pago
                 </Button>
               }
             />
@@ -416,14 +416,14 @@ export default function WorkerDashboard({
         <div className="space-y-4">
           <SectionHeader
             title="Historial de pagos"
-            description={`Periodo: ${paymentHistoryMonthLabel}`}
+            description={`Período: ${paymentHistoryMonthLabel}`}
             action={
               <Select
                 value={paymentHistoryMonth}
                 onValueChange={(value) => onPaymentHistoryMonthChange?.(value)}
               >
                 <SelectTrigger className="sm:w-56">
-                  <SelectValue placeholder="Seleccionar periodo" />
+                  <SelectValue placeholder="Seleccionar período" />
                 </SelectTrigger>
                 <SelectContent>
                   {paymentMonthOptions.map((option) => (
@@ -491,13 +491,13 @@ export default function WorkerDashboard({
       >
         <DialogContent className="sm:max-w-lg border-border/60">
           <DialogHeader>
-            <DialogTitle>Informacion de pago</DialogTitle>
-            <DialogDescription>Agrega o actualiza tu metodo de pago.</DialogDescription>
+            <DialogTitle>Información de pago</DialogTitle>
+            <DialogDescription>Agrega o actualiza tu método de pago.</DialogDescription>
           </DialogHeader>
 
           <form className="space-y-5" onSubmit={handleSavePaymentInfo}>
             <div className="space-y-2">
-              <Label htmlFor="payment-method">Tipo de metodo de pago</Label>
+              <Label htmlFor="payment-method">Tipo de método de pago</Label>
               <Input
                 id="payment-method"
                 type="text"
@@ -509,7 +509,7 @@ export default function WorkerDashboard({
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="payment-details">Informacion de pago</Label>
+              <Label htmlFor="payment-details">Información de pago</Label>
               <Input
                 id="payment-details"
                 type="text"
