@@ -127,7 +127,7 @@ export default function AdminProfile({ onUserUpdated, onForceLogout }) {
     <section className="space-y-6">
       <SectionHeader
         title="Perfil"
-        description="Actualiza tu informacion personal y credenciales de acceso."
+        description="Actualiza tu información personal y credenciales de acceso."
       />
 
       <div className="grid gap-6 lg:grid-cols-2">
@@ -261,10 +261,10 @@ export default function AdminProfile({ onUserUpdated, onForceLogout }) {
 
       <Card>
         <CardHeader>
-          <CardTitle>Ultima sesion</CardTitle>
+          <CardTitle>Última sesión</CardTitle>
         </CardHeader>
         <CardContent>
-          <p className="text-sm text-muted-foreground">Ultimo login</p>
+          <p className="text-sm text-muted-foreground">Último acceso</p>
           <p className="text-lg font-semibold tabular-nums">{formatLastLogin(lastLoginAt)}</p>
         </CardContent>
       </Card>

@@ -401,13 +401,8 @@ function WorkerManagementPanel({
               <SelectContent>
                 {sites.map((s) => {
                   const assignedGlobally = globallyAssignedDomains.has(s);
-                  const ownedHere = domains.some((p) => p.value === s);
-                  const disabled = assignedGlobally && !ownedHere;
-                  const hint = assignedGlobally
-                    ? ownedHere
-                      ? " (asignado aquí)"
-                      : " (no disponible)"
-                    : "";
+                  const disabled = assignedGlobally;
+                  const hint = assignedGlobally ? " (no disponible)" : "";
                   return (
                     <SelectItem key={s} value={s} disabled={disabled}>
                       {`${s}${hint}`}

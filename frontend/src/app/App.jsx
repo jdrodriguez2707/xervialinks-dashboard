@@ -91,14 +91,14 @@ function getDefaultPaymentMonth(date = new Date()) {
 function formatSyncStatusLabel(lastSyncedAt, mode = "admin") {
   if (!lastSyncedAt) {
     return mode === "worker"
-      ? "Ultima actualizacion: pendiente"
-      : "Ultima sincronizacion Ad Manager: pendiente";
+      ? "Última actualización: pendiente"
+      : "Última sincronización Ad Manager: pendiente";
   }
   const date = parseSyncTimestamp(lastSyncedAt);
   if (Number.isNaN(date.getTime())) {
     return mode === "worker"
-      ? "Ultima actualizacion: pendiente"
-      : "Ultima sincronizacion Ad Manager: pendiente";
+      ? "Última actualización: pendiente"
+      : "Última sincronización Ad Manager: pendiente";
   }
   const formatted = new Intl.DateTimeFormat("es-ES", {
     day: "2-digit",
@@ -108,8 +108,8 @@ function formatSyncStatusLabel(lastSyncedAt, mode = "admin") {
     minute: "2-digit",
   }).format(date);
   return mode === "worker"
-    ? `Ultima actualizacion: ${formatted}`
-    : `Ultima sincronizacion Ad Manager: ${formatted}`;
+    ? `Última actualización: ${formatted}`
+    : `Última sincronización Ad Manager: ${formatted}`;
 }
 
 function parseSyncTimestamp(value) {
