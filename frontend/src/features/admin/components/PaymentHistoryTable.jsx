@@ -6,6 +6,9 @@ import EmptyState from "@/components/EmptyState";
 import StatusBadge from "@/components/StatusBadge";
 import DataTable from "@/components/DataTable";
 
+const ADMIN_TABLE_DENSITY_CLASS =
+  "text-xs sm:text-sm [&_th]:px-2.5 [&_td]:px-2.5 [&_th]:py-2 [&_td]:py-2.5 sm:[&_th]:px-4 sm:[&_td]:p-4";
+
 export default function PaymentHistoryTable({ rows = [], isLoading = false }) {
   const [isPickerOpen, setPickerOpen] = useState(false);
   const [viewMonth, setViewMonth] = useState(() => monthStart(new Date()));
@@ -96,10 +99,12 @@ export default function PaymentHistoryTable({ rows = [], isLoading = false }) {
   return (
     <>
       {isLoading ? (
-        <DataTable
-          columns={["Fecha de pago", "Estado", "Trabajador", "Método de pago", "Cantidad"]}
-          rows={Array.from({ length: 4 })}
-          renderRow={(_, idx) => (
+        <div className="admin-table-shell">
+          <DataTable
+            className={ADMIN_TABLE_DENSITY_CLASS}
+            columns={["Fecha de pago", "Estado", "Trabajador", "Método de pago", "Cantidad"]}
+            rows={Array.from({ length: 4 })}
+            renderRow={(_, idx) => (
             <TableRow key={`history-skeleton-${idx}`}>
               <TableCell>
                 <Skeleton className="h-4 w-28" />
@@ -118,7 +123,8 @@ export default function PaymentHistoryTable({ rows = [], isLoading = false }) {
               </TableCell>
             </TableRow>
           )}
-        />
+          />
+        </div>
       ) : null}
 
       {!isLoading && orderedRows.length === 0 ? (
@@ -128,14 +134,24 @@ export default function PaymentHistoryTable({ rows = [], isLoading = false }) {
         />
       ) : !isLoading ? (
         <>
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <Button type="button" variant="outline" onClick={openPicker}>
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+            <Button
+              type="button"
+              variant="outline"
+              className="w-full justify-center sm:w-auto"
+              onClick={openPicker}
+            >
               {hasRangeFilter
                 ? `${formatCompactDate(appliedStartDate)} - ${formatCompactDate(appliedEndDate)}`
                 : "Seleccionar rango de fechas"}
             </Button>
             {hasRangeFilter && (
-              <Button type="button" variant="secondary" onClick={clearRange}>
+              <Button
+                type="button"
+                variant="secondary"
+                className="w-full shrink-0 sm:w-auto"
+                onClick={clearRange}
+              >
                 Limpiar filtros
               </Button>
             )}
@@ -224,10 +240,12 @@ export default function PaymentHistoryTable({ rows = [], isLoading = false }) {
               }
             />
           ) : (
-            <DataTable
-              columns={["Fecha de pago", "Estado", "Trabajador", "Método de pago", "Cantidad"]}
-              rows={filteredRows}
-              renderRow={(row, idx) => (
+            <div className="admin-table-shell">
+              <DataTable
+                className={ADMIN_TABLE_DENSITY_CLASS}
+                columns={["Fecha de pago", "Estado", "Trabajador", "Método de pago", "Cantidad"]}
+                rows={filteredRows}
+                renderRow={(row, idx) => (
                 <TableRow
                   key={`${row.workerName}-${row.paymentMonth}-${row.paidAt}-${idx}`}
                   className="transition-colors hover:bg-muted/20"
@@ -248,7 +266,8 @@ export default function PaymentHistoryTable({ rows = [], isLoading = false }) {
                   </TableCell>
                 </TableRow>
               )}
-            />
+              />
+            </div>
           )}
         </>
       ) : null}

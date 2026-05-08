@@ -160,19 +160,28 @@
   }
 
   .app--admin {
-    @apply flex;
+    @apply relative flex min-h-screen;
   }
 
   .admin-sidebar {
-    @apply w-64 bg-card border-r border-border min-h-screen flex flex-col;
+    @apply fixed inset-y-0 left-0 z-50 flex h-screen w-64 max-w-[min(100vw,18rem)] -translate-x-full flex-col overflow-y-auto border-r border-border bg-card shadow-xl transition-transform duration-300 ease-out;
+    @apply lg:relative lg:inset-auto lg:z-auto lg:h-auto lg:min-h-screen lg:max-h-none lg:w-64 lg:max-w-none lg:translate-x-0 lg:shadow-none;
+  }
+
+  .admin-sidebar.open {
+    @apply translate-x-0;
   }
 
   .admin-sidebar-brand {
-    @apply px-6 py-5 text-lg font-bold bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent;
+    @apply hidden px-6 py-5 text-lg font-bold bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent lg:block;
   }
 
   .admin-sidebar-mobile-top {
-    @apply flex items-center justify-between px-6 py-4 border-b border-border lg:hidden;
+    @apply flex items-center justify-between gap-3 border-b border-border px-4 py-4 lg:hidden;
+  }
+
+  .admin-sidebar-mobile-brand {
+    @apply min-w-0 flex-1 truncate text-base font-bold bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent;
   }
 
   .admin-sidebar-close {
@@ -213,11 +222,11 @@
   }
 
   .admin-sidebar-overlay {
-    @apply fixed inset-0 bg-background/80 backdrop-blur-sm z-40 lg:hidden;
+    @apply fixed inset-0 z-40 bg-background/80 backdrop-blur-sm lg:hidden;
   }
 
   .admin-main-shell {
-    @apply flex-1 min-w-0;
+    @apply flex min-h-screen min-w-0 flex-1 flex-col;
   }
 
   .app-header {
@@ -253,7 +262,23 @@
   }
 
   .admin-mobile-menu-btn {
-    @apply inline-flex items-center justify-center rounded-md border border-input bg-background p-2 hover:bg-accent transition-colors lg:hidden;
+    @apply inline-flex shrink-0 items-center justify-center rounded-md border border-input bg-background p-2 transition-colors hover:bg-accent lg:hidden;
+  }
+
+  .app-header--admin .header-title-group {
+    @apply min-w-0 flex-1 pr-2;
+  }
+
+  .app-header--admin .header-title-group h1 {
+    @apply truncate text-lg font-semibold sm:text-xl;
+  }
+
+  .app-header--admin .header-sync-theme-row {
+    @apply flex max-w-full flex-col items-end gap-1.5 sm:flex-row sm:flex-nowrap sm:items-center sm:gap-2;
+  }
+
+  .app-header--admin .app-sync-status {
+    @apply max-w-[11rem] text-right leading-snug sm:max-w-[20rem];
   }
 
   .header-title-group {
@@ -301,7 +326,19 @@
   }
 
   .admin-range-row {
-    @apply flex items-center gap-3 mb-4;
+    @apply mb-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3;
+  }
+
+  .admin-range-select {
+    @apply w-full max-w-md sm:w-auto sm:min-w-[12rem];
+  }
+
+  .admin-table-shell {
+    @apply -mx-4 w-[calc(100%+2rem)] max-w-none sm:mx-0 sm:w-full;
+  }
+
+  .admin-dashboard-workers-empty {
+    @apply flex flex-col items-start gap-4 rounded-lg border border-border/60 bg-muted/20 p-4 sm:flex-row sm:items-center sm:justify-between;
   }
 
   .form-select {

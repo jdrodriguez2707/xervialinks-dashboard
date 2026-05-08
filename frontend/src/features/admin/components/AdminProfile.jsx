@@ -176,7 +176,7 @@ export default function AdminProfile({ onUserUpdated, onForceLogout }) {
             <form className="space-y-4" onSubmit={handlePasswordSubmit}>
               <div className="space-y-2">
                 <Label htmlFor="admin-current-password">Contraseña actual</Label>
-                <div className="flex items-center gap-2">
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
                   <Input
                     id="admin-current-password"
                     type={showCurrentPassword ? "text" : "password"}
@@ -201,7 +201,7 @@ export default function AdminProfile({ onUserUpdated, onForceLogout }) {
               </div>
               <div className="space-y-2">
                 <Label htmlFor="admin-new-password">Nueva contraseña</Label>
-                <div className="flex items-center gap-2">
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
                   <Input
                     id="admin-new-password"
                     type={showNewPassword ? "text" : "password"}
@@ -224,7 +224,7 @@ export default function AdminProfile({ onUserUpdated, onForceLogout }) {
               </div>
               <div className="space-y-2">
                 <Label htmlFor="admin-confirm-password">Confirmar nueva contraseña</Label>
-                <div className="flex items-center gap-2">
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
                   <Input
                     id="admin-confirm-password"
                     type={showConfirmPassword ? "text" : "password"}

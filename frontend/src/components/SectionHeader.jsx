@@ -9,11 +9,15 @@ export default function SectionHeader({ title, description, action, className })
         className,
       )}
     >
-      <div>
+      <div className="min-w-0">
         <h2 className="text-xl font-semibold tracking-tight">{title}</h2>
-        {description ? <p className="text-sm text-muted-foreground mt-1">{description}</p> : null}
+        {description ? <p className="mt-1 text-sm text-muted-foreground">{description}</p> : null}
       </div>
-      {action ? <div className="flex items-center gap-2">{action}</div> : null}
+      {action ? (
+        <div className="flex w-full shrink-0 flex-col gap-2 sm:w-auto sm:flex-row sm:items-center sm:justify-end">
+          {action}
+        </div>
+      ) : null}
     </div>
   );
 }

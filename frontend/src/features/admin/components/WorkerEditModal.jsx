@@ -133,7 +133,7 @@ export default function WorkerEditModal({
             </div>
             <div className="space-y-2">
               <Label htmlFor="worker-edit-password">Contraseña</Label>
-              <div className="flex items-center gap-2">
+              <div className="min-w-0 flex flex-col gap-2 sm:flex-row sm:items-center">
                 <Input
                   id="worker-edit-password"
                   type={showPassword ? "text" : "password"}
@@ -146,6 +146,7 @@ export default function WorkerEditModal({
                   type="button"
                   variant="secondary"
                   size="sm"
+                  className="shrink-0 self-start sm:self-auto"
                   onClick={() => setShowPassword((prev) => !prev)}
                   aria-label={showPassword ? "Ocultar contraseña" : "Mostrar contraseña"}
                 >
@@ -199,7 +200,7 @@ export default function WorkerEditModal({
 
             <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
               <Select value={selectedSite} onValueChange={setSelectedSite}>
-                <SelectTrigger className="sm:w-72">
+                <SelectTrigger className="w-full sm:w-72">
                   <SelectValue placeholder="Elegir subdominio disponible…" />
                 </SelectTrigger>
                 <SelectContent>

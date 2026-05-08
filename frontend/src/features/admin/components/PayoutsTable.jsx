@@ -25,6 +25,9 @@ import EmptyState from "@/components/EmptyState";
 import StatusBadge from "@/components/StatusBadge";
 import DataTable from "@/components/DataTable";
 
+const ADMIN_TABLE_DENSITY_CLASS =
+  "text-xs sm:text-sm [&_th]:px-2.5 [&_td]:px-2.5 [&_th]:py-2 [&_td]:py-2.5 sm:[&_th]:px-4 sm:[&_td]:p-4";
+
 /**
  * @param {{
  *   payouts: Array<{
@@ -108,8 +111,10 @@ export default function PayoutsTable({
 
   if (isLoading) {
     return (
-      <DataTable
-        columns={[
+      <div className="admin-table-shell">
+        <DataTable
+          className={ADMIN_TABLE_DENSITY_CLASS}
+          columns={[
           "Trabajador",
           "Subdominios asignados",
           "Impresiones",
@@ -149,6 +154,7 @@ export default function PayoutsTable({
           </TableRow>
         )}
       />
+      </div>
     );
   }
 
@@ -163,8 +169,10 @@ export default function PayoutsTable({
 
   return (
     <>
-      <DataTable
-        columns={[
+      <div className="admin-table-shell">
+        <DataTable
+          className={ADMIN_TABLE_DENSITY_CLASS}
+          columns={[
           "Trabajador",
           "Subdominios asignados",
           "Impresiones",
@@ -263,6 +271,7 @@ export default function PayoutsTable({
           </TableRow>
         )}
       />
+      </div>
 
       {selectedWorker && (
         <Dialog
@@ -288,7 +297,7 @@ export default function PayoutsTable({
                   value={paymentMonth}
                   onValueChange={(value) => onPaymentMonthChange?.(value)}
                 >
-                  <SelectTrigger className="sm:w-56">
+                  <SelectTrigger className="w-full sm:w-56">
                     <SelectValue placeholder="Seleccionar mes" />
                   </SelectTrigger>
                   <SelectContent>

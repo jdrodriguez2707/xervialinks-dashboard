@@ -663,6 +663,7 @@ export default function App() {
           <div className="admin-sidebar-brand">XerviaLinks Metrics</div>
 
           <div className="admin-sidebar-mobile-top">
+            <span className="admin-sidebar-mobile-brand">XerviaLinks Metrics</span>
             <button
               type="button"
               className="admin-sidebar-close"
@@ -728,7 +729,7 @@ export default function App() {
         )}
 
         <div className="admin-main-shell">
-          <header className="app-header">
+          <header className="app-header app-header--admin">
             <button
               type="button"
               className="admin-mobile-menu-btn"
@@ -1006,7 +1007,7 @@ function AdminDashboard({
             </p>
             <button
               type="button"
-              className="btn workers-module-add-btn"
+              className="btn workers-module-add-btn w-full sm:w-auto"
               onClick={() => onAddWorkerFromDashboard?.()}
             >
               Agregar trabajador
