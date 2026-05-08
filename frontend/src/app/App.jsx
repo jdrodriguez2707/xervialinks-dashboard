@@ -20,6 +20,7 @@ import WorkersList from "../features/admin/components/WorkersList";
 import WorkerDashboard from "../features/worker/components/WorkerDashboard";
 import AdminProfile from "../features/admin/components/AdminProfile";
 import SectionHeader from "../components/SectionHeader";
+import ThemeToggle from "../components/ThemeToggle";
 import {
   LayoutDashboard,
   Wallet,
@@ -741,12 +742,15 @@ export default function App() {
               <p className="app-current-date">{currentDateLabel}</p>
             </div>
             <div className="header-right">
-              <p className="app-sync-status">
-                {formatSyncStatusLabel(syncStatus?.lastSyncedAt, "admin")}
-              </p>
-              {(loading || refreshingAdmin) && (
-                <div className="header-progress" aria-hidden="true" />
-              )}
+              <div className="header-sync-theme-row">
+                <p className="app-sync-status">
+                  {formatSyncStatusLabel(syncStatus?.lastSyncedAt, "admin")}
+                </p>
+                <ThemeToggle />
+                {(loading || refreshingAdmin) && (
+                  <div className="header-progress" aria-hidden="true" />
+                )}
+              </div>
             </div>
           </header>
 
@@ -805,12 +809,13 @@ export default function App() {
 
   return (
     <div className="app">
-      <header className="app-header">
+      <header className="app-header app-header--worker">
         <div className="header-title-group">
           <h1 className="worker-header-brand">XerviaLinks Metrics</h1>
           <p className="app-current-date">{currentDateLabel}</p>
         </div>
-        <div className="header-right">
+        <div className="header-right header-right--worker">
+          <ThemeToggle />
           <div className="header-user">
             <div className="header-user-info">
               <span className="header-user-name">{user.name}</span>
@@ -831,6 +836,7 @@ export default function App() {
 
       <main className="app-main">
         <WorkerDashboard
+          syncStatusLabel={formatSyncStatusLabel(syncStatus?.lastSyncedAt, "worker")}
           workerContext={data?.workerContext ?? null}
           workerMetrics={data?.workerMetrics ?? null}
           workerPaymentHistory={data?.workerPaymentHistory ?? null}
@@ -843,7 +849,6 @@ export default function App() {
           metricsLoading={workerMetricsLoading}
           metricsError={workerMetricsError}
           error={error}
-          syncStatusLabel={formatSyncStatusLabel(syncStatus?.lastSyncedAt, "worker")}
           workerId={data?.workerContext?.workerId ?? null}
           paymentMonth={workerPaymentMonth}
           onPaymentMonthChange={setWorkerPaymentMonth}

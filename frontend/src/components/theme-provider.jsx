@@ -1,11 +1,27 @@
-import { createContext, useContext, useEffect, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 
 const initialState = {
   theme: "system",
+  resolvedTheme: "light",
   setTheme: () => null,
+  toggleThemeWithTransition: () => null,
 };
 
 const ThemeProviderContext = createContext(initialState);
+
+function applyDomTheme(themeValue) {
+  const root = window.document.documentElement;
+  root.classList.remove("light", "dark");
+  if (themeValue === "system") {
+    const systemTheme = window.matchMedia("(prefers-color-scheme: dark)").matches
+      ? "dark"
+      : "light";
+    root.classList.add(systemTheme);
+    return systemTheme;
+  }
+  root.classList.add(themeValue);
+  return themeValue;
+}
 
 export function ThemeProvider({
   children,
@@ -13,32 +29,82 @@ export function ThemeProvider({
   storageKey = "vite-ui-theme",
   ...props
 }) {
-  const [theme, setTheme] = useState(() => localStorage.getItem(storageKey) || defaultTheme);
+  const [theme, setThemeState] = useState(() => localStorage.getItem(storageKey) || defaultTheme);
+
+  const resolvedTheme = useMemo(() => {
+    if (typeof window === "undefined") return "light";
+    if (theme === "system") {
+      return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+    }
+    return theme === "dark" ? "dark" : "light";
+  }, [theme]);
 
   useEffect(() => {
-    const root = window.document.documentElement;
+    applyDomTheme(theme);
+  }, [theme]);
 
-    root.classList.remove("light", "dark");
+  useEffect(() => {
+    if (theme !== "system") return undefined;
+    const mq = window.matchMedia("(prefers-color-scheme: dark)");
+    function onChange() {
+      applyDomTheme("system");
+    }
+    mq.addEventListener("change", onChange);
+    return () => mq.removeEventListener("change", onChange);
+  }, [theme]);
 
-    if (theme === "system") {
-      const systemTheme = window.matchMedia("(prefers-color-scheme: dark)").matches
-        ? "dark"
-        : "light";
+  const setTheme = useCallback((next) => {
+    setThemeState((prev) => {
+      const value = typeof next === "function" ? next(prev) : next;
+      localStorage.setItem(storageKey, value);
+      return value;
+    });
+  }, [storageKey]);
 
-      root.classList.add(systemTheme);
+  const toggleThemeWithTransition = useCallback(() => {
+    const currentResolved =
+      theme === "system"
+        ? window.matchMedia("(prefers-color-scheme: dark)").matches
+          ? "dark"
+          : "light"
+        : theme;
+    const next = currentResolved === "dark" ? "light" : "dark";
+
+    const apply = () => {
+      localStorage.setItem(storageKey, next);
+      document.documentElement.classList.remove("light", "dark");
+      document.documentElement.classList.add(next);
+      setThemeState(next);
+    };
+
+    if (typeof document === "undefined" || !document.startViewTransition) {
+      apply();
       return;
     }
 
-    root.classList.add(theme);
-  }, [theme]);
+    const transition = document.startViewTransition(() => {
+      apply();
+    });
 
-  const value = {
-    theme,
-    setTheme: (theme) => {
-      localStorage.setItem(storageKey, theme);
-      setTheme(theme);
-    },
-  };
+    transition.ready
+      .then(() => {
+        document.documentElement.animate(
+          { clipPath: ["inset(0 0 100% 0)", "inset(0)"] },
+          { pseudoElement: "::view-transition-new(root)", duration: 600 },
+        );
+      })
+      .catch(() => {});
+  }, [storageKey, theme]);
+
+  const value = useMemo(
+    () => ({
+      theme,
+      resolvedTheme,
+      setTheme,
+      toggleThemeWithTransition,
+    }),
+    [theme, resolvedTheme, setTheme, toggleThemeWithTransition],
+  );
 
   return (
     <ThemeProviderContext.Provider {...props} value={value}>

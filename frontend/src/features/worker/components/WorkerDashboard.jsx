@@ -93,6 +93,7 @@ function MetricSection({ title, loading, data, getValue, format, highlight }) {
 }
 
 export default function WorkerDashboard({
+  syncStatusLabel,
   workerContext,
   workerMetrics,
   workerPaymentHistory,
@@ -102,7 +103,6 @@ export default function WorkerDashboard({
   metricsLoading,
   metricsError,
   error,
-  syncStatusLabel,
   onContextRefresh,
   workerId,
   paymentMonth,
@@ -225,6 +225,12 @@ export default function WorkerDashboard({
 
   return (
     <div className="space-y-6 pb-16">
+      {activeTab === "stats" && syncStatusLabel ? (
+        <p className="worker-stats-sync-note" role="status">
+          {syncStatusLabel}
+        </p>
+      ) : null}
+
       {!hasDomains ? (
         <EmptyState
           title="Panel no disponible aun"
@@ -232,9 +238,6 @@ export default function WorkerDashboard({
         />
       ) : activeTab === "stats" ? (
         <div className="space-y-4">
-          {syncStatusLabel ? (
-            <div className="text-center text-xs text-muted-foreground">{syncStatusLabel}</div>
-          ) : null}
           {hasDomains && (
             <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-center">
               <Select

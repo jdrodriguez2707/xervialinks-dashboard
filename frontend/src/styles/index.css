@@ -4,6 +4,11 @@
 @tailwind components;
 @tailwind utilities;
 
+::view-transition-new(root) {
+  animation: none;
+  mix-blend-mode: normal;
+}
+
 @layer base {
   :root {
     --background: 0 0% 100%;
@@ -13,7 +18,8 @@
     --popover: 0 0% 100%;
     --popover-foreground: 222.2 84% 4.9%;
     --primary: 277 100% 50%;
-    --primary-foreground: 222.2 47.4% 11.2%;
+    /* Texto suave legible sobre botones primary (morado) en modo claro */
+    --primary-foreground: 270 55% 98%;
     --secondary: 184 100% 50%;
     --secondary-foreground: 210 40% 98%;
     --muted: 210 40% 96.1%;
@@ -203,7 +209,7 @@
   }
 
   .admin-sidebar-logout {
-    @apply inline-flex items-center justify-start gap-2 rounded-md font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed w-full bg-muted text-destructive-foreground hover:bg-destructive/90 px-3 py-2;
+    @apply inline-flex items-center justify-start gap-2 rounded-md font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-destructive focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:opacity-50 disabled:cursor-not-allowed w-full border border-destructive/35 bg-destructive/10 text-destructive hover:bg-destructive/20 px-3 py-2;
   }
 
   .admin-sidebar-overlay {
@@ -215,7 +221,35 @@
   }
 
   .app-header {
-    @apply h-16 border-b border-border bg-card/50 backdrop-blur px-4 lg:px-8 flex items-center justify-between gap-4;
+    @apply min-h-16 border-b border-border bg-card/50 backdrop-blur px-4 lg:px-8 flex items-center justify-between gap-3 sm:gap-4;
+  }
+
+  .app-header--worker .header-title-group {
+    @apply min-w-0 flex-1 pr-2;
+  }
+
+  .app-header--worker .worker-header-brand {
+    @apply truncate text-lg sm:text-xl;
+  }
+
+  .header-right--worker {
+    @apply flex shrink-0 flex-row flex-nowrap items-center gap-1.5 sm:gap-3;
+  }
+
+  .header-right--worker .header-user {
+    @apply min-w-0 gap-2 sm:gap-3;
+  }
+
+  .header-right--worker .header-user-info {
+    @apply max-w-[38vw] min-w-0 sm:max-w-[11rem];
+  }
+
+  .header-right--worker .header-user-name {
+    @apply truncate;
+  }
+
+  .worker-stats-sync-note {
+    @apply mb-2 text-center text-xs leading-relaxed text-muted-foreground sm:text-sm;
   }
 
   .admin-mobile-menu-btn {
@@ -227,7 +261,11 @@
   }
 
   .header-right {
-    @apply flex flex-col items-end gap-2 text-right;
+    @apply flex min-w-0 flex-row flex-wrap items-center justify-end gap-x-4 gap-y-2 text-right;
+  }
+
+  .header-sync-theme-row {
+    @apply flex shrink-0 flex-row flex-nowrap items-center justify-end gap-2;
   }
 
   .app-current-date {

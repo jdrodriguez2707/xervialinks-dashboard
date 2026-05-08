@@ -1,8 +1,8 @@
 import React, { useState } from "react";
 import { cn } from "@/lib/utils";
-import { Menu, X, LogOut, Moon, Sun } from "lucide-react";
-import { useTheme } from "@/components/theme-provider";
+import { Menu, X, LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import ThemeToggle from "@/components/ThemeToggle";
 
 export default function AppLayout({
   user,
@@ -14,9 +14,6 @@ export default function AppLayout({
   children,
 }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const { theme, setTheme } = useTheme();
-
-  const toggleTheme = () => setTheme(theme === "dark" ? "light" : "dark");
   const toggleSidebar = () => setSidebarOpen(!sidebarOpen);
 
   const formattedDate = new Intl.DateTimeFormat("es-ES", {
@@ -120,9 +117,7 @@ export default function AppLayout({
           </div>
 
           <div className="flex items-center gap-3">
-            <Button variant="ghost" size="icon" onClick={toggleTheme}>
-              {theme === "dark" ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
-            </Button>
+            <ThemeToggle />
             <div className="text-right hidden sm:block">
               <p className="text-sm font-medium">{user?.email}</p>
             </div>
