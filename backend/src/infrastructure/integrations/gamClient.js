@@ -55,12 +55,39 @@ function resolveCredentials() {
 }
 
 /**
- * Builds the full GAM REST API URL for a given path within the configured network.
+ * Builds the full GAM REST API URL for a given path within a network.
  *
- * @param {string} path  e.g. "/reports" or "/reports/123:run"
+ * @param {string} networkCode  Ad Manager network code (numeric string)
+ * @param {string} path  e.g. "/reports" or "/reports/123:run" or "" for network root
  */
-function networkUrl(path) {
-  return `${GAM_BASE_URL}/networks/${env.GAM_NETWORK_CODE}${path}`;
+function networkUrlFor(networkCode, path) {
+  const code = String(networkCode || env.GAM_NETWORK_CODE || "").trim();
+  if (!code) {
+    throw new Error("networkCode is required for Ad Manager API calls");
+  }
+  const suffix = path == null || path === "" ? "" : path.startsWith("/") ? path : `/${path}`;
+  return `${GAM_BASE_URL}/networks/${code}${suffix}`;
 }
 
-module.exports = { getAccessToken, networkUrl, GamAuthError };
+/** @deprecated Use networkUrlFor(networkCode, path) */
+function networkUrl(path) {
+  return networkUrlFor(env.GAM_NETWORK_CODE, path);
+}
+
+function getServiceAccountEmail() {
+  try {
+    const creds = resolveCredentials();
+    if (creds.credentials?.client_email) return creds.credentials.client_email;
+    if (creds.keyFile) {
+      const fs = require("fs");
+      const raw = fs.readFileSync(creds.keyFile, "utf8");
+      const j = JSON.parse(raw);
+      return j.client_email || null;
+    }
+  } catch {
+    return null;
+  }
+  return null;
+}
+
+module.exports = { getAccessToken, networkUrl, networkUrlFor, getServiceAccountEmail, GamAuthError };

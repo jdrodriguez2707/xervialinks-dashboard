@@ -6,10 +6,26 @@ const reportsCache = new Map();
 const inflightRequests = new Map();
 let seedPromise = null;
 
+function getSeedingNetworkCode() {
+  const db = getDb();
+  const row = db
+    .prepare("SELECT network_code AS c FROM gam_networks WHERE is_default = 1 LIMIT 1")
+    .get();
+  if (row?.c) return String(row.c);
+  return String(env.GAM_NETWORK_CODE || "").trim() || "default";
+}
+
 /**
  * Returns reports from database only.
  *
- * @param {{ domain?: string, startDate?: string, endDate?: string, timeZone?: string }} filters
+ * @param {{
+ *   domain?: string,
+ *   startDate?: string,
+ *   endDate?: string,
+ *   timeZone?: string,
+ *   networkCode?: string,
+ *   networkCodes?: string[],
+ * }} filters
  */
 async function findAll(filters = {}) {
   if (!env.USE_REAL_GAM_API) {
@@ -43,6 +59,23 @@ function queryReportsFromDb(filters = {}) {
   const params = [];
   const where = [];
 
+  const single = filters.networkCode != null && String(filters.networkCode).trim() !== "";
+  const multi =
+    Array.isArray(filters.networkCodes) &&
+    filters.networkCodes.some((c) => String(c || "").trim() !== "");
+
+  if (single) {
+    where.push("network_code = ?");
+    params.push(String(filters.networkCode).trim());
+  } else if (multi) {
+    const codes = [...new Set(filters.networkCodes.map((c) => String(c || "").trim()).filter(Boolean))];
+    if (codes.length === 0) {
+      return [];
+    }
+    where.push(`network_code IN (${codes.map(() => "?").join(",")})`);
+    params.push(...codes);
+  }
+
   if (filters.domain) {
     where.push("domain = ?");
     params.push(filters.domain);
@@ -59,7 +92,7 @@ function queryReportsFromDb(filters = {}) {
   const whereClause = where.length ? `WHERE ${where.join(" AND ")}` : "";
   const rows = db
     .prepare(
-      `SELECT date, domain, impressions, revenue, ecpm
+      `SELECT network_code AS networkCode, date, domain, impressions, revenue, ecpm
        FROM reports
        ${whereClause}
        ORDER BY date DESC, domain ASC`,
@@ -73,9 +106,9 @@ function upsertMany(rows = []) {
   if (!Array.isArray(rows) || rows.length === 0) return;
   const db = getDb();
   const insert = db.prepare(
-    `INSERT INTO reports (date, domain, impressions, revenue, ecpm, source, synced_at)
-     VALUES (?, ?, ?, ?, ?, ?, datetime('now'))
-     ON CONFLICT(date, domain) DO UPDATE SET
+    `INSERT INTO reports (network_code, date, domain, impressions, revenue, ecpm, source, synced_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, datetime('now'))
+     ON CONFLICT(network_code, date, domain) DO UPDATE SET
        impressions = excluded.impressions,
        revenue = excluded.revenue,
        ecpm = excluded.ecpm,
@@ -86,8 +119,9 @@ function upsertMany(rows = []) {
   db.transaction((items) => {
     for (const row of items) {
       const normalized = normalizeRow(row);
-      if (!normalized.date || !normalized.domain) continue;
+      if (!normalized.date || !normalized.domain || !normalized.networkCode) continue;
       insert.run(
+        normalized.networkCode,
         normalized.date,
         normalized.domain,
         normalized.impressions,
@@ -109,7 +143,7 @@ function countAll() {
 
 function getSyncStatus() {
   const db = getDb();
-  const row = db
+  const globalRow = db
     .prepare(
       `SELECT synced_at AS lastSyncedAt, source AS lastSource
        FROM reports
@@ -119,15 +153,59 @@ function getSyncStatus() {
     )
     .get();
 
+  const byNetwork = db
+    .prepare(
+      `SELECT network_code AS networkCode,
+              MAX(synced_at) AS lastSyncedAt
+       FROM reports
+       WHERE synced_at IS NOT NULL
+       GROUP BY network_code
+       ORDER BY network_code ASC`,
+    )
+    .all();
+
   return {
-    lastSyncedAt: row?.lastSyncedAt || null,
-    lastSource: row?.lastSource || null,
+    lastSyncedAt: globalRow?.lastSyncedAt || null,
+    lastSource: globalRow?.lastSource || null,
     totalRows: countAll(),
+    byNetwork: byNetwork.map((r) => ({
+      networkCode: r.networkCode,
+      lastSyncedAt: r.lastSyncedAt || null,
+    })),
   };
 }
 
-function buildCacheKey({ startDate, endDate, domain }) {
-  return `${startDate || ""}|${endDate || ""}|${domain || "*"}`;
+function getLastSyncForNetwork(networkCode) {
+  const code = String(networkCode || "").trim();
+  if (!code) return { lastSyncedAt: null, lastSource: null };
+  const db = getDb();
+  const row = db
+    .prepare(
+      `SELECT synced_at AS lastSyncedAt, source AS lastSource
+       FROM reports
+       WHERE network_code = ? AND synced_at IS NOT NULL
+       ORDER BY datetime(synced_at) DESC, id DESC
+       LIMIT 1`,
+    )
+    .get(code);
+  return {
+    lastSyncedAt: row?.lastSyncedAt || null,
+    lastSource: row?.lastSource || null,
+  };
+}
+
+function buildCacheKey({ startDate, endDate, domain, networkCode, networkCodes }) {
+  let net = "";
+  if (networkCode != null && String(networkCode).trim() !== "") {
+    net = `c:${String(networkCode).trim()}`;
+  } else if (Array.isArray(networkCodes) && networkCodes.length) {
+    net = `in:${[...new Set(networkCodes.map((c) => String(c || "").trim()).filter(Boolean))]
+      .sort()
+      .join(",")}`;
+  } else {
+    net = "all";
+  }
+  return `${net}|${startDate || ""}|${endDate || ""}|${domain || "*"}`;
 }
 
 function getCache(key) {
@@ -157,7 +235,8 @@ async function ensureLocalMockSeed() {
   seedPromise = Promise.resolve()
     .then(() => {
       if (countAll() > 0) return;
-      const rows = buildMockReports();
+      const net = getSeedingNetworkCode();
+      const rows = buildMockReports(undefined, net);
       upsertMany(rows.map((r) => ({ ...r, source: "mock-seed" })));
     })
     .finally(() => {
@@ -167,7 +246,14 @@ async function ensureLocalMockSeed() {
 }
 
 function normalizeRow(row) {
+  const net =
+    row?.networkCode != null
+      ? String(row.networkCode).trim()
+      : row?.network_code != null
+        ? String(row.network_code).trim()
+        : "";
   return {
+    networkCode: net,
     date: String(row?.date || ""),
     domain: String(row?.domain || ""),
     impressions: Number(row?.impressions || 0),
@@ -177,4 +263,12 @@ function normalizeRow(row) {
   };
 }
 
-module.exports = { findAll, upsertMany, countAll, clearCache, getSyncStatus };
+module.exports = {
+  findAll,
+  upsertMany,
+  countAll,
+  clearCache,
+  getSyncStatus,
+  getLastSyncForNetwork,
+  getSeedingNetworkCode,
+};

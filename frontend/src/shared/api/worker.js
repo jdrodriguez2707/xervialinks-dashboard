@@ -16,9 +16,10 @@ export async function fetchWorkerContext({ paymentMonth } = {}) {
 }
 
 /** Métricas por periodos (puede tardar por GAM / caché). */
-export async function fetchWorkerDashboard({ domain } = {}) {
+export async function fetchWorkerDashboard({ domain, networkCode } = {}) {
   const params = new URLSearchParams();
   if (domain) params.set("domain", domain);
+  if (networkCode) params.set("networkCode", networkCode);
   try {
     const tz = Intl.DateTimeFormat().resolvedOptions().timeZone || "America/Bogota";
     const currentDate = new Date().toLocaleDateString("en-CA", { timeZone: tz });

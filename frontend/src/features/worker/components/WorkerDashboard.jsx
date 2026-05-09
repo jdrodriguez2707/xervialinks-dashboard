@@ -97,8 +97,8 @@ export default function WorkerDashboard({
   workerContext,
   workerMetrics,
   workerPaymentHistory,
-  selectedDomain,
-  onDomainChange,
+  selectedPropertyId,
+  onPropertyChange,
   contextLoading,
   metricsLoading,
   metricsError,
@@ -168,12 +168,12 @@ export default function WorkerDashboard({
   const paymentMonthLabel = formatPaymentMonthLabel(paymentMonth);
   const paymentHistoryMonthLabel = formatPaymentMonthLabel(paymentHistoryMonth);
   const paymentHistoryRows = workerPaymentHistory?.rows || [];
-  const selectedDomainValue =
-    selectedDomain && domains.some((d) => d.value === selectedDomain)
-      ? selectedDomain
-      : domains[0]?.value || "";
-  const otherDomains = domains.filter((d) => d.value !== selectedDomainValue);
-  const canSwitchDomain = otherDomains.length > 0;
+  const selectedId =
+    selectedPropertyId != null && domains.some((d) => d.id === Number(selectedPropertyId))
+      ? Number(selectedPropertyId)
+      : domains[0]?.id ?? null;
+  const otherDomains = domains.filter((d) => d.id !== selectedId);
+  const canSwitchDomain = domains.length > 1;
 
   if (error) {
     return <p className="status-msg error">Error al cargar los ingresos.</p>;
@@ -183,10 +183,11 @@ export default function WorkerDashboard({
     return <p className="status-msg">Cargando tu perfil…</p>;
   }
 
-  async function handleDomainSwitch(nextDomain) {
-    if (!nextDomain || nextDomain === selectedDomainValue) return;
-    if (typeof onDomainChange === "function") {
-      await onDomainChange(nextDomain);
+  async function handleDomainSwitch(nextIdStr) {
+    const nextId = Number(nextIdStr);
+    if (!Number.isFinite(nextId) || nextId === selectedId) return;
+    if (typeof onPropertyChange === "function") {
+      await onPropertyChange(nextId);
     }
   }
 
@@ -241,7 +242,7 @@ export default function WorkerDashboard({
           {hasDomains && (
             <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-center">
               <Select
-                value={selectedDomainValue}
+                value={selectedId != null ? String(selectedId) : ""}
                 onValueChange={handleDomainSwitch}
                 disabled={!canSwitchDomain}
               >
@@ -250,8 +251,15 @@ export default function WorkerDashboard({
                 </SelectTrigger>
                 <SelectContent>
                   {domains.map((domain) => (
-                    <SelectItem key={domain.id} value={domain.value}>
-                      {domain.value}
+                    <SelectItem key={domain.id} value={String(domain.id)}>
+                      <span className="flex flex-wrap items-center gap-2">
+                        <span>{domain.value}</span>
+                        {domain.networkDisplayName ? (
+                          <span className="rounded bg-muted px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground">
+                            {domain.networkDisplayName}
+                          </span>
+                        ) : null}
+                      </span>
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -332,8 +340,16 @@ export default function WorkerDashboard({
                   <CardHeader className="pb-2">
                     <CardTitle className="text-sm text-muted-foreground">Subdominio</CardTitle>
                   </CardHeader>
-                  <CardContent>
+                  <CardContent className="space-y-2">
                     <p className="text-sm font-semibold">{domain.value}</p>
+                    {domain.networkDisplayName ? (
+                      <p className="text-xs text-muted-foreground">
+                        Red:{" "}
+                        <span className="rounded bg-muted px-1.5 py-0.5 font-medium">
+                          {domain.networkDisplayName}
+                        </span>
+                      </p>
+                    ) : null}
                   </CardContent>
                 </Card>
               ))}
@@ -447,11 +463,18 @@ export default function WorkerDashboard({
           ) : (
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
               {paymentHistoryRows.map((row) => (
-                <Card key={`${row.domain}-${paymentHistoryMonth}`}>
+                <Card key={`${row.domain}-${row.gamNetworkCode || ""}-${paymentHistoryMonth}`}>
                   <CardContent className="space-y-3 pt-6">
-                    <div className="flex items-center justify-between">
-                      <p className="text-xs text-muted-foreground">Subdominio</p>
-                      <p className="text-sm font-semibold">{row.domain}</p>
+                    <div className="flex items-center justify-between gap-2">
+                      <p className="text-xs text-muted-foreground shrink-0">Subdominio</p>
+                      <div className="text-right text-sm font-semibold">
+                        <p>{row.domain}</p>
+                        {row.gamNetworkCode ? (
+                          <p className="mt-1 text-[10px] font-normal text-muted-foreground">
+                            Red: {row.gamNetworkCode}
+                          </p>
+                        ) : null}
+                      </div>
                     </div>
                     <div className="flex items-center justify-between">
                       <p className="text-xs text-muted-foreground">Impresiones</p>

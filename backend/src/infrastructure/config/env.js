@@ -13,6 +13,8 @@ const env = {
   // Google Ad Manager integration — always false in test env to use mock data
   USE_REAL_GAM_API: process.env.NODE_ENV !== "test" && process.env.USE_REAL_GAM_API === "true",
   GAM_NETWORK_CODE: process.env.GAM_NETWORK_CODE || "",
+  /** Optional label for the default network in UI (fallback: network code). */
+  GAM_NETWORK_DISPLAY_NAME: process.env.GAM_NETWORK_DISPLAY_NAME || "",
   GAM_CREDENTIALS_JSON: process.env.GAM_CREDENTIALS_JSON || "",
   GAM_KEY_FILE: process.env.GAM_KEY_FILE || "",
 

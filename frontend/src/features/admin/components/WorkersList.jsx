@@ -47,9 +47,15 @@ import StatusBadge from "@/components/StatusBadge";
  *   autoEditNonce?: number,
  * }} props
  */
+function slotKey(value, gamNetworkCode) {
+  return `${String(value || "").trim()}|||${String(gamNetworkCode || "").trim()}`;
+}
+
 export default function WorkersList({
   workers,
   sites = [],
+  activeNetworkCode = "",
+  gamNetworks = [],
   onUpdate,
   mode = "management",
   onGoToEarnings,
@@ -58,13 +64,15 @@ export default function WorkersList({
   autoEditWorkerId = null,
   autoEditNonce = 0,
 }) {
-  const globallyAssignedDomains = useMemo(
+  const globallyAssignedSlots = useMemo(
     () =>
       new Set(
         workers
           .filter((w) => !w.deleted_at)
           .flatMap((w) =>
-            (w.properties || []).filter((p) => p.type === "domain").map((p) => p.value),
+            (w.properties || [])
+              .filter((p) => p.type === "domain")
+              .map((p) => slotKey(p.value, p.gamNetworkCode || p.gam_network_code)),
           ),
       ),
     [workers],
@@ -121,7 +129,9 @@ export default function WorkersList({
                 key={worker.id}
                 worker={worker}
                 sites={sites}
-                globallyAssignedDomains={globallyAssignedDomains}
+                globallyAssignedSlots={globallyAssignedSlots}
+                activeNetworkCode={activeNetworkCode}
+                gamNetworks={gamNetworks}
                 onUpdate={onUpdate}
                 autoEditWorkerId={autoEditWorkerId}
                 autoEditNonce={autoEditNonce}
@@ -199,8 +209,13 @@ function WorkerDashboardCard({ worker, onGoToEarnings, onNavigateToWorkerEdit })
         {domains.length > 0 ? (
           <div className="flex flex-wrap gap-2">
             {domains.map((p) => (
-              <Badge key={p.id} variant="outline">
+              <Badge key={p.id} variant="outline" className="gap-1">
                 {p.value}
+                {p.gamNetworkCode || p.gam_network_code ? (
+                  <span className="text-[10px] font-normal text-muted-foreground">
+                    ({p.networkDisplayName || p.gamNetworkCode || p.gam_network_code})
+                  </span>
+                ) : null}
               </Badge>
             ))}
           </div>
@@ -216,11 +231,13 @@ function WorkerDashboardCard({ worker, onGoToEarnings, onNavigateToWorkerEdit })
   );
 }
 
-/** @param {{ worker: object, sites: string[], globallyAssignedDomains: Set<string>, onUpdate: () => void, autoEditWorkerId?: number | null, autoEditNonce?: number }} props */
+/** @param {{ worker: object, sites: string[], globallyAssignedSlots: Set<string>, activeNetworkCode?: string, gamNetworks?: object[], onUpdate: () => void, autoEditWorkerId?: number | null, autoEditNonce?: number }} props */
 function WorkerManagementPanel({
   worker,
   sites,
-  globallyAssignedDomains,
+  globallyAssignedSlots,
+  activeNetworkCode = "",
+  gamNetworks = [],
   onUpdate,
   autoEditWorkerId = null,
   autoEditNonce = 0,
@@ -245,14 +262,15 @@ function WorkerManagementPanel({
     setEditOpen(true);
   }, [autoEditWorkerId, autoEditNonce, worker.id, isInactive]);
   const domains = (worker.properties || []).filter((p) => p.type === "domain");
-  const hasAssignableSubdomain = sites.some((s) => !globallyAssignedDomains.has(s));
+  const net = String(activeNetworkCode || "").trim();
+  const hasAssignableSubdomain = sites.some((s) => !globallyAssignedSlots.has(slotKey(s, net)));
 
   useEffect(() => {
     if (!selectedSite) return;
-    if (globallyAssignedDomains.has(selectedSite)) {
+    if (globallyAssignedSlots.has(slotKey(selectedSite, net))) {
       setSelectedSite("");
     }
-  }, [selectedSite, globallyAssignedDomains]);
+  }, [selectedSite, globallyAssignedSlots, net]);
 
   const initial = String(worker.name || "?")
     .trim()
@@ -261,11 +279,19 @@ function WorkerManagementPanel({
 
   async function handleAddDomain(e) {
     e.preventDefault();
-    if (!selectedSite || isInactive || globallyAssignedDomains.has(selectedSite)) return;
+    if (!selectedSite || isInactive || globallyAssignedSlots.has(slotKey(selectedSite, net))) return;
+    if (!net) {
+      setError("Selecciona una red activa en la cabecera antes de asignar subdominios.");
+      return;
+    }
     setError(null);
     setSubmitting(true);
     try {
-      await addProperty(worker.id, { type: "domain", value: selectedSite });
+      await addProperty(
+        worker.id,
+        { type: "domain", value: selectedSite, gamNetworkCode: net },
+        { networkCode: net },
+      );
       setSelectedSite("");
       await onUpdate();
     } catch (err) {
@@ -382,8 +408,13 @@ function WorkerManagementPanel({
           {domains.length > 0 ? (
             <div className="flex flex-wrap gap-2">
               {domains.map((p) => (
-                <Badge key={p.id} variant="outline">
+                <Badge key={p.id} variant="outline" className="gap-1">
                   {p.value}
+                  {p.gamNetworkCode || p.gam_network_code ? (
+                    <span className="text-[10px] font-normal text-muted-foreground">
+                      ({p.networkDisplayName || p.gamNetworkCode || p.gam_network_code})
+                    </span>
+                  ) : null}
                 </Badge>
               ))}
             </div>
@@ -400,7 +431,7 @@ function WorkerManagementPanel({
               </SelectTrigger>
               <SelectContent>
                 {sites.map((s) => {
-                  const assignedGlobally = globallyAssignedDomains.has(s);
+                  const assignedGlobally = globallyAssignedSlots.has(slotKey(s, net));
                   const disabled = assignedGlobally;
                   const hint = assignedGlobally ? " (no disponible)" : "";
                   return (
@@ -435,7 +466,9 @@ function WorkerManagementPanel({
         <WorkerEditModal
           worker={worker}
           sites={sites}
-          globallyAssignedDomains={globallyAssignedDomains}
+          globallyAssignedSlots={globallyAssignedSlots}
+          activeNetworkCode={net}
+          gamNetworks={gamNetworks}
           onClose={() => setEditOpen(false)}
           onSaved={onUpdate}
         />

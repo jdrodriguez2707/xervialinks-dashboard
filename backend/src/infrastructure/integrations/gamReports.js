@@ -1,5 +1,5 @@
 const axios = require("axios");
-const { getAccessToken, networkUrl } = require("./gamClient");
+const { getAccessToken, networkUrlFor } = require("./gamClient");
 
 const POLL_INTERVAL_MS = 3000;
 const MAX_POLL_ATTEMPTS = 20; // ~60 seconds max
@@ -14,17 +14,23 @@ const RETRY_DELAYS_MS = [500, 1200, 2500];
  *   3. Poll the Operation until done=true → response contains reportResult name
  *   4. Fetch rows (GET /reports/{id}/results/{resultId}:fetchRows, paginated)
  *
- * @param {{ startDate: string, endDate: string }} dateRange  ISO dates "YYYY-MM-DD"
+ * @param {{ startDate: string, endDate: string, networkCode: string }} dateRange  ISO dates "YYYY-MM-DD"
  * @returns {Promise<Array<{ date, domain, impressions, revenue, ecpm }>>}
  */
-async function fetchReports({ startDate, endDate }) {
+async function fetchReports({ startDate, endDate, networkCode }) {
+  const code = String(networkCode || "").trim();
+  if (!code) {
+    throw new Error("fetchReports requires networkCode");
+  }
   const token = await getAccessToken();
   const headers = { Authorization: `Bearer ${token}` };
 
-  const reportId = await step("createReport", () => createReport(headers, { startDate, endDate }));
-  const operationId = await step("runReport", () => runReport(headers, reportId));
-  const resultId = await step("pollOperation", () => pollOperation(headers, operationId));
-  const rows = await step("fetchRows", () => fetchAllRows(headers, reportId, resultId));
+  const reportId = await step("createReport", () =>
+    createReport(headers, { startDate, endDate, networkCode: code }),
+  );
+  const operationId = await step("runReport", () => runReport(headers, reportId, code));
+  const resultId = await step("pollOperation", () => pollOperation(headers, operationId, code));
+  const rows = await step("fetchRows", () => fetchAllRows(headers, reportId, resultId, code));
 
   return normalizeRows(rows);
 }
@@ -61,7 +67,7 @@ async function step(name, fn) {
 
 // ─── Private helpers ──────────────────────────────────────────────────────────
 
-async function createReport(headers, { startDate, endDate }) {
+async function createReport(headers, { startDate, endDate, networkCode }) {
   const [sy, sm, sd] = startDate.split("-").map(Number);
   const [ey, em, ed] = endDate.split("-").map(Number);
 
@@ -89,22 +95,26 @@ async function createReport(headers, { startDate, endDate }) {
     },
   };
 
-  const res = await axios.post(networkUrl("/reports"), body, { headers });
+  const res = await axios.post(networkUrlFor(networkCode, "/reports"), body, { headers });
   // Response shape: { name: "networks/{code}/reports/{id}", reportId, reportDefinition, ... }
   return res.data.reportId || lastSegment(res.data.name);
 }
 
-async function runReport(headers, reportId) {
+async function runReport(headers, reportId, networkCode) {
   // :run returns a long-running Operation, not a report status.
   // Operation name: "networks/{networkCode}/operations/reports/runs/{operationId}"
-  const res = await axios.post(networkUrl(`/reports/${reportId}:run`), {}, { headers });
+  const res = await axios.post(networkUrlFor(networkCode, `/reports/${reportId}:run`), {}, {
+    headers,
+  });
   return lastSegment(res.data.name); // extract operationId
 }
 
-async function pollOperation(headers, operationId) {
+async function pollOperation(headers, operationId, networkCode) {
   for (let attempt = 0; attempt < MAX_POLL_ATTEMPTS; attempt++) {
     const res = await withRetry(() =>
-      axios.get(networkUrl(`/operations/reports/runs/${operationId}`), { headers }),
+      axios.get(networkUrlFor(networkCode, `/operations/reports/runs/${operationId}`), {
+        headers,
+      }),
     );
 
     if (res.data.done) {
@@ -132,13 +142,13 @@ async function pollOperation(headers, operationId) {
   );
 }
 
-async function fetchAllRows(headers, reportId, resultId) {
+async function fetchAllRows(headers, reportId, resultId, networkCode) {
   const rows = [];
   let pageToken = null;
 
   do {
     const url =
-      networkUrl(`/reports/${reportId}/results/${resultId}:fetchRows`) +
+      networkUrlFor(networkCode, `/reports/${reportId}/results/${resultId}:fetchRows`) +
       (pageToken ? `?pageToken=${pageToken}` : "");
 
     const res = await axios.get(url, { headers });

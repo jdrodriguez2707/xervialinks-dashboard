@@ -6,9 +6,15 @@ const reportsRepository = require("../../domain/repositories/reports.repository"
  *
  * Only assignable subdomains are returned (e.g. foo.example.com).
  * Apex/root domains (e.g. example.com) are excluded by design.
+ *
+ * @param {string} timeZone
+ * @param {{ networkCode?: string }} [opts]
  */
-async function getSites(timeZone) {
-  const reports = await reportsRepository.findAll({ timeZone });
+async function getSites(timeZone, opts = {}) {
+  const reports = await reportsRepository.findAll({
+    timeZone,
+    networkCode: opts.networkCode,
+  });
   const unique = [
     ...new Set(reports.map((r) => r.domain).filter((domain) => isAssignableSubdomain(domain))),
   ].sort();

@@ -11,7 +11,10 @@ import {
 } from "../shared/api/worker";
 import { fetchSites } from "../shared/api/sites";
 import { fetchSyncStatus } from "../shared/api/sync";
+import { fetchGamNetworks } from "../shared/api/gamNetworks";
+import { readAdminActiveGamNetworkCode, writeAdminActiveGamNetworkCode } from "../shared/lib/adminActiveNetwork";
 import { toUserErrorMessage } from "../shared/lib/uiError";
+import GamNetworksModule from "../features/admin/components/GamNetworksModule";
 import LoginForm from "../features/auth/components/LoginForm";
 import SummaryCards from "../features/admin/components/SummaryCards";
 import PayoutsTable from "../features/admin/components/PayoutsTable";
@@ -40,7 +43,7 @@ const ADMIN_RANGE_LABELS = {
   currentMonth: "Este mes",
 };
 const ADMIN_CACHE_TTL_MS = 60 * 1000;
-const WORKER_DOMAIN_STORAGE_PREFIX = "workerDashboardSelectedDomain";
+const WORKER_PROPERTY_STORAGE_PREFIX = "workerDashboardSelectedPropertyId";
 const WORKER_TAB_STORAGE_PREFIX = "workerDashboardActiveTab";
 
 const ADMIN_MENU_OPTIONS = [
@@ -61,12 +64,12 @@ function readStoredAdminActiveModule() {
   return ADMIN_MENU_OPTIONS.some((o) => o.id === stored) ? stored : "dashboard";
 }
 
-function getWorkerDomains(context) {
-  return (context?.properties || []).filter((p) => p.type === "domain").map((p) => p.value);
+function getWorkerDomainProperties(context) {
+  return (context?.properties || []).filter((p) => p.type === "domain");
 }
 
-function getWorkerDomainStorageKey(workerId) {
-  return `${WORKER_DOMAIN_STORAGE_PREFIX}:${workerId || "unknown"}`;
+function getWorkerPropertyStorageKey(workerId) {
+  return `${WORKER_PROPERTY_STORAGE_PREFIX}:${workerId || "unknown"}`;
 }
 
 function formatUserDateLabel(date = new Date()) {
@@ -153,7 +156,10 @@ export default function App() {
   const [error, setError] = useState(null);
   const [workerMetricsLoading, setWorkerMetricsLoading] = useState(false);
   const [workerMetricsError, setWorkerMetricsError] = useState(null);
-  const [workerSelectedDomain, setWorkerSelectedDomain] = useState(null);
+  const [workerSelectedPropertyId, setWorkerSelectedPropertyId] = useState(null);
+  const [adminActiveNetworkCode, setAdminActiveNetworkCode] = useState(() =>
+    readAdminActiveGamNetworkCode(),
+  );
   const [currentDateLabel, setCurrentDateLabel] = useState(() => formatUserDateLabel());
   const [syncStatus, setSyncStatus] = useState(null);
   const [adminMenuOpen, setAdminMenuOpen] = useState(false);
@@ -167,7 +173,8 @@ export default function App() {
   const [workerEditLaunch, setWorkerEditLaunch] = useState({ id: null, nonce: 0 });
   const adminDashboardCacheRef = useRef(new Map());
   const adminEarningsCacheRef = useRef(new Map());
-  const workerValidDomainsRef = useRef([]);
+  const workerValidDomainPropsRef = useRef([]);
+  const adminActiveNetworkCodeRef = useRef(adminActiveNetworkCode);
   const workerPaymentMonthRef = useRef(getDefaultPaymentMonth());
   const workerHistoryPaymentMonthRef = useRef(getDefaultPaymentMonth());
   const lastDefaultPaymentMonthRef = useRef(getDefaultPaymentMonth());
@@ -184,12 +191,13 @@ export default function App() {
     setAdminReady(false);
     setWorkerMetricsLoading(false);
     setWorkerMetricsError(null);
-    setWorkerSelectedDomain(null);
+    setWorkerSelectedPropertyId(null);
     setAdminPaymentMonth(getDefaultPaymentMonth());
     setWorkerPaymentMonth(getDefaultPaymentMonth());
     setWorkerHistoryPaymentMonth(getDefaultPaymentMonth());
     setSyncStatus(null);
-    workerValidDomainsRef.current = [];
+    workerValidDomainPropsRef.current = [];
+    setAdminActiveNetworkCode(readAdminActiveGamNetworkCode());
     setWorkerFormOpenRequestId(0);
     if (typeof window !== "undefined") {
       window.sessionStorage.removeItem(ADMIN_ACTIVE_MODULE_STORAGE_KEY);
@@ -205,75 +213,87 @@ export default function App() {
     adminEarningsCacheRef.current.clear();
   }, []);
 
+  function adminDashCacheKey(rangeKey) {
+    const net = adminActiveNetworkCodeRef.current || "_";
+    return `${net}|${rangeKey}`;
+  }
+
   function getCachedDashboardSummary(rangeKey) {
-    const entry = adminDashboardCacheRef.current.get(rangeKey);
+    const entry = adminDashboardCacheRef.current.get(adminDashCacheKey(rangeKey));
     if (!entry) return null;
     if (Date.now() - entry.cachedAt > ADMIN_CACHE_TTL_MS) {
-      adminDashboardCacheRef.current.delete(rangeKey);
+      adminDashboardCacheRef.current.delete(adminDashCacheKey(rangeKey));
       return null;
     }
     return entry.summary;
   }
 
   function setCachedDashboardSummary(rangeKey, summary) {
-    adminDashboardCacheRef.current.set(rangeKey, {
+    adminDashboardCacheRef.current.set(adminDashCacheKey(rangeKey), {
       summary,
       cachedAt: Date.now(),
     });
   }
 
   function getCachedEarningsPayouts(rangeKey) {
-    const entry = adminEarningsCacheRef.current.get(rangeKey);
+    const entry = adminEarningsCacheRef.current.get(adminDashCacheKey(rangeKey));
     if (!entry) return null;
     if (Date.now() - entry.cachedAt > ADMIN_CACHE_TTL_MS) {
-      adminEarningsCacheRef.current.delete(rangeKey);
+      adminEarningsCacheRef.current.delete(adminDashCacheKey(rangeKey));
       return null;
     }
     return entry.payouts;
   }
 
   function setCachedEarningsPayouts(rangeKey, payouts) {
-    adminEarningsCacheRef.current.set(rangeKey, {
+    adminEarningsCacheRef.current.set(adminDashCacheKey(rangeKey), {
       payouts,
       cachedAt: Date.now(),
     });
   }
 
+  useEffect(() => {
+    adminActiveNetworkCodeRef.current = adminActiveNetworkCode;
+  }, [adminActiveNetworkCode]);
+
   const loadWorkerMetrics = useCallback(
-    async (domain, allowedDomains = null) => {
+    async (propertyId, allowedProps = null) => {
       if (!user || user.role !== "worker") return;
-      const validDomains = Array.isArray(allowedDomains)
-        ? allowedDomains
-        : workerValidDomainsRef.current;
-      // Sin dominios permitidos nunca pedimos métricas. Si la lista está vacía pero llega
-      // un `domain` residual (otra sesión / estado viejo), antes se enviaba igual → 400.
-      if (validDomains.length === 0) return;
-      let targetDomain = domain;
-      if (!targetDomain || !validDomains.includes(targetDomain)) {
-        targetDomain = validDomains[0];
-      }
-      if (!targetDomain) return;
+      const list = Array.isArray(allowedProps) ? allowedProps : workerValidDomainPropsRef.current;
+      if (list.length === 0) return;
+      let target = list.find((p) => p.id === Number(propertyId));
+      if (!target) target = list[0];
+      if (!target?.value) return;
       setWorkerMetricsError(null);
       setWorkerMetricsLoading(true);
       try {
-        const metrics = await fetchWorkerDashboard({ domain: targetDomain });
+        const metrics = await fetchWorkerDashboard({
+          domain: target.value,
+          networkCode: target.gamNetworkCode,
+        });
         setData((prev) => ({ ...prev, workerMetrics: metrics }));
       } catch (err) {
         const rawMessage = String(err?.message || "");
         if (isAuthSessionError(rawMessage)) handleLogout(rawMessage);
         else if (rawMessage.includes("cuenta de trabajador fue eliminada")) {
           handleLogout(rawMessage);
-        } else if (rawMessage.includes("subdominio solicitado no está asignado")) {
+        } else if (
+          rawMessage.includes("subdominio solicitado no está asignado") ||
+          rawMessage.includes("combinación dominio / red")
+        ) {
           try {
             const ctx = await fetchWorkerContext({
               paymentMonth: workerPaymentMonthRef.current,
             });
-            const domains = getWorkerDomains(ctx);
-            const fallbackDomain = domains[0] || null;
+            const props = getWorkerDomainProperties(ctx);
+            const fallback = props[0] || null;
             setData((prev) => ({ ...prev, workerContext: ctx }));
-            setWorkerSelectedDomain(fallbackDomain);
-            if (fallbackDomain) {
-              const metrics = await fetchWorkerDashboard({ domain: fallbackDomain });
+            setWorkerSelectedPropertyId(fallback?.id ?? null);
+            if (fallback) {
+              const metrics = await fetchWorkerDashboard({
+                domain: fallback.value,
+                networkCode: fallback.gamNetworkCode,
+              });
               setData((prev) => ({ ...prev, workerMetrics: metrics }));
             }
           } catch {
@@ -322,19 +342,32 @@ export default function App() {
       if (seq !== loadInitialSeqRef.current) return;
 
       if (user.role === "admin") {
+        const gamNetList = await fetchGamNetworks();
+        if (seq !== loadInitialSeqRef.current) return;
+        let activeCode = readAdminActiveGamNetworkCode();
+        const codes = (gamNetList || []).map((n) => n.networkCode);
+        if (!activeCode || !codes.includes(activeCode)) {
+          activeCode =
+            (gamNetList || []).find((n) => n.isDefault)?.networkCode || codes[0] || null;
+        }
+        if (activeCode) writeAdminActiveGamNetworkCode(activeCode);
+        setAdminActiveNetworkCode(activeCode);
+        adminActiveNetworkCodeRef.current = activeCode;
+
         const range = getAdminDateRange("today");
+        const netOpts = { networkCode: activeCode || undefined };
         const [summary, workers, payouts, paymentHistory, sites, sync] = await Promise.all([
-          fetchSummary(range),
-          fetchWorkers({ includeDeleted: true, paymentMonth: adminPaymentMonth }),
-          fetchPayouts(range),
-          fetchPaymentHistory(),
-          fetchSites(),
-          fetchSyncStatus().catch(() => null),
+          fetchSummary({ ...range, ...netOpts }),
+          fetchWorkers({ includeDeleted: true, paymentMonth: adminPaymentMonth, ...netOpts }),
+          fetchPayouts({ ...range, ...netOpts }),
+          fetchPaymentHistory(netOpts),
+          fetchSites(netOpts),
+          fetchSyncStatus(netOpts).catch(() => null),
         ]);
         if (seq !== loadInitialSeqRef.current) return;
         setCachedDashboardSummary("today", summary);
         setCachedEarningsPayouts("today", payouts);
-        setData({ summary, workers, payouts, paymentHistory, sites });
+        setData({ summary, workers, payouts, paymentHistory, sites, gamNetworks: gamNetList });
         setSyncStatus(sync);
         setAdminReady(true);
 
@@ -348,7 +381,7 @@ export default function App() {
             return;
           }
           const r = getAdminDateRange(rangeKey);
-          Promise.all([fetchSummary(r), fetchPayouts(r)])
+          Promise.all([fetchSummary({ ...r, ...netOpts }), fetchPayouts({ ...r, ...netOpts })])
             .then(([s, p]) => {
               setCachedDashboardSummary(rangeKey, s);
               setCachedEarningsPayouts(rangeKey, p);
@@ -362,14 +395,13 @@ export default function App() {
           fetchSyncStatus().catch(() => null),
         ]);
         if (seq !== loadInitialSeqRef.current) return;
-        const domains = getWorkerDomains(context);
-        let initialDomain = domains[0] || null;
-        if (typeof window !== "undefined") {
-          const savedDomain = window.localStorage.getItem(
-            getWorkerDomainStorageKey(context?.workerId),
-          );
-          if (savedDomain && domains.includes(savedDomain)) {
-            initialDomain = savedDomain;
+        const domainProps = getWorkerDomainProperties(context);
+        let initialPropertyId = domainProps[0]?.id ?? null;
+        if (typeof window !== "undefined" && context?.workerId) {
+          const saved = window.localStorage.getItem(getWorkerPropertyStorageKey(context.workerId));
+          const n = saved ? Number(saved) : NaN;
+          if (Number.isFinite(n) && domainProps.some((p) => p.id === n)) {
+            initialPropertyId = n;
           }
         }
         setData({
@@ -378,10 +410,10 @@ export default function App() {
           workerPaymentHistory: paymentHistory,
         });
         setSyncStatus(sync);
-        setWorkerSelectedDomain(initialDomain);
+        setWorkerSelectedPropertyId(initialPropertyId);
         setWorkerMetricsError(null);
-        if (initialDomain) {
-          await loadWorkerMetrics(initialDomain, domains);
+        if (initialPropertyId != null) {
+          await loadWorkerMetrics(initialPropertyId, domainProps);
           if (seq !== loadInitialSeqRef.current) return;
         }
       }
@@ -415,14 +447,17 @@ export default function App() {
     if (!user) return;
     const timer = window.setInterval(async () => {
       try {
-        const status = await fetchSyncStatus();
+        const status =
+          user.role === "admin" && adminActiveNetworkCode
+            ? await fetchSyncStatus({ networkCode: adminActiveNetworkCode })
+            : await fetchSyncStatus();
         setSyncStatus(status);
       } catch {
         // Keep last known sync status during transient errors.
       }
     }, 60 * 1000);
     return () => window.clearInterval(timer);
-  }, [user]);
+  }, [user, user?.role, adminActiveNetworkCode]);
 
   useEffect(() => {
     if (user?.role !== "admin") return;
@@ -484,7 +519,8 @@ export default function App() {
       setError(null);
       try {
         const range = getAdminDateRange(adminDashboardRange);
-        const summary = await fetchSummary(range);
+        const net = adminActiveNetworkCode ? { networkCode: adminActiveNetworkCode } : {};
+        const summary = await fetchSummary({ ...range, ...net });
         setCachedDashboardSummary(adminDashboardRange, summary);
         setData((prev) => ({ ...prev, summary }));
       } catch (err) {
@@ -496,7 +532,7 @@ export default function App() {
       }
     }
     refreshDashboardByRange();
-  }, [adminDashboardRange, user, adminReady, handleLogout]);
+  }, [adminDashboardRange, adminActiveNetworkCode, user, adminReady, handleLogout]);
 
   useEffect(() => {
     async function refreshEarningsByRange() {
@@ -510,7 +546,8 @@ export default function App() {
       setError(null);
       try {
         const range = getAdminDateRange(adminEarningsRange);
-        const payouts = await fetchPayouts(range);
+        const net = adminActiveNetworkCode ? { networkCode: adminActiveNetworkCode } : {};
+        const payouts = await fetchPayouts({ ...range, ...net });
         setCachedEarningsPayouts(adminEarningsRange, payouts);
         setData((prev) => ({ ...prev, payouts }));
       } catch (err) {
@@ -522,12 +559,12 @@ export default function App() {
       }
     }
     refreshEarningsByRange();
-  }, [adminEarningsRange, user, adminReady, handleLogout]);
+  }, [adminEarningsRange, adminActiveNetworkCode, user, adminReady, handleLogout]);
 
-  // Keep ref in sync so loadWorkerMetrics always has current valid domains
+  // Keep ref in sync so loadWorkerMetrics always has current domain property rows
   // without needing data in its dependency array (which would cause re-render loops).
   useEffect(() => {
-    workerValidDomainsRef.current = getWorkerDomains(data?.workerContext);
+    workerValidDomainPropsRef.current = getWorkerDomainProperties(data?.workerContext);
   }, [data?.workerContext]);
 
   useEffect(() => {
@@ -542,13 +579,13 @@ export default function App() {
     if (!user || user.role !== "worker" || typeof window === "undefined") return;
     const workerId = data?.workerContext?.workerId;
     if (!workerId) return;
-    const storageKey = getWorkerDomainStorageKey(workerId);
-    if (workerSelectedDomain) {
-      window.localStorage.setItem(storageKey, workerSelectedDomain);
+    const storageKey = getWorkerPropertyStorageKey(workerId);
+    if (workerSelectedPropertyId != null) {
+      window.localStorage.setItem(storageKey, String(workerSelectedPropertyId));
     } else {
       window.localStorage.removeItem(storageKey);
     }
-  }, [user, workerSelectedDomain, data?.workerContext?.workerId]);
+  }, [user, workerSelectedPropertyId, data?.workerContext?.workerId]);
 
   const refreshAdminWorkersAndPayouts = useCallback(async () => {
     if (!user || user.role !== "admin") return;
@@ -557,11 +594,12 @@ export default function App() {
     try {
       const dashRangeObj = getAdminDateRange(adminDashboardRange);
       const earnRangeObj = getAdminDateRange(adminEarningsRange);
+      const net = adminActiveNetworkCode ? { networkCode: adminActiveNetworkCode } : {};
       const [workers, payouts, summary, paymentHistory] = await Promise.all([
-        fetchWorkers({ includeDeleted: true, paymentMonth: adminPaymentMonth }),
-        fetchPayouts(earnRangeObj),
-        fetchSummary(dashRangeObj),
-        fetchPaymentHistory(),
+        fetchWorkers({ includeDeleted: true, paymentMonth: adminPaymentMonth, ...net }),
+        fetchPayouts({ ...earnRangeObj, ...net }),
+        fetchSummary({ ...dashRangeObj, ...net }),
+        fetchPaymentHistory(net),
       ]);
       setCachedDashboardSummary(adminDashboardRange, summary);
       setCachedEarningsPayouts(adminEarningsRange, payouts);
@@ -574,19 +612,28 @@ export default function App() {
     } finally {
       setRefreshingAdmin(false);
     }
-  }, [user, adminDashboardRange, adminEarningsRange, adminPaymentMonth, handleLogout]);
+  }, [
+    user,
+    adminDashboardRange,
+    adminEarningsRange,
+    adminPaymentMonth,
+    adminActiveNetworkCode,
+    handleLogout,
+  ]);
 
   const refreshAdminWorkerStatusesOnly = useCallback(async () => {
     if (!user || user.role !== "admin") return;
     setRefreshingAdmin(true);
     setError(null);
     try {
+      const net = adminActiveNetworkCode ? { networkCode: adminActiveNetworkCode } : {};
       const [workers, paymentHistory] = await Promise.all([
         fetchWorkers({
           includeDeleted: true,
           paymentMonth: adminPaymentMonth,
+          ...net,
         }),
-        fetchPaymentHistory(),
+        fetchPaymentHistory(net),
       ]);
       setData((prev) => ({ ...prev, workers, paymentHistory }));
     } catch (err) {
@@ -596,7 +643,51 @@ export default function App() {
     } finally {
       setRefreshingAdmin(false);
     }
-  }, [user, adminPaymentMonth, handleLogout]);
+  }, [user, adminPaymentMonth, adminActiveNetworkCode, handleLogout]);
+
+  const handleAdminNetworkChange = useCallback(
+    async (nextCode) => {
+      if (!nextCode || user?.role !== "admin" || !adminReady) return;
+      writeAdminActiveGamNetworkCode(nextCode);
+      setAdminActiveNetworkCode(nextCode);
+      adminActiveNetworkCodeRef.current = nextCode;
+      adminDashboardCacheRef.current.clear();
+      adminEarningsCacheRef.current.clear();
+      setRefreshingAdmin(true);
+      setError(null);
+      try {
+        const dashRangeObj = getAdminDateRange(adminDashboardRange);
+        const earnRangeObj = getAdminDateRange(adminEarningsRange);
+        const net = { networkCode: nextCode };
+        const [workers, payouts, summary, paymentHistory, sites, sync] = await Promise.all([
+          fetchWorkers({ includeDeleted: true, paymentMonth: adminPaymentMonth, ...net }),
+          fetchPayouts({ ...earnRangeObj, ...net }),
+          fetchSummary({ ...dashRangeObj, ...net }),
+          fetchPaymentHistory(net),
+          fetchSites(net),
+          fetchSyncStatus(net).catch(() => null),
+        ]);
+        setCachedDashboardSummary(adminDashboardRange, summary);
+        setCachedEarningsPayouts(adminEarningsRange, payouts);
+        setData((prev) => ({ ...prev, workers, payouts, summary, paymentHistory, sites }));
+        setSyncStatus(sync);
+      } catch (err) {
+        const rawMessage = String(err?.message || "");
+        if (isAuthSessionError(rawMessage)) handleLogout(rawMessage);
+        else setError(toUserErrorMessage(err, "No se pudo cambiar el contexto de red."));
+      } finally {
+        setRefreshingAdmin(false);
+      }
+    },
+    [
+      user,
+      adminReady,
+      adminDashboardRange,
+      adminEarningsRange,
+      adminPaymentMonth,
+      handleLogout,
+    ],
+  );
 
   const refreshWorkerContextByPaymentMonth = useCallback(async () => {
     if (!user || user.role !== "worker") return;
@@ -607,10 +698,12 @@ export default function App() {
         fetchWorkerPaymentHistory({ paymentMonth: workerHistoryPaymentMonthRef.current }),
       ]);
       if (workerContextReqSeqRef.current !== reqSeq) return;
-      const domains = getWorkerDomains(ctx);
-      const stillValid = workerSelectedDomain && domains.includes(workerSelectedDomain);
-      const nextDomain = stillValid ? workerSelectedDomain : domains[0] || null;
-      setWorkerSelectedDomain(nextDomain);
+      const props = getWorkerDomainProperties(ctx);
+      const stillValid =
+        workerSelectedPropertyId != null &&
+        props.some((p) => p.id === Number(workerSelectedPropertyId));
+      const nextId = stillValid ? workerSelectedPropertyId : props[0]?.id ?? null;
+      setWorkerSelectedPropertyId(nextId);
       setData((prev) => ({ ...prev, workerContext: ctx, workerPaymentHistory: paymentHistory }));
       setError(null);
     } catch (err) {
@@ -620,7 +713,7 @@ export default function App() {
       // No elevamos este error al estado global para no romper la UI del worker
       // por fallos transitorios del refresco liviano de contexto.
     }
-  }, [user, workerSelectedDomain, handleLogout]);
+  }, [user, workerSelectedPropertyId, handleLogout]);
 
   useEffect(() => {
     async function refreshWorkersPaymentStatusByMonth() {
@@ -628,12 +721,14 @@ export default function App() {
       setRefreshingAdmin(true);
       setError(null);
       try {
+        const net = adminActiveNetworkCode ? { networkCode: adminActiveNetworkCode } : {};
         const [workers, paymentHistory] = await Promise.all([
           fetchWorkers({
             includeDeleted: true,
             paymentMonth: adminPaymentMonth,
+            ...net,
           }),
-          fetchPaymentHistory(),
+          fetchPaymentHistory(net),
         ]);
         setData((prev) => ({ ...prev, workers, paymentHistory }));
       } catch (err) {
@@ -645,7 +740,7 @@ export default function App() {
       }
     }
     refreshWorkersPaymentStatusByMonth();
-  }, [adminPaymentMonth, user, adminReady, handleLogout]);
+  }, [adminPaymentMonth, adminActiveNetworkCode, user, adminReady, handleLogout]);
 
   useEffect(() => {
     if (!user || user.role !== "worker" || !data?.workerContext) return;
@@ -672,8 +767,8 @@ export default function App() {
     // Reset any worker-specific state from a previous session so stale domains
     // never leak into the incoming session.
     setData(null);
-    setWorkerSelectedDomain(null);
-    workerValidDomainsRef.current = [];
+    setWorkerSelectedPropertyId(null);
+    workerValidDomainPropsRef.current = [];
     setAdminMenuOpen(false);
     setAdminActiveModule("dashboard");
     setHighlightedEarningsWorkerId(null);
@@ -785,8 +880,28 @@ export default function App() {
             </div>
             <div className="header-right">
               <div className="header-sync-theme-row">
+                {(data?.gamNetworks || []).length > 0 ? (
+                  <label className="flex items-center gap-2 text-xs text-muted-foreground max-w-[min(100%,220px)]">
+                    <span className="shrink-0">Red:</span>
+                    <select
+                      className="form-select admin-range-select py-1 text-xs max-w-[160px]"
+                      value={adminActiveNetworkCode || ""}
+                      onChange={(e) => handleAdminNetworkChange(e.target.value)}
+                      aria-label="Red Ad Manager activa"
+                    >
+                      {(data?.gamNetworks || []).map((n) => (
+                        <option key={n.networkCode} value={n.networkCode}>
+                          {n.displayName}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                ) : null}
                 <p className="app-sync-status">
-                  {formatSyncStatusLabel(syncStatus?.lastSyncedAt, "admin")}
+                  {formatSyncStatusLabel(
+                    syncStatus?.activeNetworkLastSyncedAt || syncStatus?.lastSyncedAt,
+                    "admin",
+                  )}
                 </p>
                 <ThemeToggle />
                 {(loading || refreshingAdmin) && (
@@ -813,6 +928,15 @@ export default function App() {
                 adminPaymentMonth={adminPaymentMonth}
                 onChangeAdminPaymentMonth={setAdminPaymentMonth}
                 activeModule={adminActiveModule}
+                adminActiveNetworkCode={adminActiveNetworkCode}
+                onGamNetworksUpdated={async () => {
+                  try {
+                    const list = await fetchGamNetworks();
+                    setData((prev) => ({ ...prev, gamNetworks: list }));
+                  } catch {
+                    /* ignore */
+                  }
+                }}
                 highlightedEarningsWorkerId={highlightedEarningsWorkerId}
                 workerFormOpenRequestId={workerFormOpenRequestId}
                 onAddWorkerFromDashboard={() => {
@@ -882,10 +1006,10 @@ export default function App() {
           workerContext={data?.workerContext ?? null}
           workerMetrics={data?.workerMetrics ?? null}
           workerPaymentHistory={data?.workerPaymentHistory ?? null}
-          selectedDomain={workerSelectedDomain}
-          onDomainChange={async (nextDomain) => {
-            setWorkerSelectedDomain(nextDomain);
-            await loadWorkerMetrics(nextDomain, getWorkerDomains(data?.workerContext));
+          selectedPropertyId={workerSelectedPropertyId}
+          onPropertyChange={async (nextPropertyId) => {
+            setWorkerSelectedPropertyId(nextPropertyId);
+            await loadWorkerMetrics(nextPropertyId, getWorkerDomainProperties(data?.workerContext));
           }}
           contextLoading={loading}
           metricsLoading={workerMetricsLoading}
@@ -902,10 +1026,12 @@ export default function App() {
                 fetchWorkerContext({ paymentMonth: workerPaymentMonth }),
                 fetchWorkerPaymentHistory({ paymentMonth: workerHistoryPaymentMonth }),
               ]);
-              const domains = getWorkerDomains(ctx);
-              const stillValid = workerSelectedDomain && domains.includes(workerSelectedDomain);
-              const nextDomain = stillValid ? workerSelectedDomain : domains[0] || null;
-              setWorkerSelectedDomain(nextDomain);
+              const props = getWorkerDomainProperties(ctx);
+              const stillValid =
+                workerSelectedPropertyId != null &&
+                props.some((p) => p.id === Number(workerSelectedPropertyId));
+              const nextId = stillValid ? workerSelectedPropertyId : props[0]?.id ?? null;
+              setWorkerSelectedPropertyId(nextId);
               setData((prev) => ({
                 ...prev,
                 workerContext: ctx,
@@ -933,6 +1059,8 @@ function AdminDashboard({
   adminPaymentMonth,
   onChangeAdminPaymentMonth,
   activeModule,
+  adminActiveNetworkCode,
+  onGamNetworksUpdated,
   highlightedEarningsWorkerId,
   workerFormOpenRequestId,
   onAddWorkerFromDashboard,
@@ -943,7 +1071,7 @@ function AdminDashboard({
   onAdminUserUpdated,
   onForceLogout,
 }) {
-  const { summary, workers, payouts, paymentHistory = [], sites } = data;
+  const { summary, workers, payouts, paymentHistory = [], sites, gamNetworks = [] } = data;
 
   const activeWorkers = (workers || []).filter((w) => !w.deleted_at);
 
@@ -952,6 +1080,8 @@ function AdminDashboard({
       <WorkersList
         workers={workers}
         sites={sites}
+        activeNetworkCode={adminActiveNetworkCode}
+        gamNetworks={gamNetworks}
         onUpdate={onWorkersUpdate}
         mode="management"
         workerFormOpenRequestId={workerFormOpenRequestId}
@@ -1008,10 +1138,14 @@ function AdminDashboard({
     );
   }
 
+  if (activeModule === "network-codes") {
+    return <GamNetworksModule onNetworksChanged={onGamNetworksUpdated} />;
+  }
+
   if (activeModule !== "dashboard") {
     return (
       <section>
-        <h2>{activeModule === "network-codes" ? "Codigos de red" : "Perfil"}</h2>
+        <h2>Perfil</h2>
         <p className="empty-state">Módulo en construcción.</p>
       </section>
     );
@@ -1055,14 +1189,16 @@ function AdminDashboard({
             </button>
           </div>
         ) : (
-          <WorkersList
-            workers={activeWorkers}
-            sites={sites}
-            onUpdate={onWorkersUpdate}
-            mode="dashboard"
-            onGoToEarnings={onNavigateToEarnings}
-            onNavigateToWorkerEdit={onNavigateToWorkerEdit}
-          />
+        <WorkersList
+          workers={activeWorkers}
+          sites={sites}
+          activeNetworkCode={adminActiveNetworkCode}
+          gamNetworks={gamNetworks}
+          onUpdate={onWorkersUpdate}
+          mode="dashboard"
+          onGoToEarnings={onNavigateToEarnings}
+          onNavigateToWorkerEdit={onNavigateToWorkerEdit}
+        />
         )}
       </section>
     </>

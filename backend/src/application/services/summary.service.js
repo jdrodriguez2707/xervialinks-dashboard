@@ -4,7 +4,7 @@ const reportsRepository = require("../../domain/repositories/reports.repository"
  * Returns aggregate metrics (totalRevenue, totalImpressions, ecpm) for the
  * admin dashboard summary — no individual report rows exposed.
  *
- * @param {{ startDate?: string, endDate?: string }} filters
+ * @param {{ startDate?: string, endDate?: string, networkCode?: string }} filters
  */
 async function getSummary(filters = {}) {
   const reports = await reportsRepository.findAll({
@@ -12,6 +12,7 @@ async function getSummary(filters = {}) {
     endDate: filters.endDate,
     domain: filters.domain,
     timeZone: filters.timeZone,
+    networkCode: filters.networkCode,
   });
 
   const totalImpressions = reports.reduce((sum, r) => sum + r.impressions, 0);

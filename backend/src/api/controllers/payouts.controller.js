@@ -1,5 +1,6 @@
 const payoutsService = require("../../application/services/payouts.service");
 const paymentHistoryService = require("../../application/services/paymentHistory.service");
+const gamNetworksService = require("../../application/services/gamNetworks.service");
 const { todayISO, currentMonthStartISO } = require("../../application/services/clientTimezone");
 const { clientTimeZoneFromRequest } = require("../utils/clientTz");
 
@@ -9,8 +10,12 @@ async function getPayouts(req, res) {
   const startDate = queryStartDate || currentMonthStartISO(timeZone);
   const endDate = queryEndDate || todayISO(timeZone);
   const requesterEmail = req.user.role === "worker" ? req.user.email : null;
+  const networkCode =
+    req.user.role === "admin"
+      ? gamNetworksService.resolveNetworkForAdminQuery(req.query.networkCode)
+      : undefined;
   const result = await payoutsService.calculatePayouts(
-    { startDate, endDate, timeZone },
+    { startDate, endDate, timeZone, networkCode },
     requesterEmail,
   );
   res.json({ data: result });
@@ -21,7 +26,8 @@ async function getPaymentHistory(req, res) {
     return res.status(403).json({ error: "Se requieren permisos de administrador" });
   }
   const timeZone = clientTimeZoneFromRequest(req);
-  const history = await paymentHistoryService.listPaymentHistory({ timeZone });
+  const networkCode = gamNetworksService.resolveNetworkForAdminQuery(req.query.networkCode);
+  const history = await paymentHistoryService.listPaymentHistory({ timeZone, networkCode });
   res.json({ data: history });
 }
 

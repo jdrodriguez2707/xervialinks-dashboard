@@ -1,7 +1,7 @@
 const workersRepo = require("../../domain/repositories/workers.repository");
 const payoutsService = require("./payouts.service");
 
-async function listPaymentHistory({ timeZone }) {
+async function listPaymentHistory({ timeZone, networkCode } = {}) {
   const paidStatuses = workersRepo.listPaidPaymentStatuses();
   if (paidStatuses.length === 0) return [];
 
@@ -10,7 +10,10 @@ async function listPaymentHistory({ timeZone }) {
 
   for (const month of uniqueMonths) {
     const { startDate, endDate } = getMonthRange(month);
-    const result = await payoutsService.calculatePayouts({ startDate, endDate, timeZone }, null);
+    const result = await payoutsService.calculatePayouts(
+      { startDate, endDate, timeZone, networkCode },
+      null,
+    );
     const byWorker = new Map(result.payouts.map((p) => [p.workerId, p]));
     payoutsByMonth.set(month, byWorker);
   }

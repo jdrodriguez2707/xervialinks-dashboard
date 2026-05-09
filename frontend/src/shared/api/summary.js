@@ -4,6 +4,7 @@ export async function fetchSummary(filters = {}) {
   const params = new URLSearchParams();
   if (filters.startDate) params.set("startDate", filters.startDate);
   if (filters.endDate) params.set("endDate", filters.endDate);
+  if (filters.networkCode) params.set("networkCode", filters.networkCode);
   const query = params.toString();
   const url = `/api/summary${query ? `?${query}` : ""}`;
   const res = await fetch(url, { headers: getAuthHeaders() });

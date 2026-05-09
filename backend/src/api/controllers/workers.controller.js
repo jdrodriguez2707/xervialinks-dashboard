@@ -26,8 +26,12 @@ async function createWorker(req, res) {
 }
 
 async function addProperty(req, res) {
-  const { type, value } = req.body;
-  const property = workersService.addPropertyToWorker(req.params.id, { type, value });
+  const { type, value, gamNetworkCode } = req.body || {};
+  const property = workersService.addPropertyToWorker(
+    req.params.id,
+    { type, value, gamNetworkCode },
+    req.query.networkCode,
+  );
   res.status(201).json({ data: property });
 }
 
@@ -52,7 +56,9 @@ async function updatePaymentStatus(req, res) {
 }
 
 async function updateWorker(req, res) {
-  const worker = await workersService.updateWorker(req.params.id, req.body || {});
+  const worker = await workersService.updateWorker(req.params.id, req.body || {}, {
+    defaultGamNetworkCode: req.query.networkCode,
+  });
   res.json({ data: worker });
 }
 

@@ -7,18 +7,41 @@ const workersRepo = require("../../domain/repositories/workers.repository");
  *
  * Formula: payout = assignedRevenue * (percentage / 100)
  *
- * @param {{ startDate?: string, endDate?: string, timeZone?: string }} filters
+ * Domain revenue matches (domain, network_code) from each domain property row.
+ *
+ * @param {{
+ *   startDate?: string,
+ *   endDate?: string,
+ *   timeZone?: string,
+ *   networkCode?: string,
+ *   networkCodes?: string[],
+ * }} filters
  * @param {string|null} requesterEmail  When set (worker role), only returns that worker's payout.
  */
 async function calculatePayouts(filters = {}, requesterEmail = null) {
-  const [reports, allWorkers] = await Promise.all([
-    reportsRepo.findAll(filters),
-    Promise.resolve(workersRepo.findAll({ includeDeleted: true })),
-  ]);
-
+  const allWorkers = workersRepo.findAll({ includeDeleted: true });
   const workers = requesterEmail
     ? allWorkers.filter((w) => w.email === requesterEmail)
     : allWorkers;
+
+  const reportFilters = {
+    startDate: filters.startDate,
+    endDate: filters.endDate,
+    timeZone: filters.timeZone,
+    networkCode: filters.networkCode,
+    networkCodes: filters.networkCodes,
+  };
+
+  if (requesterEmail && workers.length > 0) {
+    const slots = workers.flatMap((w) => getAssignedDomainSlots(w.properties));
+    const codes = [...new Set(slots.map((s) => s.gamNetworkCode).filter(Boolean))];
+    if (codes.length > 0) {
+      reportFilters.networkCodes = codes;
+    }
+    delete reportFilters.networkCode;
+  }
+
+  const reports = await reportsRepo.findAll(reportFilters);
 
   const tz = filters.timeZone || "America/Bogota";
 
@@ -34,10 +57,17 @@ async function calculatePayouts(filters = {}, requesterEmail = null) {
           : filterEnd;
       if (effectiveStart > effectiveEnd) return null;
 
-      const assignedDomains = getAssignedDomains(worker.properties);
+      const domainSlots = getAssignedDomainSlots(worker.properties);
+      const assignedDomains = domainSlots.map((s) => s.value);
       const matchingReports = reports.filter(
         (r) =>
-          assignedDomains.includes(r.domain) && r.date >= effectiveStart && r.date <= effectiveEnd,
+          domainSlots.some(
+            (s) =>
+              s.value === r.domain &&
+              String(s.gamNetworkCode) === String(r.networkCode || "").trim(),
+          ) &&
+          r.date >= effectiveStart &&
+          r.date <= effectiveEnd,
       );
 
       const assignedRevenue = sumRevenue(matchingReports);
@@ -55,6 +85,7 @@ async function calculatePayouts(filters = {}, requesterEmail = null) {
         percentage: worker.percentage,
         deletedAt: workerDeletedCalendar || null,
         assignedDomains,
+        domainSlots,
         assignedProperties: worker.properties,
         assignedRevenue,
         assignedImpressions,
@@ -72,6 +103,16 @@ async function calculatePayouts(filters = {}, requesterEmail = null) {
 
 function getAssignedDomains(properties) {
   return properties.filter((p) => p.type === "domain").map((p) => p.value);
+}
+
+function getAssignedDomainSlots(properties) {
+  return properties
+    .filter((p) => p.type === "domain")
+    .map((p) => ({
+      value: String(p.value || "").trim(),
+      gamNetworkCode: String(p.gamNetworkCode || p.gam_network_code || "").trim(),
+    }))
+    .filter((s) => s.value && s.gamNetworkCode);
 }
 
 function computePayout(revenue, percentage) {
@@ -125,6 +166,7 @@ function deletedAtToBusinessCalendarISO(deletedAtRaw, timeZone) {
 module.exports = {
   calculatePayouts,
   getAssignedDomains,
+  getAssignedDomainSlots,
   computePayout,
   sumRevenue,
   sumImpressions,

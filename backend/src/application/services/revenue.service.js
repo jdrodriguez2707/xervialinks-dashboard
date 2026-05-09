@@ -1,4 +1,5 @@
 const reportsRepo = require("../../domain/repositories/reports.repository");
+const { getAssignedDomainSlots } = require("./payouts.service");
 const {
   getDefaultTimeZone,
   todayISO,
@@ -9,22 +10,22 @@ const {
 // ─── Revenue aggregation ──────────────────────────────────────────────────────
 
 /**
- * Fetches reports for a date range, optionally filtered by domain list,
- * and returns aggregated revenue + impressions.
- *
- * @param {string} startDate
- * @param {string} endDate
- * @param {string[]|null} domains  null = all domains
- * @param {string} [timeZone]  IANA — aligns mock rows with calendar boundaries
+ * @param {{ networkCode?: string, networkCodes?: string[] }} [scope]
  */
-async function aggregateForRange(startDate, endDate, domains = null, timeZone) {
+async function aggregateForRange(startDate, endDate, domains = null, timeZone, scope = {}) {
   const tz = timeZone || getDefaultTimeZone();
 
   if (Array.isArray(domains) && domains.length === 0) {
     return { revenue: 0, impressions: 0, ecpm: 0 };
   }
 
-  const reports = await reportsRepo.findAll({ startDate, endDate, timeZone: tz });
+  const reports = await reportsRepo.findAll({
+    startDate,
+    endDate,
+    timeZone: tz,
+    networkCode: scope.networkCode,
+    networkCodes: scope.networkCodes,
+  });
 
   const filtered =
     domains && domains.length > 0 ? reports.filter((r) => domains.includes(r.domain)) : reports;
@@ -36,35 +37,37 @@ async function aggregateForRange(startDate, endDate, domains = null, timeZone) {
   return { revenue, impressions, ecpm };
 }
 
-async function getTodayRevenue(domains = null, timeZone, referenceDate) {
+async function getTodayRevenue(domains = null, timeZone, referenceDate, scope = {}) {
   const tz = timeZone || getDefaultTimeZone();
   const today = todayISO(tz, referenceDate);
-  return aggregateForRange(today, today, domains, tz);
+  return aggregateForRange(today, today, domains, tz, scope);
 }
 
-async function getYesterdayRevenue(domains = null, timeZone, referenceDate) {
+async function getYesterdayRevenue(domains = null, timeZone, referenceDate, scope = {}) {
   const tz = timeZone || getDefaultTimeZone();
   const yesterday = daysAgoISO(1, tz, referenceDate);
-  return aggregateForRange(yesterday, yesterday, domains, tz);
+  return aggregateForRange(yesterday, yesterday, domains, tz, scope);
 }
 
-async function getLast7DaysRevenue(domains = null, timeZone, referenceDate) {
+async function getLast7DaysRevenue(domains = null, timeZone, referenceDate, scope = {}) {
   const tz = timeZone || getDefaultTimeZone();
   return aggregateForRange(
     daysAgoISO(7, tz, referenceDate),
     daysAgoISO(1, tz, referenceDate),
     domains,
     tz,
+    scope,
   );
 }
 
-async function getCurrentMonthRevenue(domains = null, timeZone, referenceDate) {
+async function getCurrentMonthRevenue(domains = null, timeZone, referenceDate, scope = {}) {
   const tz = timeZone || getDefaultTimeZone();
   return aggregateForRange(
     currentMonthStartISO(tz, referenceDate),
     todayISO(tz, referenceDate),
     domains,
     tz,
+    scope,
   );
 }
 
@@ -74,25 +77,65 @@ function applyPercentage(revenue, percentage) {
   return parseFloat(((revenue * percentage) / 100).toFixed(2));
 }
 
+function reportMatchesSlot(r, slot) {
+  return (
+    String(r.domain) === String(slot.value) &&
+    String(r.networkCode || "").trim() === String(slot.gamNetworkCode).trim()
+  );
+}
+
 /**
  * Returns all 4 dashboard periods for a worker, each with revenue (net),
  * eCPM (gross — reflects site performance), and impressions.
  *
  * @param {{ percentage: number, properties: Array }} worker
  * @param {string} timeZone  IANA timezone from the client (X-Client-Timezone)
- * @param {{ domain?: string, referenceDate?: string }} [filters] Optional worker metric scope
+ * @param {{
+ *   domain?: string,
+ *   networkCode?: string,
+ *   referenceDate?: string,
+ * }} [filters] Optional worker metric scope
  */
 async function getWorkerDashboardPeriods(worker, timeZone, filters = {}) {
   const tz = timeZone || getDefaultTimeZone();
   const referenceDate = filters.referenceDate || undefined;
 
-  const assignedDomains = worker.properties.filter((p) => p.type === "domain").map((p) => p.value);
-
+  const allSlots = getAssignedDomainSlots(worker.properties);
   const requestedDomain =
     typeof filters.domain === "string" && filters.domain.trim() ? filters.domain.trim() : null;
-  const scopedDomains = requestedDomain ? [requestedDomain] : assignedDomains;
+  const requestedNet =
+    typeof filters.networkCode === "string" && filters.networkCode.trim()
+      ? filters.networkCode.trim()
+      : null;
 
-  if (scopedDomains.length === 0) {
+  let slots = allSlots;
+  if (requestedDomain) {
+    const matching = allSlots.filter((s) => s.value === requestedDomain);
+    if (matching.length === 0) {
+      const empty = { revenue: 0, ecpm: 0, impressions: 0 };
+      return {
+        today: empty,
+        yesterday: empty,
+        last7Days: empty,
+        currentMonth: empty,
+      };
+    }
+    if (requestedNet) {
+      slots = matching.filter((s) => s.gamNetworkCode === requestedNet);
+    } else if (matching.length === 1) {
+      slots = matching;
+    } else {
+      const empty = { revenue: 0, ecpm: 0, impressions: 0 };
+      return {
+        today: empty,
+        yesterday: empty,
+        last7Days: empty,
+        currentMonth: empty,
+      };
+    }
+  }
+
+  if (slots.length === 0) {
     const empty = { revenue: 0, ecpm: 0, impressions: 0 };
     return {
       today: empty,
@@ -101,6 +144,9 @@ async function getWorkerDashboardPeriods(worker, timeZone, filters = {}) {
       currentMonth: empty,
     };
   }
+
+  const networkCodes = [...new Set(slots.map((s) => s.gamNetworkCode).filter(Boolean))];
+  const scopedDomains = [...new Set(slots.map((s) => s.value))];
 
   const monthStart = currentMonthStartISO(tz, referenceDate);
   const today = todayISO(tz, referenceDate);
@@ -112,8 +158,9 @@ async function getWorkerDashboardPeriods(worker, timeZone, filters = {}) {
     startDate: baseStart,
     endDate: today,
     timeZone: tz,
+    networkCodes,
   });
-  const workerReports = reports.filter((r) => scopedDomains.includes(r.domain));
+  const workerReports = reports.filter((r) => slots.some((s) => reportMatchesSlot(r, s)));
 
   const rawToday = aggregateReports(workerReports, today, today);
   const rawYesterday = aggregateReports(workerReports, yesterday, yesterday);

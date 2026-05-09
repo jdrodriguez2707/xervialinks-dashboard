@@ -1,6 +1,7 @@
 const bcrypt = require("bcryptjs");
 const workersRepo = require("../../domain/repositories/workers.repository");
 const authRepo = require("../../domain/repositories/auth.repository");
+const gamNetworksRepo = require("../../domain/repositories/gamNetworks.repository");
 const { isAssignableSubdomain } = require("./sites.service");
 const { encryptPassword, decryptPassword } = require("../../infrastructure/security/passwordVault");
 
@@ -26,6 +27,40 @@ class ConflictError extends Error {
     this.name = "ConflictError";
     this.statusCode = 409;
   }
+}
+
+function resolveGamNetworkCodeForWrite(explicit, queryFallback) {
+  const fromExplicit = explicit != null ? String(explicit).trim() : "";
+  if (fromExplicit) return fromExplicit;
+  const fromQuery = queryFallback != null ? String(queryFallback).trim() : "";
+  if (fromQuery) return fromQuery;
+  const def = gamNetworksRepo.getDefaultNetworkCode();
+  if (def) return String(def).trim();
+  const first = gamNetworksRepo.listAll()[0];
+  if (first?.networkCode) return String(first.networkCode).trim();
+  return "";
+}
+
+/**
+ * @param {unknown} raw
+ * @param {string} defaultGamNetworkCode
+ * @returns {{ value: string, gamNetworkCode: string }[]}
+ */
+function normalizeDomainAssignments(raw, defaultGamNetworkCode) {
+  if (!Array.isArray(raw)) return [];
+  const def = String(defaultGamNetworkCode || "").trim();
+  const out = [];
+  for (const item of raw) {
+    if (typeof item === "string") {
+      const value = item.trim();
+      if (value) out.push({ value, gamNetworkCode: def });
+    } else if (item && typeof item === "object") {
+      const value = String(item.value ?? "").trim();
+      const gamNetworkCode = String(item.gamNetworkCode ?? item.gam_network_code ?? def).trim();
+      if (value && gamNetworkCode) out.push({ value, gamNetworkCode });
+    }
+  }
+  return out;
 }
 
 function getAllWorkers(includeDeleted = false, paymentMonth = null, includePassword = false) {
@@ -104,7 +139,7 @@ function purgeInactiveWorker(id) {
   }
 }
 
-function addPropertyToWorker(workerId, { type, value }) {
+function addPropertyToWorker(workerId, { type, value, gamNetworkCode }, queryFallback = null) {
   const VALID_TYPES = ["domain", "ad_unit"];
   if (!VALID_TYPES.includes(type)) {
     throw new ValidationError(`El tipo debe ser uno de: ${VALID_TYPES.join(", ")}`);
@@ -115,22 +150,36 @@ function addPropertyToWorker(workerId, { type, value }) {
 
   getWorkerById(workerId);
   const trimmedValue = value.trim();
+  const net = resolveGamNetworkCodeForWrite(gamNetworkCode, queryFallback);
+  if (!net) {
+    throw new ValidationError("Se requiere código de red GAM (gamNetworkCode o red activa en la URL)");
+  }
+  const networkRow = gamNetworksRepo.findByCode(net);
+  if (!networkRow) {
+    throw new ValidationError("El código de red no está registrado");
+  }
 
-  // Domain ownership is exclusive across workers.
+  // Domain ownership is exclusive across workers (same dominio + misma red).
   if (type === "domain") {
     if (!isAssignableSubdomain(trimmedValue)) {
       throw new ValidationError(
         "Solo se permiten subdominios asignables (ej: elvalerobux.barbacoadicto.com)",
       );
     }
-    const existingDomain = workersRepo.findPropertyByTypeAndValue("domain", trimmedValue);
+    const existingDomain = workersRepo.findPropertyByTypeAndValue("domain", trimmedValue, net);
     if (existingDomain && existingDomain.worker_id !== Number(workerId)) {
-      throw new ConflictError(`El subdominio ${trimmedValue} ya está asignado a otro trabajador`);
+      throw new ConflictError(
+        `El subdominio ${trimmedValue} en la red ${net} ya está asignado a otro trabajador`,
+      );
     }
   }
 
   try {
-    return workersRepo.addProperty(Number(workerId), { type, value: trimmedValue });
+    return workersRepo.addProperty(Number(workerId), {
+      type,
+      value: trimmedValue,
+      gamNetworkCode: net,
+    });
   } catch (err) {
     if (err.message.includes("UNIQUE")) {
       throw new ConflictError(
@@ -166,10 +215,11 @@ function updateWorkerPaymentInfoByEmail(email, { methodType, paymentDetails }) {
  *   email: string,
  *   percentage: number,
  *   password?: string,
- *   domains: string[],
+ *   domains: (string | { value: string, gamNetworkCode?: string })[],
  * }} body
+ * @param {{ defaultGamNetworkCode?: string }} [opts]
  */
-async function updateWorker(workerId, body) {
+async function updateWorker(workerId, body, opts = {}) {
   const worker = getWorkerById(Number(workerId));
   const { name: rawName, email: rawEmail, percentage, password, domains } = body;
 
@@ -188,16 +238,37 @@ async function updateWorker(workerId, body) {
     throw new ValidationError("El porcentaje debe ser un número entre 0 y 100 (exclusivo)");
   }
 
-  const normalizedDomains = [...new Set(domains.map((d) => String(d).trim()).filter(Boolean))];
-  for (const d of normalizedDomains) {
-    if (!isAssignableSubdomain(d)) {
+  const defaultNet = resolveGamNetworkCodeForWrite(opts.defaultGamNetworkCode, null);
+  const domainAssignments = normalizeDomainAssignments(domains, defaultNet);
+  if (domainAssignments.length === 0 && domains.length > 0) {
+    throw new ValidationError(
+      "Cada subdominio necesita un código de red GAM (usa objetos { value, gamNetworkCode } o el query networkCode)",
+    );
+  }
+  const seen = new Set();
+  for (const slot of domainAssignments) {
+    if (!isAssignableSubdomain(slot.value)) {
       throw new ValidationError(
         "Solo se permiten subdominios asignables (ej: elvalerobux.barbacoadicto.com)",
       );
     }
-    const existing = workersRepo.findPropertyByTypeAndValue("domain", d);
+    if (!gamNetworksRepo.findByCode(slot.gamNetworkCode)) {
+      throw new ValidationError(`Código de red no registrado: ${slot.gamNetworkCode}`);
+    }
+    const dedupeKey = `${slot.value}|||${slot.gamNetworkCode}`;
+    if (seen.has(dedupeKey)) {
+      throw new ValidationError("Lista de subdominios duplicada (mismo dominio y red)");
+    }
+    seen.add(dedupeKey);
+    const existing = workersRepo.findPropertyByTypeAndValue(
+      "domain",
+      slot.value,
+      slot.gamNetworkCode,
+    );
     if (existing && Number(existing.worker_id) !== Number(worker.id)) {
-      throw new ConflictError(`El subdominio ${d} ya está asignado a otro trabajador`);
+      throw new ConflictError(
+        `El subdominio ${slot.value} en la red ${slot.gamNetworkCode} ya está asignado a otro trabajador`,
+      );
     }
   }
 
@@ -235,7 +306,7 @@ async function updateWorker(workerId, body) {
         passwordCipher: passwordCipher || null,
         invalidateSessions,
       },
-      normalizedDomains,
+      domainAssignments,
     );
   } catch (err) {
     if (String(err.message || err).includes("UNIQUE")) {

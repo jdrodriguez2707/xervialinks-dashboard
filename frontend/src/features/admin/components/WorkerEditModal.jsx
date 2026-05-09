@@ -21,11 +21,22 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
+function slotKey(value, gamNetworkCode) {
+  return `${String(value || "").trim()}|||${String(gamNetworkCode || "").trim()}`;
+}
+
+function labelForNetwork(code, gamNetworks) {
+  const row = (gamNetworks || []).find((n) => n.networkCode === code);
+  return row?.displayName || code;
+}
+
 /**
  * @param {{
  *   worker: object,
  *   sites: string[],
- *   globallyAssignedDomains: Set<string>,
+ *   globallyAssignedSlots: Set<string>,
+ *   activeNetworkCode: string,
+ *   gamNetworks: object[],
  *   onClose: () => void,
  *   onSaved: () => void | Promise<void>,
  * }} props
@@ -33,7 +44,9 @@ import {
 export default function WorkerEditModal({
   worker,
   sites,
-  globallyAssignedDomains,
+  globallyAssignedSlots,
+  activeNetworkCode = "",
+  gamNetworks = [],
   onClose,
   onSaved,
 }) {
@@ -41,11 +54,14 @@ export default function WorkerEditModal({
   const [email, setEmail] = useState("");
   const [percentage, setPercentage] = useState("");
   const [password, setPassword] = useState("");
-  const [domains, setDomains] = useState([]);
+  /** @type {{ value: string, gamNetworkCode: string }[]} */
+  const [domainSlots, setDomainSlots] = useState([]);
   const [selectedSite, setSelectedSite] = useState("");
   const [error, setError] = useState(null);
   const [submitting, setSubmitting] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+
+  const net = String(activeNetworkCode || "").trim();
 
   useEffect(() => {
     if (!worker) return;
@@ -53,26 +69,46 @@ export default function WorkerEditModal({
     setEmail(worker.email || "");
     setPercentage(String(worker.percentage ?? ""));
     setPassword(worker.password || "");
-    setDomains((worker.properties || []).filter((p) => p.type === "domain").map((p) => p.value));
+    setDomainSlots(
+      (worker.properties || [])
+        .filter((p) => p.type === "domain")
+        .map((p) => ({
+          value: String(p.value || "").trim(),
+          gamNetworkCode: String(p.gamNetworkCode || p.gam_network_code || "").trim(),
+        }))
+        .filter((s) => s.value && s.gamNetworkCode),
+    );
     setSelectedSite("");
     setError(null);
     setShowPassword(false);
   }, [worker]);
 
-  const availableSites = useMemo(() => {
-    const set = new Set(domains);
-    return sites.filter((s) => !globallyAssignedDomains.has(s) || set.has(s));
-  }, [sites, globallyAssignedDomains, domains]);
+  const slotKeysInForm = useMemo(
+    () => new Set(domainSlots.map((s) => slotKey(s.value, s.gamNetworkCode))),
+    [domainSlots],
+  );
 
-  function removeDomain(value) {
-    setDomains((prev) => prev.filter((d) => d !== value));
+  const availableSites = useMemo(() => {
+    return sites.filter((s) => {
+      const k = slotKey(s, net);
+      if (!net) return false;
+      if (slotKeysInForm.has(k)) return true;
+      return !globallyAssignedSlots.has(k);
+    });
+  }, [sites, globallyAssignedSlots, slotKeysInForm, net]);
+
+  function removeSlot(value, gamNetworkCode) {
+    setDomainSlots((prev) =>
+      prev.filter((x) => !(x.value === value && x.gamNetworkCode === gamNetworkCode)),
+    );
   }
 
   function addDomainFromSelect(e) {
     e.preventDefault();
-    if (!selectedSite) return;
-    if (domains.includes(selectedSite)) return;
-    setDomains((prev) => [...prev, selectedSite]);
+    if (!selectedSite || !net) return;
+    const k = slotKey(selectedSite, net);
+    if (domainSlots.some((x) => slotKey(x.value, x.gamNetworkCode) === k)) return;
+    setDomainSlots((prev) => [...prev, { value: selectedSite, gamNetworkCode: net }]);
     setSelectedSite("");
   }
 
@@ -86,12 +122,12 @@ export default function WorkerEditModal({
         name: name.trim(),
         email: email.trim(),
         percentage: pct,
-        domains,
+        domains: domainSlots,
       };
       if (password.trim()) {
         payload.password = password.trim();
       }
-      await updateWorker(worker.id, payload);
+      await updateWorker(worker.id, payload, { networkCode: net || undefined });
       await onSaved();
       onClose();
     } catch (err) {
@@ -106,7 +142,10 @@ export default function WorkerEditModal({
       <DialogContent className="sm:max-w-2xl border-border/60">
         <DialogHeader>
           <DialogTitle>Editar trabajador · {worker.name}</DialogTitle>
-          <DialogDescription>Actualiza datos y subdominios asociados.</DialogDescription>
+          <DialogDescription>
+            Actualiza datos y subdominios. Los nuevos subdominios usan la red seleccionada en la
+            cabecera del panel ({net ? labelForNetwork(net, gamNetworks) : "ninguna"}).
+          </DialogDescription>
         </DialogHeader>
 
         <form className="space-y-4" onSubmit={handleSubmit}>
@@ -173,21 +212,25 @@ export default function WorkerEditModal({
             <div>
               <p className="text-sm font-semibold">Subdominios</p>
               <p className="text-xs text-muted-foreground">
-                Puedes quitar o añadir subdominios aquí. Los cambios se guardan al pulsar{" "}
-                <span className="font-medium">&quot;Guardar cambios&quot;</span>.
+                Puedes quitar o añadir subdominios. Cada uno queda vinculado a una red GAM.
               </p>
             </div>
 
-            {domains.length > 0 ? (
+            {domainSlots.length > 0 ? (
               <div className="flex flex-wrap gap-2">
-                {domains.map((d) => (
-                  <Badge key={d} variant="outline" className="gap-2">
-                    {d}
+                {domainSlots.map((s) => (
+                  <Badge key={slotKey(s.value, s.gamNetworkCode)} variant="outline" className="gap-2">
+                    <span>
+                      {s.value}{" "}
+                      <span className="text-[10px] font-normal text-muted-foreground">
+                        ({labelForNetwork(s.gamNetworkCode, gamNetworks)})
+                      </span>
+                    </span>
                     <button
                       type="button"
                       className="text-muted-foreground hover:text-foreground"
-                      aria-label={`Quitar ${d}`}
-                      onClick={() => removeDomain(d)}
+                      aria-label={`Quitar ${s.value}`}
+                      onClick={() => removeSlot(s.value, s.gamNetworkCode)}
                     >
                       ✕
                     </button>
@@ -205,7 +248,11 @@ export default function WorkerEditModal({
                 </SelectTrigger>
                 <SelectContent>
                   {availableSites.map((s) => (
-                    <SelectItem key={s} value={s} disabled={domains.includes(s)}>
+                    <SelectItem
+                      key={s}
+                      value={s}
+                      disabled={net ? domainSlots.some((x) => slotKey(x.value, x.gamNetworkCode) === slotKey(s, net)) : true}
+                    >
                       {s}
                     </SelectItem>
                   ))}
@@ -214,7 +261,7 @@ export default function WorkerEditModal({
               <Button
                 type="button"
                 size="sm"
-                disabled={!selectedSite || availableSites.length === 0}
+                disabled={!selectedSite || !net || availableSites.length === 0}
                 onClick={addDomainFromSelect}
               >
                 Añadir

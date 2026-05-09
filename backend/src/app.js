@@ -13,6 +13,7 @@ const workersRoutes = require("./api/routes/workers.routes");
 const payoutsRoutes = require("./api/routes/payouts.routes");
 const workerRoutes = require("./api/routes/worker.routes");
 const syncRoutes = require("./api/routes/sync.routes");
+const gamNetworksRoutes = require("./api/routes/gamNetworks.routes");
 const errorHandler = require("./api/middleware/errorHandler");
 
 const app = express();
@@ -33,6 +34,7 @@ app.use("/api/workers", authenticate, requireAdmin, workersRoutes);
 app.use("/api/payouts", authenticate, payoutsRoutes);
 app.use("/api/worker", authenticate, workerRoutes);
 app.use("/api/sync", authenticate, syncRoutes);
+app.use("/api/gam-networks", authenticate, requireAdmin, gamNetworksRoutes);
 
 app.use(errorHandler);
 

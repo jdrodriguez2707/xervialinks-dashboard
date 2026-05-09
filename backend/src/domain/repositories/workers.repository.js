@@ -104,19 +104,36 @@ function hardDeleteInactiveById(id) {
   return true;
 }
 
-function addProperty(workerId, { type, value }) {
+function addProperty(workerId, { type, value, gamNetworkCode }) {
   const db = getDb();
+  const net = String(gamNetworkCode || "").trim();
+  if (!net) {
+    throw new Error("gamNetworkCode is required for properties");
+  }
   const result = db
-    .prepare("INSERT INTO properties (worker_id, type, value) VALUES (?, ?, ?)")
-    .run(workerId, type, value);
+    .prepare(
+      "INSERT INTO properties (worker_id, type, value, gam_network_code) VALUES (?, ?, ?, ?)",
+    )
+    .run(workerId, type, value, net);
   return db.prepare("SELECT * FROM properties WHERE id = ?").get(result.lastInsertRowid);
 }
 
-function findPropertyByTypeAndValue(type, value) {
+function findPropertyByTypeAndValue(type, value, gamNetworkCode = null) {
   const db = getDb();
+  if (type === "domain" && gamNetworkCode != null && String(gamNetworkCode).trim() !== "") {
+    return db
+      .prepare(
+        `SELECT p.id, p.worker_id, p.type, p.value, p.gam_network_code AS gam_network_code
+         FROM properties p
+         INNER JOIN workers w ON w.id = p.worker_id
+         WHERE p.type = ? AND p.value = ? AND p.gam_network_code = ? AND w.deleted_at IS NULL
+         LIMIT 1`,
+      )
+      .get(type, value, String(gamNetworkCode).trim());
+  }
   return db
     .prepare(
-      `SELECT p.id, p.worker_id, p.type, p.value
+      `SELECT p.id, p.worker_id, p.type, p.value, p.gam_network_code AS gam_network_code
        FROM properties p
        INNER JOIN workers w ON w.id = p.worker_id
        WHERE p.type = ? AND p.value = ? AND w.deleted_at IS NULL
@@ -128,7 +145,10 @@ function findPropertyByTypeAndValue(type, value) {
 function getProperties(workerId) {
   const db = getDb();
   return db
-    .prepare("SELECT * FROM properties WHERE worker_id = ? ORDER BY created_at ASC, id ASC")
+    .prepare(
+      `SELECT id, worker_id, type, value, gam_network_code AS gam_network_code, created_at
+       FROM properties WHERE worker_id = ? ORDER BY created_at ASC, id ASC`,
+    )
     .all(workerId);
 }
 
@@ -208,9 +228,14 @@ function listPaidPaymentStatuses() {
 
 function attachProperties(worker, { paymentMonth = null } = {}) {
   const paymentStatus = getPaymentStatus(worker.id, paymentMonth);
+  const rawProps = getProperties(worker.id);
+  const properties = rawProps.map((p) => ({
+    ...p,
+    gamNetworkCode: p.gam_network_code,
+  }));
   return {
     ...worker,
-    properties: getProperties(worker.id),
+    properties,
     paymentInfo: getPaymentInfo(worker.id),
     ...paymentStatus,
   };
@@ -218,14 +243,14 @@ function attachProperties(worker, { paymentMonth = null } = {}) {
 
 /**
  * Updates worker row, linked worker user (by old email), and replaces domain properties
- * to match `domainValues` order. Optional password: pass null to keep current hash.
+ * to match `domainAssignments` (value + gamNetworkCode per slot). Optional password: pass null to keep current hash.
  * Runs in a single transaction.
  */
 function updateWorkerComplete(
   workerId,
   oldEmail,
   { name, email, percentage, passwordHash, passwordCipher, invalidateSessions = false },
-  domainValues,
+  domainAssignments,
 ) {
   const db = getDb();
   return db.transaction(() => {
@@ -250,20 +275,26 @@ function updateWorkerComplete(
     }
 
     const props = db
-      .prepare("SELECT id, value FROM properties WHERE worker_id = ? AND type = 'domain'")
+      .prepare(
+        "SELECT id, value, gam_network_code AS gamNetworkCode FROM properties WHERE worker_id = ? AND type = 'domain'",
+      )
       .all(workerId);
-    const desired = new Set(domainValues);
+    const keyOf = (v, net) => `${String(v).trim()}|||${String(net).trim()}`;
+    const desiredKeys = new Set(
+      (domainAssignments || []).map((a) => keyOf(a.value, a.gamNetworkCode)),
+    );
     for (const p of props) {
-      if (!desired.has(p.value)) {
+      if (!desiredKeys.has(keyOf(p.value, p.gamNetworkCode))) {
         db.prepare("DELETE FROM properties WHERE id = ?").run(p.id);
       }
     }
-    for (const d of domainValues) {
-      if (!props.some((row) => row.value === d)) {
-        db.prepare("INSERT INTO properties (worker_id, type, value) VALUES (?, 'domain', ?)").run(
-          workerId,
-          d,
-        );
+    const existingKeys = new Set(props.map((p) => keyOf(p.value, p.gamNetworkCode)));
+    for (const a of domainAssignments || []) {
+      const k = keyOf(a.value, a.gamNetworkCode);
+      if (!existingKeys.has(k)) {
+        db.prepare(
+          "INSERT INTO properties (worker_id, type, value, gam_network_code) VALUES (?, 'domain', ?, ?)",
+        ).run(workerId, String(a.value).trim(), String(a.gamNetworkCode).trim());
       }
     }
 
