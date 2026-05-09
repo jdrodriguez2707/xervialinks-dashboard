@@ -59,6 +59,18 @@ export function getAuthHeaders() {
   return headers;
 }
 
+/** JWT payload: { userId, email, role }. Use before heavy dashboard fetches to avoid a burst of 401s. */
+export async function fetchSession() {
+  const res = await fetch("/api/auth/me", { headers: getAuthHeaders() });
+  if (!res.ok) {
+    if (res.status === 401) throw new Error("401");
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error || `${res.status}`);
+  }
+  const { data } = await res.json();
+  return data;
+}
+
 export async function fetchAdminProfile() {
   const res = await fetch("/api/auth/profile", { headers: getAuthHeaders() });
   if (!res.ok) {

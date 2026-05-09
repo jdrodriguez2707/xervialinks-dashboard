@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback, useRef } from "react";
-import { getStoredUser, logout, setStoredUser } from "../shared/api/auth";
+import { getStoredUser, getToken, logout, setStoredUser, fetchSession } from "../shared/api/auth";
 import { getAdminDateRange } from "../shared/lib/reportCalendar";
 import { fetchSummary } from "../shared/api/summary";
 import { fetchWorkers } from "../shared/api/workers";
@@ -130,7 +130,14 @@ function isAuthSessionError(message) {
 }
 
 export default function App() {
-  const [user, setUser] = useState(() => getStoredUser());
+  const [user, setUser] = useState(() => {
+    const u = getStoredUser();
+    if (u && !getToken()) {
+      logout();
+      return null;
+    }
+    return u;
+  });
   const [sessionNotice, setSessionNotice] = useState(null);
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -165,6 +172,38 @@ export default function App() {
   const workerHistoryPaymentMonthRef = useRef(getDefaultPaymentMonth());
   const lastDefaultPaymentMonthRef = useRef(getDefaultPaymentMonth());
   const workerContextReqSeqRef = useRef(0);
+  const loadInitialSeqRef = useRef(0);
+
+  const handleLogout = useCallback((noticeMessage = null) => {
+    const notice =
+      typeof noticeMessage === "string" && noticeMessage.trim() ? noticeMessage.trim() : null;
+    logout();
+    if (notice) setSessionNotice(notice);
+    setUser(null);
+    setData(null);
+    setAdminReady(false);
+    setWorkerMetricsLoading(false);
+    setWorkerMetricsError(null);
+    setWorkerSelectedDomain(null);
+    setAdminPaymentMonth(getDefaultPaymentMonth());
+    setWorkerPaymentMonth(getDefaultPaymentMonth());
+    setWorkerHistoryPaymentMonth(getDefaultPaymentMonth());
+    setSyncStatus(null);
+    workerValidDomainsRef.current = [];
+    setWorkerFormOpenRequestId(0);
+    if (typeof window !== "undefined") {
+      window.sessionStorage.removeItem(ADMIN_ACTIVE_MODULE_STORAGE_KEY);
+      const tabPrefix = `${WORKER_TAB_STORAGE_PREFIX}:`;
+      for (let i = window.sessionStorage.length - 1; i >= 0; i -= 1) {
+        const key = window.sessionStorage.key(i);
+        if (key && key.startsWith(tabPrefix)) {
+          window.sessionStorage.removeItem(key);
+        }
+      }
+    }
+    adminDashboardCacheRef.current.clear();
+    adminEarningsCacheRef.current.clear();
+  }, []);
 
   function getCachedDashboardSummary(rangeKey) {
     const entry = adminDashboardCacheRef.current.get(rangeKey);
@@ -247,14 +286,41 @@ export default function App() {
         setWorkerMetricsLoading(false);
       }
     },
-    [user],
+    [user, handleLogout],
   );
 
   const loadInitial = useCallback(async () => {
     if (!user) return;
+    const seq = ++loadInitialSeqRef.current;
     setLoading(true);
     setError(null);
     try {
+      if (!getToken()) {
+        handleLogout();
+        return;
+      }
+      try {
+        const session = await fetchSession();
+        if (seq !== loadInitialSeqRef.current) return;
+        const sid = Number(session?.userId);
+        const uid = Number(user.id);
+        if (!Number.isFinite(sid) || !Number.isFinite(uid) || sid !== uid) {
+          handleLogout("Tu sesión no coincide con los datos guardados. Inicia sesión de nuevo.");
+          return;
+        }
+        if (session?.role !== user.role) {
+          handleLogout("Tu sesión no coincide con los datos guardados. Inicia sesión de nuevo.");
+          return;
+        }
+      } catch {
+        if (seq !== loadInitialSeqRef.current) return;
+        handleLogout(
+          "Tu sesión expiró o ya no es válida. Inicia sesión de nuevo.",
+        );
+        return;
+      }
+      if (seq !== loadInitialSeqRef.current) return;
+
       if (user.role === "admin") {
         const range = getAdminDateRange("today");
         const [summary, workers, payouts, paymentHistory, sites, sync] = await Promise.all([
@@ -265,6 +331,7 @@ export default function App() {
           fetchSites(),
           fetchSyncStatus().catch(() => null),
         ]);
+        if (seq !== loadInitialSeqRef.current) return;
         setCachedDashboardSummary("today", summary);
         setCachedEarningsPayouts("today", payouts);
         setData({ summary, workers, payouts, paymentHistory, sites });
@@ -294,6 +361,7 @@ export default function App() {
           fetchWorkerPaymentHistory({ paymentMonth: workerHistoryPaymentMonth }),
           fetchSyncStatus().catch(() => null),
         ]);
+        if (seq !== loadInitialSeqRef.current) return;
         const domains = getWorkerDomains(context);
         let initialDomain = domains[0] || null;
         if (typeof window !== "undefined") {
@@ -314,6 +382,7 @@ export default function App() {
         setWorkerMetricsError(null);
         if (initialDomain) {
           await loadWorkerMetrics(initialDomain, domains);
+          if (seq !== loadInitialSeqRef.current) return;
         }
       }
     } catch (err) {
@@ -325,13 +394,16 @@ export default function App() {
         setError(toUserErrorMessage(err, "No se pudo cargar la información del panel."));
       }
     } finally {
-      setLoading(false);
+      if (seq === loadInitialSeqRef.current) setLoading(false);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- meses de pago: otros useEffect; evita recarga completa en bucle
-  }, [user, loadWorkerMetrics]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- adminPaymentMonth / worker months: otros useEffect; evita bucle
+  }, [user, loadWorkerMetrics, handleLogout]);
 
   useEffect(() => {
     loadInitial();
+    return () => {
+      loadInitialSeqRef.current += 1;
+    };
   }, [loadInitial]);
 
   useEffect(() => {
@@ -424,7 +496,7 @@ export default function App() {
       }
     }
     refreshDashboardByRange();
-  }, [adminDashboardRange, user, adminReady]);
+  }, [adminDashboardRange, user, adminReady, handleLogout]);
 
   useEffect(() => {
     async function refreshEarningsByRange() {
@@ -450,7 +522,7 @@ export default function App() {
       }
     }
     refreshEarningsByRange();
-  }, [adminEarningsRange, user, adminReady]);
+  }, [adminEarningsRange, user, adminReady, handleLogout]);
 
   // Keep ref in sync so loadWorkerMetrics always has current valid domains
   // without needing data in its dependency array (which would cause re-render loops).
@@ -502,7 +574,7 @@ export default function App() {
     } finally {
       setRefreshingAdmin(false);
     }
-  }, [user, adminDashboardRange, adminEarningsRange, adminPaymentMonth]);
+  }, [user, adminDashboardRange, adminEarningsRange, adminPaymentMonth, handleLogout]);
 
   const refreshAdminWorkerStatusesOnly = useCallback(async () => {
     if (!user || user.role !== "admin") return;
@@ -524,7 +596,7 @@ export default function App() {
     } finally {
       setRefreshingAdmin(false);
     }
-  }, [user, adminPaymentMonth]);
+  }, [user, adminPaymentMonth, handleLogout]);
 
   const refreshWorkerContextByPaymentMonth = useCallback(async () => {
     if (!user || user.role !== "worker") return;
@@ -548,7 +620,7 @@ export default function App() {
       // No elevamos este error al estado global para no romper la UI del worker
       // por fallos transitorios del refresco liviano de contexto.
     }
-  }, [user, workerSelectedDomain]);
+  }, [user, workerSelectedDomain, handleLogout]);
 
   useEffect(() => {
     async function refreshWorkersPaymentStatusByMonth() {
@@ -573,7 +645,7 @@ export default function App() {
       }
     }
     refreshWorkersPaymentStatusByMonth();
-  }, [adminPaymentMonth, user, adminReady]);
+  }, [adminPaymentMonth, user, adminReady, handleLogout]);
 
   useEffect(() => {
     if (!user || user.role !== "worker" || !data?.workerContext) return;
@@ -615,37 +687,6 @@ export default function App() {
     setHighlightedEarningsWorkerId(null);
     setHighlightedEarningsWorkerId(null);
     setUser(loggedUser);
-  }
-
-  function handleLogout(noticeMessage = null) {
-    const notice =
-      typeof noticeMessage === "string" && noticeMessage.trim() ? noticeMessage.trim() : null;
-    logout();
-    if (notice) setSessionNotice(notice);
-    setUser(null);
-    setData(null);
-    setAdminReady(false);
-    setWorkerMetricsLoading(false);
-    setWorkerMetricsError(null);
-    setWorkerSelectedDomain(null);
-    setAdminPaymentMonth(getDefaultPaymentMonth());
-    setWorkerPaymentMonth(getDefaultPaymentMonth());
-    setWorkerHistoryPaymentMonth(getDefaultPaymentMonth());
-    setSyncStatus(null);
-    workerValidDomainsRef.current = [];
-    setWorkerFormOpenRequestId(0);
-    if (typeof window !== "undefined") {
-      window.sessionStorage.removeItem(ADMIN_ACTIVE_MODULE_STORAGE_KEY);
-      const tabPrefix = `${WORKER_TAB_STORAGE_PREFIX}:`;
-      for (let i = window.sessionStorage.length - 1; i >= 0; i -= 1) {
-        const key = window.sessionStorage.key(i);
-        if (key && key.startsWith(tabPrefix)) {
-          window.sessionStorage.removeItem(key);
-        }
-      }
-    }
-    adminDashboardCacheRef.current.clear();
-    adminEarningsCacheRef.current.clear();
   }
 
   if (!user) return <LoginForm onLogin={handleLogin} notice={sessionNotice} />;
