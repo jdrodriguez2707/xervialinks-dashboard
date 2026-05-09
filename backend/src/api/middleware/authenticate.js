@@ -23,9 +23,17 @@ function authenticate(req, res, next) {
       );
       const tokenIssuedAtMs = Number(decoded.iat) * 1000;
       if (Number.isFinite(invalidatedAtMs) && tokenIssuedAtMs <= invalidatedAtMs) {
+        const credRaw = user.session_credentials_invalidated_at;
+        const credentialsInvalidatedAtMs = credRaw
+          ? Date.parse(String(credRaw).replace(" ", "T") + "Z")
+          : NaN;
+        const credentialBasedRevocation =
+          Number.isFinite(credentialsInvalidatedAtMs) &&
+          tokenIssuedAtMs <= credentialsInvalidatedAtMs;
         return res.status(401).json({
-          error:
-            "Tus credenciales fueron cambiadas por el administrador. Inicia sesión nuevamente y contacta al administrador si no reconoces este cambio.",
+          error: credentialBasedRevocation
+            ? "Tus credenciales fueron cambiadas por el administrador. Inicia sesión nuevamente y contacta al administrador si no reconoces este cambio."
+            : "SESSION_REVOKED_PROFILE",
         });
       }
     }

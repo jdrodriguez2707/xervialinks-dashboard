@@ -286,12 +286,17 @@ async function updateWorker(workerId, body, opts = {}) {
 
   let passwordHash = null;
   let passwordCipher = null;
-  let invalidateSessions = false;
-  if (password != null && String(password).trim()) {
+  const passwordChanging = password != null && String(password).trim() !== "";
+  const emailChanged = email !== oldEmail;
+  /** 1 = perfil (cerrar sesión sin aviso de credenciales); 2 = correo o contraseña (aviso explícito). */
+  let sessionInvalidation = 1;
+  if (passwordChanging) {
     const trimmedPassword = String(password).trim();
     passwordHash = await bcrypt.hash(trimmedPassword, 10);
     passwordCipher = encryptPassword(trimmedPassword);
-    invalidateSessions = true;
+  }
+  if (emailChanged || passwordChanging) {
+    sessionInvalidation = 2;
   }
 
   try {
@@ -304,7 +309,7 @@ async function updateWorker(workerId, body, opts = {}) {
         percentage: pct,
         passwordHash: passwordHash || null,
         passwordCipher: passwordCipher || null,
-        invalidateSessions,
+        sessionInvalidation,
       },
       domainAssignments,
     );

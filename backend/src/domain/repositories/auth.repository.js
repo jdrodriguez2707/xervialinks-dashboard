@@ -14,7 +14,7 @@ function findById(id) {
   return (
     getDb()
       .prepare(
-        "SELECT id, name, email, role, created_at, deleted_at, session_invalidated_at, last_login_at FROM users WHERE id = ?",
+        "SELECT id, name, email, role, created_at, deleted_at, session_invalidated_at, session_credentials_invalidated_at, last_login_at FROM users WHERE id = ?",
       )
       .get(id) || null
   );
@@ -47,7 +47,7 @@ function updateProfile(userId, { name, email }) {
 function updatePassword(userId, passwordHash) {
   const db = getDb();
   db.prepare(
-    "UPDATE users SET password_hash = ?, session_invalidated_at = datetime('now') WHERE id = ?",
+    "UPDATE users SET password_hash = ?, session_invalidated_at = datetime('now'), session_credentials_invalidated_at = datetime('now') WHERE id = ?",
   ).run(passwordHash, userId);
   return findById(userId);
 }

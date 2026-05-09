@@ -81,6 +81,7 @@ function applySchema(database) {
   ensureColumn(database, "users", "deleted_at", "TEXT");
   ensureColumn(database, "users", "password_cipher", "TEXT");
   ensureColumn(database, "users", "session_invalidated_at", "TEXT");
+  ensureColumn(database, "users", "session_credentials_invalidated_at", "TEXT");
   ensureColumn(database, "users", "last_login_at", "TEXT");
   ensureColumn(database, "workers", "deleted_at", "TEXT");
   ensureColumn(database, "reports", "source", "TEXT NOT NULL DEFAULT 'sync'");

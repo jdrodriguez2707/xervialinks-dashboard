@@ -131,7 +131,17 @@ function parseSyncTimestamp(value) {
 
 function isAuthSessionError(message) {
   const text = String(message || "");
-  return text === "401" || text.includes("credenciales fueron cambiadas");
+  return (
+    text === "401" ||
+    text.includes("credenciales fueron cambiadas") ||
+    text.includes("SESSION_REVOKED_PROFILE")
+  );
+}
+
+function noticeAfterForcedLogout(message) {
+  const text = String(message || "").trim();
+  if (!text || text.includes("SESSION_REVOKED_PROFILE")) return null;
+  return text;
 }
 
 export default function App() {
@@ -184,8 +194,7 @@ export default function App() {
   const loadInitialSeqRef = useRef(0);
 
   const handleLogout = useCallback((noticeMessage = null) => {
-    const notice =
-      typeof noticeMessage === "string" && noticeMessage.trim() ? noticeMessage.trim() : null;
+    const notice = noticeAfterForcedLogout(noticeMessage);
     logout();
     if (notice) setSessionNotice(notice);
     setUser(null);

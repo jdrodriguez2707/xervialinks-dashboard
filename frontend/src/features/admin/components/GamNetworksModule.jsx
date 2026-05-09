@@ -43,6 +43,7 @@ export default function GamNetworksModule({ onNetworksChanged }) {
   const [editRow, setEditRow] = useState(null);
   const [editName, setEditName] = useState("");
   const [savingName, setSavingName] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState(null);
 
   async function load() {
     setError(null);
@@ -158,13 +159,23 @@ export default function GamNetworksModule({ onNetworksChanged }) {
     }
   }
 
-  async function handleDelete(code, isDefault) {
-    if (isDefault) return;
-    if (!window.confirm(`¿Eliminar la red ${code} del panel?`)) return;
+  function openDeleteDialog(row) {
+    if (!row?.networkCode || row.isDefault) return;
+    setDeleteTarget(row);
+  }
+
+  function closeDeleteDialog() {
+    setDeleteTarget(null);
+  }
+
+  async function confirmDelete() {
+    const code = deleteTarget?.networkCode;
+    if (!code) return;
     setError(null);
     setBusyCode(code);
     try {
       await deleteGamNetwork(code);
+      setDeleteTarget(null);
       await load();
       onNetworksChanged?.();
     } catch (err) {
@@ -210,7 +221,11 @@ export default function GamNetworksModule({ onNetworksChanged }) {
                 className="sm:w-56"
               />
             </div>
-            <Button type="submit" disabled={!!busyCode || !codeInput.trim()}>
+            <Button
+              type="submit"
+              disabled={!!busyCode || !codeInput.trim()}
+              className="gam-register-net-btn shadow-sm font-medium"
+            >
               <Plus className="mr-1 h-4 w-4" />
               Registrar
             </Button>
@@ -310,7 +325,7 @@ export default function GamNetworksModule({ onNetworksChanged }) {
                         variant="ghost"
                         className="text-destructive"
                         disabled={busyCode === row.networkCode}
-                        onClick={() => handleDelete(row.networkCode, row.isDefault)}
+                        onClick={() => openDeleteDialog(row)}
                       >
                         <Trash2 className="h-4 w-4" />
                       </Button>
@@ -325,6 +340,53 @@ export default function GamNetworksModule({ onNetworksChanged }) {
           )}
         </div>
       )}
+
+      <Dialog
+        open={!!deleteTarget}
+        onOpenChange={(open) => {
+          if (!open && !busyCode) closeDeleteDialog();
+        }}
+      >
+        <DialogContent className="sm:max-w-md border-border/60">
+          <DialogHeader>
+            <DialogTitle>Eliminar red del panel</DialogTitle>
+            <DialogDescription asChild>
+              <div className="space-y-2 text-sm text-muted-foreground pt-1">
+                <p>
+                  Vas a quitar la red{" "}
+                  <span className="font-mono font-medium text-foreground">
+                    {deleteTarget?.networkCode}
+                  </span>{" "}
+                  ({deleteTarget?.displayName || "sin nombre"}) de la configuración.
+                </p>
+                <p>
+                  No se borran automáticamente los informes históricos ni las asignaciones de
+                  subdominios en trabajadores; solo dejará de sincronizarse y de mostrarse en el
+                  selector hasta que vuelvas a registrarla.
+                </p>
+              </div>
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={closeDeleteDialog}
+              disabled={busyCode === deleteTarget?.networkCode}
+            >
+              Cancelar
+            </Button>
+            <Button
+              type="button"
+              variant="destructive"
+              onClick={confirmDelete}
+              disabled={!!busyCode}
+            >
+              {busyCode === deleteTarget?.networkCode ? "Eliminando…" : "Eliminar red"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={!!editRow} onOpenChange={(open) => (!open ? closeEdit() : null)}>
         <DialogContent className="sm:max-w-md">

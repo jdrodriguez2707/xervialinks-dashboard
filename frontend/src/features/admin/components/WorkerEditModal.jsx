@@ -53,13 +53,15 @@ export default function WorkerEditModal({
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [percentage, setPercentage] = useState("");
-  const [password, setPassword] = useState("");
+  /** Solo si el admin escribe aquí se envía al API (evita re-enviar la contraseña actual al guardar otros datos). */
+  const [newPassword, setNewPassword] = useState("");
   /** @type {{ value: string, gamNetworkCode: string }[]} */
   const [domainSlots, setDomainSlots] = useState([]);
   const [selectedSite, setSelectedSite] = useState("");
   const [error, setError] = useState(null);
   const [submitting, setSubmitting] = useState(false);
-  const [showPassword, setShowPassword] = useState(false);
+  const [showCurrentPassword, setShowCurrentPassword] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
 
   const net = String(activeNetworkCode || "").trim();
 
@@ -68,7 +70,7 @@ export default function WorkerEditModal({
     setName(worker.name || "");
     setEmail(worker.email || "");
     setPercentage(String(worker.percentage ?? ""));
-    setPassword(worker.password || "");
+    setNewPassword("");
     setDomainSlots(
       (worker.properties || [])
         .filter((p) => p.type === "domain")
@@ -80,7 +82,8 @@ export default function WorkerEditModal({
     );
     setSelectedSite("");
     setError(null);
-    setShowPassword(false);
+    setShowCurrentPassword(false);
+    setShowNewPassword(false);
   }, [worker]);
 
   const slotKeysInForm = useMemo(
@@ -124,8 +127,8 @@ export default function WorkerEditModal({
         percentage: pct,
         domains: domainSlots,
       };
-      if (password.trim()) {
-        payload.password = password.trim();
+      if (newPassword.trim()) {
+        payload.password = newPassword.trim();
       }
       await updateWorker(worker.id, payload, { networkCode: net || undefined });
       await onSaved();
@@ -171,29 +174,6 @@ export default function WorkerEditModal({
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="worker-edit-password">Contraseña</Label>
-              <div className="min-w-0 flex flex-col gap-2 sm:flex-row sm:items-center">
-                <Input
-                  id="worker-edit-password"
-                  type={showPassword ? "text" : "password"}
-                  value={password}
-                  onChange={(ev) => setPassword(ev.target.value)}
-                  placeholder="Contraseña del trabajador"
-                  autoComplete="off"
-                />
-                <Button
-                  type="button"
-                  variant="secondary"
-                  size="sm"
-                  className="shrink-0 self-start sm:self-auto"
-                  onClick={() => setShowPassword((prev) => !prev)}
-                  aria-label={showPassword ? "Ocultar contraseña" : "Mostrar contraseña"}
-                >
-                  {showPassword ? "Ocultar" : "Mostrar"}
-                </Button>
-              </div>
-            </div>
-            <div className="space-y-2">
               <Label htmlFor="worker-edit-percentage">Porcentaje (%)</Label>
               <Input
                 id="worker-edit-percentage"
@@ -205,6 +185,61 @@ export default function WorkerEditModal({
                 onChange={(ev) => setPercentage(ev.target.value)}
                 required
               />
+            </div>
+            <div className="space-y-2 sm:col-span-2">
+              <Label htmlFor="worker-edit-password-current">Contraseña actual</Label>
+              <div className="min-w-0 flex flex-col gap-2 sm:flex-row sm:items-center">
+                <Input
+                  id="worker-edit-password-current"
+                  readOnly
+                  tabIndex={-1}
+                  type={showCurrentPassword ? "text" : "password"}
+                  value={worker?.password ?? ""}
+                  placeholder="Sin contraseña en el sistema"
+                  className="bg-muted/50"
+                  autoComplete="off"
+                  aria-describedby="worker-edit-password-current-hint"
+                />
+                <Button
+                  type="button"
+                  variant="secondary"
+                  size="sm"
+                  className="shrink-0 self-start sm:self-auto"
+                  onClick={() => setShowCurrentPassword((prev) => !prev)}
+                  aria-label={
+                    showCurrentPassword ? "Ocultar contraseña actual" : "Mostrar contraseña actual"
+                  }
+                >
+                  {showCurrentPassword ? "Ocultar" : "Mostrar"}
+                </Button>
+              </div>
+              <p id="worker-edit-password-current-hint" className="text-xs text-muted-foreground">
+                Solo lectura. Para cambiarla usa el campo siguiente; así no se reenvía al guardar el
+                resto del perfil.
+              </p>
+            </div>
+            <div className="space-y-2 sm:col-span-2">
+              <Label htmlFor="worker-edit-password-new">Nueva contraseña (opcional)</Label>
+              <div className="min-w-0 flex flex-col gap-2 sm:flex-row sm:items-center">
+                <Input
+                  id="worker-edit-password-new"
+                  type={showNewPassword ? "text" : "password"}
+                  value={newPassword}
+                  onChange={(ev) => setNewPassword(ev.target.value)}
+                  placeholder="Vacío = no cambiar la contraseña actual"
+                  autoComplete="new-password"
+                />
+                <Button
+                  type="button"
+                  variant="secondary"
+                  size="sm"
+                  className="shrink-0 self-start sm:self-auto"
+                  onClick={() => setShowNewPassword((prev) => !prev)}
+                  aria-label={showNewPassword ? "Ocultar nueva contraseña" : "Mostrar nueva contraseña"}
+                >
+                  {showNewPassword ? "Ocultar" : "Mostrar"}
+                </Button>
+              </div>
             </div>
           </div>
 

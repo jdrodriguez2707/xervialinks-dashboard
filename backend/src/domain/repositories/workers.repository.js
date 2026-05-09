@@ -244,15 +244,25 @@ function attachProperties(worker, { paymentMonth = null } = {}) {
 /**
  * Updates worker row, linked worker user (by old email), and replaces domain properties
  * to match `domainAssignments` (value + gamNetworkCode per slot). Optional password: pass null to keep current hash.
+ * `sessionInvalidation`: 0 = no cambio de sesión, 1 = invalidar tras cambio de perfil, 2 = invalidar por correo/contraseña.
  * Runs in a single transaction.
  */
+
 function updateWorkerComplete(
   workerId,
   oldEmail,
-  { name, email, percentage, passwordHash, passwordCipher, invalidateSessions = false },
+  {
+    name,
+    email,
+    percentage,
+    passwordHash,
+    passwordCipher,
+    sessionInvalidation = 0,
+  },
   domainAssignments,
 ) {
   const db = getDb();
+  const inv = Number(sessionInvalidation) || 0;
   return db.transaction(() => {
     const wr = db
       .prepare(
@@ -266,10 +276,12 @@ function updateWorkerComplete(
 
     const ur = db
       .prepare(
-        `UPDATE users SET name = ?, email = ?, password_hash = COALESCE(?, password_hash), password_cipher = COALESCE(?, password_cipher), session_invalidated_at = CASE WHEN ? = 1 THEN datetime('now') ELSE session_invalidated_at END
+        `UPDATE users SET name = ?, email = ?, password_hash = COALESCE(?, password_hash), password_cipher = COALESCE(?, password_cipher),
+           session_invalidated_at = CASE WHEN ? >= 1 THEN datetime('now') ELSE session_invalidated_at END,
+           session_credentials_invalidated_at = CASE WHEN ? = 2 THEN datetime('now') ELSE session_credentials_invalidated_at END
          WHERE email = ? AND role = 'worker' AND deleted_at IS NULL`,
       )
-      .run(name, email, passwordHash, passwordCipher, invalidateSessions ? 1 : 0, oldEmail);
+      .run(name, email, passwordHash, passwordCipher, inv, inv, oldEmail);
     if (ur.changes === 0) {
       throw new Error("Linked user not found for worker");
     }
