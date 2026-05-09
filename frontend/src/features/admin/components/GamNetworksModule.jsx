@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { RefreshCw, ShieldCheck, Plus, Trash2, Star, Pencil } from "lucide-react";
+import { RefreshCw, ShieldCheck, Plus, Trash2, Star, Pencil, Loader2 } from "lucide-react";
 import {
   fetchGamNetworks,
   fetchGamServiceAccountEmail,
@@ -44,6 +44,16 @@ export default function GamNetworksModule({ onNetworksChanged }) {
   const [editName, setEditName] = useState("");
   const [savingName, setSavingName] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState(null);
+  /** @type {{ networkCode: string, title: string, description: string } | null} */
+  const [progressDialog, setProgressDialog] = useState(null);
+
+  function openProgress(networkCode, title, description) {
+    setProgressDialog({ networkCode, title, description });
+  }
+
+  function closeProgress() {
+    setProgressDialog(null);
+  }
 
   async function load() {
     setError(null);
@@ -102,16 +112,65 @@ export default function GamNetworksModule({ onNetworksChanged }) {
       setError("El código de red debe ser numérico.");
       return;
     }
+    const displayName = nameInput.trim() || undefined;
     setBusyCode(code);
+    openProgress(
+      code,
+      "Registrando red…",
+      `Guardando el código ${code} en el panel. A continuación se verificará el acceso y se importarán los informes.`,
+    );
     try {
-      await createGamNetwork({ networkCode: code, displayName: nameInput.trim() || undefined });
+      await createGamNetwork({ networkCode: code, displayName });
       setCodeInput("");
       setNameInput("");
+
+      openProgress(
+        code,
+        "Verificando acceso a Ad Manager…",
+        `Red ${code}: comprobando que la cuenta de servicio puede leer esta red. Si falla, invítala en GAM y pulsa «Verificar acceso» más adelante.`,
+      );
+      try {
+        await verifyGamNetwork(code);
+      } catch (verifyErr) {
+        setError(
+          toUserErrorMessage(
+            verifyErr,
+            "La red se registró, pero no se pudo verificar el acceso. Invita la cuenta de servicio en GAM y usa «Verificar acceso».",
+          ),
+        );
+        await load();
+        onNetworksChanged?.();
+        return;
+      }
+
+      await load();
+      onNetworksChanged?.();
+
+      openProgress(
+        code,
+        "Sincronizando informes…",
+        `Red ${code}: descargando datos recientes. Al terminar, los subdominios de esta red aparecerán en los selectores del panel.`,
+      );
+      try {
+        await syncGamNetworkNow(code);
+      } catch (syncErr) {
+        setError(
+          toUserErrorMessage(
+            syncErr,
+            "El acceso está verificado, pero la sincronización falló. Puedes reintentar con «Sincronizar».",
+          ),
+        );
+        await load();
+        onNetworksChanged?.();
+        return;
+      }
+
       await load();
       onNetworksChanged?.();
     } catch (err) {
       setError(toUserErrorMessage(err, "No se pudo registrar la red."));
     } finally {
+      closeProgress();
       setBusyCode(null);
     }
   }
@@ -134,6 +193,11 @@ export default function GamNetworksModule({ onNetworksChanged }) {
   async function handleSync(code) {
     setError(null);
     setBusyCode(code);
+    openProgress(
+      code,
+      "Sincronización en curso",
+      `Red ${code}: conectando con Ad Manager y actualizando informes locales. Los sitios disponibles en los selectores se refrescarán al finalizar.`,
+    );
     try {
       await syncGamNetworkNow(code);
       await load();
@@ -141,6 +205,7 @@ export default function GamNetworksModule({ onNetworksChanged }) {
     } catch (err) {
       setError(toUserErrorMessage(err, "No se pudo sincronizar."));
     } finally {
+      closeProgress();
       setBusyCode(null);
     }
   }
@@ -240,8 +305,7 @@ export default function GamNetworksModule({ onNetworksChanged }) {
           </CardHeader>
           <CardContent className="space-y-2 text-sm">
             <p className="text-muted-foreground">
-              En Google Ad Manager ve a <strong>Administración → Acceso</strong> e invita el correo
-              de abajo con permisos adecuados para leer informes. Después pulsa{" "}
+              En Google Ad Manager ve a <strong>Administrar → Configuración global → Añadir un usuario de cuenta de servicio</strong> y coloca un nombre distintivo, el correo de abajo y asigna la función de Administrador (solo Ad Manager) para leer informes. Después pulsa{" "}
               <strong>Verificar acceso</strong> en la red correspondiente.
             </p>
             <code className="block rounded-md bg-muted px-3 py-2 text-xs break-all">{saEmail}</code>
@@ -340,6 +404,31 @@ export default function GamNetworksModule({ onNetworksChanged }) {
           )}
         </div>
       )}
+
+      <Dialog open={!!progressDialog}>
+        <DialogContent
+          hideClose
+          className="sm:max-w-md border-border/60"
+          onPointerDownOutside={(e) => e.preventDefault()}
+          onEscapeKeyDown={(e) => e.preventDefault()}
+        >
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-3 text-left">
+              <Loader2
+                className="h-6 w-6 shrink-0 animate-spin text-primary"
+                aria-hidden
+              />
+              <span>{progressDialog?.title}</span>
+            </DialogTitle>
+            <DialogDescription className="text-left pt-1 text-base leading-relaxed">
+              {progressDialog?.description}
+            </DialogDescription>
+          </DialogHeader>
+          <p className="text-xs text-muted-foreground font-mono">
+            Código de red: {progressDialog?.networkCode}
+          </p>
+        </DialogContent>
+      </Dialog>
 
       <Dialog
         open={!!deleteTarget}
