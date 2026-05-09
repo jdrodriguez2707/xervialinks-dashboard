@@ -97,8 +97,8 @@ export default function WorkerDashboard({
   workerContext,
   workerMetrics,
   workerPaymentHistory,
-  selectedPropertyId,
-  onPropertyChange,
+  selectedDomain,
+  onDomainChange,
   contextLoading,
   metricsLoading,
   metricsError,
@@ -160,20 +160,23 @@ export default function WorkerDashboard({
   }
 
   const { properties = [] } = workerContext ?? {};
-  const domains = properties.filter((p) => p.type === "domain");
-  const hasDomains = domains.length > 0;
+  const domainProps = properties.filter((p) => p.type === "domain");
+  const uniqueDomainList = useMemo(
+    () => [...new Set(domainProps.map((p) => String(p.value || "").trim()).filter(Boolean))],
+    [domainProps],
+  );
+  const hasDomains = uniqueDomainList.length > 0;
   const paymentStatus = workerContext?.paymentStatus || "pending";
   const paymentStatusLabel = paymentStatus === "paid" ? "Pagado" : "Pendiente de pago";
   const paymentMonthOptions = useMemo(() => buildPaymentMonthOptions(), []);
   const paymentMonthLabel = formatPaymentMonthLabel(paymentMonth);
   const paymentHistoryMonthLabel = formatPaymentMonthLabel(paymentHistoryMonth);
   const paymentHistoryRows = workerPaymentHistory?.rows || [];
-  const selectedId =
-    selectedPropertyId != null && domains.some((d) => d.id === Number(selectedPropertyId))
-      ? Number(selectedPropertyId)
-      : domains[0]?.id ?? null;
-  const otherDomains = domains.filter((d) => d.id !== selectedId);
-  const canSwitchDomain = domains.length > 1;
+  const selectedDomainValue =
+    selectedDomain && uniqueDomainList.includes(selectedDomain)
+      ? selectedDomain
+      : uniqueDomainList[0] || "";
+  const canSwitchDomain = uniqueDomainList.length > 1;
 
   if (error) {
     return <p className="status-msg error">Error al cargar los ingresos.</p>;
@@ -183,11 +186,10 @@ export default function WorkerDashboard({
     return <p className="status-msg">Cargando tu perfil…</p>;
   }
 
-  async function handleDomainSwitch(nextIdStr) {
-    const nextId = Number(nextIdStr);
-    if (!Number.isFinite(nextId) || nextId === selectedId) return;
-    if (typeof onPropertyChange === "function") {
-      await onPropertyChange(nextId);
+  async function handleDomainSwitch(nextDomain) {
+    if (!nextDomain || nextDomain === selectedDomainValue) return;
+    if (typeof onDomainChange === "function") {
+      await onDomainChange(nextDomain);
     }
   }
 
@@ -242,7 +244,7 @@ export default function WorkerDashboard({
           {hasDomains && (
             <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-center">
               <Select
-                value={selectedId != null ? String(selectedId) : ""}
+                value={selectedDomainValue}
                 onValueChange={handleDomainSwitch}
                 disabled={!canSwitchDomain}
               >
@@ -250,16 +252,9 @@ export default function WorkerDashboard({
                   <SelectValue placeholder="Seleccionar subdominio" />
                 </SelectTrigger>
                 <SelectContent>
-                  {domains.map((domain) => (
-                    <SelectItem key={domain.id} value={String(domain.id)}>
-                      <span className="flex flex-wrap items-center gap-2">
-                        <span>{domain.value}</span>
-                        {domain.networkDisplayName ? (
-                          <span className="rounded bg-muted px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground">
-                            {domain.networkDisplayName}
-                          </span>
-                        ) : null}
-                      </span>
+                  {uniqueDomainList.map((d) => (
+                    <SelectItem key={d} value={d}>
+                      {d}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -328,28 +323,20 @@ export default function WorkerDashboard({
       {activeTab === "domains" && (
         <div className="space-y-4">
           <SectionHeader title="Subdominios asignados" />
-          {domains.length === 0 ? (
+          {uniqueDomainList.length === 0 ? (
             <EmptyState
               title="Sin subdominios asignados"
               description="Contacta al administrador para habilitar tu acceso."
             />
           ) : (
             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-              {domains.map((domain) => (
-                <Card key={domain.id}>
+              {uniqueDomainList.map((d) => (
+                <Card key={d}>
                   <CardHeader className="pb-2">
                     <CardTitle className="text-sm text-muted-foreground">Subdominio</CardTitle>
                   </CardHeader>
-                  <CardContent className="space-y-2">
-                    <p className="text-sm font-semibold">{domain.value}</p>
-                    {domain.networkDisplayName ? (
-                      <p className="text-xs text-muted-foreground">
-                        Red:{" "}
-                        <span className="rounded bg-muted px-1.5 py-0.5 font-medium">
-                          {domain.networkDisplayName}
-                        </span>
-                      </p>
-                    ) : null}
+                  <CardContent>
+                    <p className="text-sm font-semibold">{d}</p>
                   </CardContent>
                 </Card>
               ))}
@@ -463,18 +450,11 @@ export default function WorkerDashboard({
           ) : (
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
               {paymentHistoryRows.map((row) => (
-                <Card key={`${row.domain}-${row.gamNetworkCode || ""}-${paymentHistoryMonth}`}>
+                <Card key={`${row.domain}-${paymentHistoryMonth}`}>
                   <CardContent className="space-y-3 pt-6">
-                    <div className="flex items-center justify-between gap-2">
-                      <p className="text-xs text-muted-foreground shrink-0">Subdominio</p>
-                      <div className="text-right text-sm font-semibold">
-                        <p>{row.domain}</p>
-                        {row.gamNetworkCode ? (
-                          <p className="mt-1 text-[10px] font-normal text-muted-foreground">
-                            Red: {row.gamNetworkCode}
-                          </p>
-                        ) : null}
-                      </div>
+                    <div className="flex items-center justify-between">
+                      <p className="text-xs text-muted-foreground">Subdominio</p>
+                      <p className="text-sm font-semibold">{row.domain}</p>
                     </div>
                     <div className="flex items-center justify-between">
                       <p className="text-xs text-muted-foreground">Impresiones</p>

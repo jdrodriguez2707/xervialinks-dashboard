@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { RefreshCw, ShieldCheck, Plus, Trash2, Star } from "lucide-react";
+import { RefreshCw, ShieldCheck, Plus, Trash2, Star, Pencil } from "lucide-react";
 import {
   fetchGamNetworks,
   fetchGamServiceAccountEmail,
@@ -8,7 +8,7 @@ import {
   createGamNetwork,
   setDefaultGamNetwork,
   deleteGamNetwork,
-  fetchSaInviteResearch,
+  updateGamNetworkDisplayName,
 } from "../../../shared/api/gamNetworks";
 import { toUserErrorMessage } from "../../../shared/lib/uiError";
 import { Button } from "@/components/ui/button";
@@ -16,6 +16,14 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import SectionHeader from "@/components/SectionHeader";
 
 function statusLabel(s) {
@@ -27,25 +35,25 @@ function statusLabel(s) {
 export default function GamNetworksModule({ onNetworksChanged }) {
   const [rows, setRows] = useState([]);
   const [saEmail, setSaEmail] = useState(null);
-  const [research, setResearch] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [codeInput, setCodeInput] = useState("");
   const [nameInput, setNameInput] = useState("");
   const [busyCode, setBusyCode] = useState(null);
+  const [editRow, setEditRow] = useState(null);
+  const [editName, setEditName] = useState("");
+  const [savingName, setSavingName] = useState(false);
 
   async function load() {
     setError(null);
     setLoading(true);
     try {
-      const [list, emailRow, spike] = await Promise.all([
+      const [list, emailRow] = await Promise.all([
         fetchGamNetworks(),
         fetchGamServiceAccountEmail().catch(() => ({ email: null })),
-        fetchSaInviteResearch().catch(() => null),
       ]);
       setRows(Array.isArray(list) ? list : []);
       setSaEmail(emailRow?.email || null);
-      setResearch(spike);
     } catch (err) {
       setError(toUserErrorMessage(err, "No se pudieron cargar las redes."));
     } finally {
@@ -56,6 +64,34 @@ export default function GamNetworksModule({ onNetworksChanged }) {
   useEffect(() => {
     load();
   }, []);
+
+  function openEdit(row) {
+    setEditRow(row);
+    setEditName(row?.displayName || "");
+  }
+
+  function closeEdit() {
+    if (savingName) return;
+    setEditRow(null);
+    setEditName("");
+  }
+
+  async function handleSaveDisplayName(e) {
+    e.preventDefault();
+    if (!editRow?.networkCode) return;
+    setError(null);
+    setSavingName(true);
+    try {
+      await updateGamNetworkDisplayName(editRow.networkCode, editName.trim());
+      closeEdit();
+      await load();
+      onNetworksChanged?.();
+    } catch (err) {
+      setError(toUserErrorMessage(err, "No se pudo actualizar el nombre."));
+    } finally {
+      setSavingName(false);
+    }
+  }
 
   async function handleCreate(e) {
     e.preventDefault();
@@ -145,42 +181,15 @@ export default function GamNetworksModule({ onNetworksChanged }) {
         description="Registra cada red, invita la cuenta de servicio en GAM y verifica el acceso antes de sincronizar informes."
       />
 
-      {saEmail && (
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-base">Cuenta de servicio</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-2 text-sm">
-            <p className="text-muted-foreground">
-              Invita este correo en Google Ad Manager (Administración → Acceso) con permisos de
-              lectura para informes:
-            </p>
-            <code className="block rounded-md bg-muted px-3 py-2 text-xs break-all">{saEmail}</code>
-          </CardContent>
-        </Card>
-      )}
-
-      {research && (
-        <Card className="border-dashed">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-base">Invitación automática (investigación)</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-2 text-sm text-muted-foreground">
-            <p>{research.summary}</p>
-            <p className="text-xs">
-              Automatización soportada por API:{" "}
-              <strong>{research.automatedInviteSupported ? "sí" : "no"}</strong>
-            </p>
-          </CardContent>
-        </Card>
-      )}
-
       <Card>
         <CardHeader className="pb-2">
           <CardTitle className="text-base">Añadir red</CardTitle>
         </CardHeader>
         <CardContent>
-          <form className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end" onSubmit={handleCreate}>
+          <form
+            className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end"
+            onSubmit={handleCreate}
+          >
             <div className="space-y-1">
               <Label htmlFor="gam-net-code">Código de red (numérico)</Label>
               <Input
@@ -209,6 +218,22 @@ export default function GamNetworksModule({ onNetworksChanged }) {
         </CardContent>
       </Card>
 
+      {saEmail && (
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base">Invitar la cuenta de servicio</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-2 text-sm">
+            <p className="text-muted-foreground">
+              En Google Ad Manager ve a <strong>Administración → Acceso</strong> e invita el correo
+              de abajo con permisos adecuados para leer informes. Después pulsa{" "}
+              <strong>Verificar acceso</strong> en la red correspondiente.
+            </p>
+            <code className="block rounded-md bg-muted px-3 py-2 text-xs break-all">{saEmail}</code>
+          </CardContent>
+        </Card>
+      )}
+
       {error && <p className="text-sm font-medium text-destructive">{error}</p>}
 
       {loading ? (
@@ -230,6 +255,17 @@ export default function GamNetworksModule({ onNetworksChanged }) {
                     <Badge variant="outline" className="shrink-0">
                       {statusLabel(row.accessStatus)}
                     </Badge>
+                    <Button
+                      type="button"
+                      size="icon"
+                      variant="ghost"
+                      className="h-8 w-8 shrink-0"
+                      title="Editar nombre visible"
+                      disabled={busyCode === row.networkCode}
+                      onClick={() => openEdit(row)}
+                    >
+                      <Pencil className="h-4 w-4" />
+                    </Button>
                   </div>
                   <p className="text-xs text-muted-foreground font-mono">Código: {row.networkCode}</p>
                   {row.lastError && row.accessStatus === "error" ? (
@@ -289,6 +325,37 @@ export default function GamNetworksModule({ onNetworksChanged }) {
           )}
         </div>
       )}
+
+      <Dialog open={!!editRow} onOpenChange={(open) => (!open ? closeEdit() : null)}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Editar nombre visible</DialogTitle>
+            <DialogDescription>
+              Red <span className="font-mono">{editRow?.networkCode}</span>
+            </DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handleSaveDisplayName} className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="gam-edit-display-name">Nombre visible</Label>
+              <Input
+                id="gam-edit-display-name"
+                value={editName}
+                onChange={(e) => setEditName(e.target.value)}
+                placeholder="Nombre para el selector del panel"
+                required
+              />
+            </div>
+            <DialogFooter>
+              <Button type="button" variant="secondary" onClick={closeEdit}>
+                Cancelar
+              </Button>
+              <Button type="submit" disabled={savingName || !editName.trim()}>
+                {savingName ? "Guardando…" : "Guardar"}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

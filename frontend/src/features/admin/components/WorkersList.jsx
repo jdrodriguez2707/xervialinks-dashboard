@@ -209,13 +209,8 @@ function WorkerDashboardCard({ worker, onGoToEarnings, onNavigateToWorkerEdit })
         {domains.length > 0 ? (
           <div className="flex flex-wrap gap-2">
             {domains.map((p) => (
-              <Badge key={p.id} variant="outline" className="gap-1">
+              <Badge key={p.id} variant="outline">
                 {p.value}
-                {p.gamNetworkCode || p.gam_network_code ? (
-                  <span className="text-[10px] font-normal text-muted-foreground">
-                    ({p.networkDisplayName || p.gamNetworkCode || p.gam_network_code})
-                  </span>
-                ) : null}
               </Badge>
             ))}
           </div>
@@ -408,13 +403,8 @@ function WorkerManagementPanel({
           {domains.length > 0 ? (
             <div className="flex flex-wrap gap-2">
               {domains.map((p) => (
-                <Badge key={p.id} variant="outline" className="gap-1">
+                <Badge key={p.id} variant="outline">
                   {p.value}
-                  {p.gamNetworkCode || p.gam_network_code ? (
-                    <span className="text-[10px] font-normal text-muted-foreground">
-                      ({p.networkDisplayName || p.gamNetworkCode || p.gam_network_code})
-                    </span>
-                  ) : null}
                 </Badge>
               ))}
             </div>

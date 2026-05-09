@@ -21,21 +21,27 @@ async function getWorkerPaymentHistoryByEmail(email, { paymentMonth, timeZone })
   const { startDate, endDate } = monthRange(paymentMonth);
   const networkCodes = [...new Set(slots.map((s) => s.gamNetworkCode))];
   const reports = await reportsRepo.findAll({ startDate, endDate, timeZone, networkCodes });
-  const rows = slots.map((slot) => {
+
+  const byDomain = new Map();
+  for (const slot of slots) {
     const domainReports = reports.filter(
       (r) => r.domain === slot.value && String(r.networkCode || "").trim() === slot.gamNetworkCode,
     );
     const impressions = domainReports.reduce((sum, r) => sum + (r.impressions || 0), 0);
     const grossRevenue = domainReports.reduce((sum, r) => sum + (r.revenue || 0), 0);
-    const netRevenue = parseFloat(((grossRevenue * worker.percentage) / 100).toFixed(2));
-    return {
-      domain: slot.value,
-      gamNetworkCode: slot.gamNetworkCode,
-      impressions,
-      payout: netRevenue,
-      paymentStatus: worker.paymentStatus || "pending",
-    };
-  });
+    const prev = byDomain.get(slot.value) || { impressions: 0, grossRevenue: 0 };
+    byDomain.set(slot.value, {
+      impressions: prev.impressions + impressions,
+      grossRevenue: prev.grossRevenue + grossRevenue,
+    });
+  }
+
+  const rows = [...byDomain.entries()].map(([domain, agg]) => ({
+    domain,
+    impressions: agg.impressions,
+    payout: parseFloat(((agg.grossRevenue * worker.percentage) / 100).toFixed(2)),
+    paymentStatus: worker.paymentStatus || "pending",
+  }));
 
   return {
     period: paymentMonth,

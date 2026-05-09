@@ -92,9 +92,8 @@ function reportMatchesSlot(r, slot) {
  * @param {string} timeZone  IANA timezone from the client (X-Client-Timezone)
  * @param {{
  *   domain?: string,
- *   networkCode?: string,
  *   referenceDate?: string,
- * }} [filters] Optional worker metric scope
+ * }} [filters] Optional worker metric scope (aggregates all networks for the same domain).
  */
 async function getWorkerDashboardPeriods(worker, timeZone, filters = {}) {
   const tz = timeZone || getDefaultTimeZone();
@@ -103,10 +102,6 @@ async function getWorkerDashboardPeriods(worker, timeZone, filters = {}) {
   const allSlots = getAssignedDomainSlots(worker.properties);
   const requestedDomain =
     typeof filters.domain === "string" && filters.domain.trim() ? filters.domain.trim() : null;
-  const requestedNet =
-    typeof filters.networkCode === "string" && filters.networkCode.trim()
-      ? filters.networkCode.trim()
-      : null;
 
   let slots = allSlots;
   if (requestedDomain) {
@@ -120,19 +115,7 @@ async function getWorkerDashboardPeriods(worker, timeZone, filters = {}) {
         currentMonth: empty,
       };
     }
-    if (requestedNet) {
-      slots = matching.filter((s) => s.gamNetworkCode === requestedNet);
-    } else if (matching.length === 1) {
-      slots = matching;
-    } else {
-      const empty = { revenue: 0, ecpm: 0, impressions: 0 };
-      return {
-        today: empty,
-        yesterday: empty,
-        last7Days: empty,
-        currentMonth: empty,
-      };
-    }
+    slots = matching;
   }
 
   if (slots.length === 0) {

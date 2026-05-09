@@ -43,7 +43,7 @@ const ADMIN_RANGE_LABELS = {
   currentMonth: "Este mes",
 };
 const ADMIN_CACHE_TTL_MS = 60 * 1000;
-const WORKER_PROPERTY_STORAGE_PREFIX = "workerDashboardSelectedPropertyId";
+const WORKER_DOMAIN_STORAGE_PREFIX = "workerDashboardSelectedDomain";
 const WORKER_TAB_STORAGE_PREFIX = "workerDashboardActiveTab";
 
 const ADMIN_MENU_OPTIONS = [
@@ -64,12 +64,14 @@ function readStoredAdminActiveModule() {
   return ADMIN_MENU_OPTIONS.some((o) => o.id === stored) ? stored : "dashboard";
 }
 
-function getWorkerDomainProperties(context) {
-  return (context?.properties || []).filter((p) => p.type === "domain");
+/** Unique subdomain strings assigned to the worker (same host may exist on multiple GAM networks internally). */
+function getWorkerDomains(context) {
+  const raw = (context?.properties || []).filter((p) => p.type === "domain").map((p) => p.value);
+  return [...new Set(raw.map((v) => String(v || "").trim()).filter(Boolean))];
 }
 
-function getWorkerPropertyStorageKey(workerId) {
-  return `${WORKER_PROPERTY_STORAGE_PREFIX}:${workerId || "unknown"}`;
+function getWorkerDomainStorageKey(workerId) {
+  return `${WORKER_DOMAIN_STORAGE_PREFIX}:${workerId || "unknown"}`;
 }
 
 function formatUserDateLabel(date = new Date()) {
@@ -156,7 +158,7 @@ export default function App() {
   const [error, setError] = useState(null);
   const [workerMetricsLoading, setWorkerMetricsLoading] = useState(false);
   const [workerMetricsError, setWorkerMetricsError] = useState(null);
-  const [workerSelectedPropertyId, setWorkerSelectedPropertyId] = useState(null);
+  const [workerSelectedDomain, setWorkerSelectedDomain] = useState(null);
   const [adminActiveNetworkCode, setAdminActiveNetworkCode] = useState(() =>
     readAdminActiveGamNetworkCode(),
   );
@@ -173,7 +175,7 @@ export default function App() {
   const [workerEditLaunch, setWorkerEditLaunch] = useState({ id: null, nonce: 0 });
   const adminDashboardCacheRef = useRef(new Map());
   const adminEarningsCacheRef = useRef(new Map());
-  const workerValidDomainPropsRef = useRef([]);
+  const workerValidDomainsRef = useRef([]);
   const adminActiveNetworkCodeRef = useRef(adminActiveNetworkCode);
   const workerPaymentMonthRef = useRef(getDefaultPaymentMonth());
   const workerHistoryPaymentMonthRef = useRef(getDefaultPaymentMonth());
@@ -191,12 +193,12 @@ export default function App() {
     setAdminReady(false);
     setWorkerMetricsLoading(false);
     setWorkerMetricsError(null);
-    setWorkerSelectedPropertyId(null);
+    setWorkerSelectedDomain(null);
     setAdminPaymentMonth(getDefaultPaymentMonth());
     setWorkerPaymentMonth(getDefaultPaymentMonth());
     setWorkerHistoryPaymentMonth(getDefaultPaymentMonth());
     setSyncStatus(null);
-    workerValidDomainPropsRef.current = [];
+    workerValidDomainsRef.current = [];
     setAdminActiveNetworkCode(readAdminActiveGamNetworkCode());
     setWorkerFormOpenRequestId(0);
     if (typeof window !== "undefined") {
@@ -257,43 +259,38 @@ export default function App() {
   }, [adminActiveNetworkCode]);
 
   const loadWorkerMetrics = useCallback(
-    async (propertyId, allowedProps = null) => {
+    async (domain, allowedDomains = null) => {
       if (!user || user.role !== "worker") return;
-      const list = Array.isArray(allowedProps) ? allowedProps : workerValidDomainPropsRef.current;
-      if (list.length === 0) return;
-      let target = list.find((p) => p.id === Number(propertyId));
-      if (!target) target = list[0];
-      if (!target?.value) return;
+      const validDomains = Array.isArray(allowedDomains)
+        ? allowedDomains
+        : workerValidDomainsRef.current;
+      if (validDomains.length === 0) return;
+      let targetDomain = domain;
+      if (!targetDomain || !validDomains.includes(targetDomain)) {
+        targetDomain = validDomains[0];
+      }
+      if (!targetDomain) return;
       setWorkerMetricsError(null);
       setWorkerMetricsLoading(true);
       try {
-        const metrics = await fetchWorkerDashboard({
-          domain: target.value,
-          networkCode: target.gamNetworkCode,
-        });
+        const metrics = await fetchWorkerDashboard({ domain: targetDomain });
         setData((prev) => ({ ...prev, workerMetrics: metrics }));
       } catch (err) {
         const rawMessage = String(err?.message || "");
         if (isAuthSessionError(rawMessage)) handleLogout(rawMessage);
         else if (rawMessage.includes("cuenta de trabajador fue eliminada")) {
           handleLogout(rawMessage);
-        } else if (
-          rawMessage.includes("subdominio solicitado no está asignado") ||
-          rawMessage.includes("combinación dominio / red")
-        ) {
+        } else if (rawMessage.includes("subdominio solicitado no está asignado")) {
           try {
             const ctx = await fetchWorkerContext({
               paymentMonth: workerPaymentMonthRef.current,
             });
-            const props = getWorkerDomainProperties(ctx);
-            const fallback = props[0] || null;
+            const domains = getWorkerDomains(ctx);
+            const fallbackDomain = domains[0] || null;
             setData((prev) => ({ ...prev, workerContext: ctx }));
-            setWorkerSelectedPropertyId(fallback?.id ?? null);
-            if (fallback) {
-              const metrics = await fetchWorkerDashboard({
-                domain: fallback.value,
-                networkCode: fallback.gamNetworkCode,
-              });
+            setWorkerSelectedDomain(fallbackDomain);
+            if (fallbackDomain) {
+              const metrics = await fetchWorkerDashboard({ domain: fallbackDomain });
               setData((prev) => ({ ...prev, workerMetrics: metrics }));
             }
           } catch {
@@ -395,13 +392,12 @@ export default function App() {
           fetchSyncStatus().catch(() => null),
         ]);
         if (seq !== loadInitialSeqRef.current) return;
-        const domainProps = getWorkerDomainProperties(context);
-        let initialPropertyId = domainProps[0]?.id ?? null;
+        const domains = getWorkerDomains(context);
+        let initialDomain = domains[0] || null;
         if (typeof window !== "undefined" && context?.workerId) {
-          const saved = window.localStorage.getItem(getWorkerPropertyStorageKey(context.workerId));
-          const n = saved ? Number(saved) : NaN;
-          if (Number.isFinite(n) && domainProps.some((p) => p.id === n)) {
-            initialPropertyId = n;
+          const savedDomain = window.localStorage.getItem(getWorkerDomainStorageKey(context.workerId));
+          if (savedDomain && domains.includes(savedDomain)) {
+            initialDomain = savedDomain;
           }
         }
         setData({
@@ -410,10 +406,10 @@ export default function App() {
           workerPaymentHistory: paymentHistory,
         });
         setSyncStatus(sync);
-        setWorkerSelectedPropertyId(initialPropertyId);
+        setWorkerSelectedDomain(initialDomain);
         setWorkerMetricsError(null);
-        if (initialPropertyId != null) {
-          await loadWorkerMetrics(initialPropertyId, domainProps);
+        if (initialDomain) {
+          await loadWorkerMetrics(initialDomain, domains);
           if (seq !== loadInitialSeqRef.current) return;
         }
       }
@@ -561,10 +557,10 @@ export default function App() {
     refreshEarningsByRange();
   }, [adminEarningsRange, adminActiveNetworkCode, user, adminReady, handleLogout]);
 
-  // Keep ref in sync so loadWorkerMetrics always has current domain property rows
+  // Keep ref in sync so loadWorkerMetrics always has current valid domains
   // without needing data in its dependency array (which would cause re-render loops).
   useEffect(() => {
-    workerValidDomainPropsRef.current = getWorkerDomainProperties(data?.workerContext);
+    workerValidDomainsRef.current = getWorkerDomains(data?.workerContext);
   }, [data?.workerContext]);
 
   useEffect(() => {
@@ -579,13 +575,13 @@ export default function App() {
     if (!user || user.role !== "worker" || typeof window === "undefined") return;
     const workerId = data?.workerContext?.workerId;
     if (!workerId) return;
-    const storageKey = getWorkerPropertyStorageKey(workerId);
-    if (workerSelectedPropertyId != null) {
-      window.localStorage.setItem(storageKey, String(workerSelectedPropertyId));
+    const storageKey = getWorkerDomainStorageKey(workerId);
+    if (workerSelectedDomain) {
+      window.localStorage.setItem(storageKey, workerSelectedDomain);
     } else {
       window.localStorage.removeItem(storageKey);
     }
-  }, [user, workerSelectedPropertyId, data?.workerContext?.workerId]);
+  }, [user, workerSelectedDomain, data?.workerContext?.workerId]);
 
   const refreshAdminWorkersAndPayouts = useCallback(async () => {
     if (!user || user.role !== "admin") return;
@@ -698,12 +694,10 @@ export default function App() {
         fetchWorkerPaymentHistory({ paymentMonth: workerHistoryPaymentMonthRef.current }),
       ]);
       if (workerContextReqSeqRef.current !== reqSeq) return;
-      const props = getWorkerDomainProperties(ctx);
-      const stillValid =
-        workerSelectedPropertyId != null &&
-        props.some((p) => p.id === Number(workerSelectedPropertyId));
-      const nextId = stillValid ? workerSelectedPropertyId : props[0]?.id ?? null;
-      setWorkerSelectedPropertyId(nextId);
+      const domains = getWorkerDomains(ctx);
+      const stillValid = workerSelectedDomain && domains.includes(workerSelectedDomain);
+      const nextDomain = stillValid ? workerSelectedDomain : domains[0] || null;
+      setWorkerSelectedDomain(nextDomain);
       setData((prev) => ({ ...prev, workerContext: ctx, workerPaymentHistory: paymentHistory }));
       setError(null);
     } catch (err) {
@@ -713,7 +707,7 @@ export default function App() {
       // No elevamos este error al estado global para no romper la UI del worker
       // por fallos transitorios del refresco liviano de contexto.
     }
-  }, [user, workerSelectedPropertyId, handleLogout]);
+  }, [user, workerSelectedDomain, handleLogout]);
 
   useEffect(() => {
     async function refreshWorkersPaymentStatusByMonth() {
@@ -767,8 +761,8 @@ export default function App() {
     // Reset any worker-specific state from a previous session so stale domains
     // never leak into the incoming session.
     setData(null);
-    setWorkerSelectedPropertyId(null);
-    workerValidDomainPropsRef.current = [];
+    setWorkerSelectedDomain(null);
+    workerValidDomainsRef.current = [];
     setAdminMenuOpen(false);
     setAdminActiveModule("dashboard");
     setHighlightedEarningsWorkerId(null);
@@ -1006,10 +1000,10 @@ export default function App() {
           workerContext={data?.workerContext ?? null}
           workerMetrics={data?.workerMetrics ?? null}
           workerPaymentHistory={data?.workerPaymentHistory ?? null}
-          selectedPropertyId={workerSelectedPropertyId}
-          onPropertyChange={async (nextPropertyId) => {
-            setWorkerSelectedPropertyId(nextPropertyId);
-            await loadWorkerMetrics(nextPropertyId, getWorkerDomainProperties(data?.workerContext));
+          selectedDomain={workerSelectedDomain}
+          onDomainChange={async (nextDomain) => {
+            setWorkerSelectedDomain(nextDomain);
+            await loadWorkerMetrics(nextDomain, getWorkerDomains(data?.workerContext));
           }}
           contextLoading={loading}
           metricsLoading={workerMetricsLoading}
@@ -1026,12 +1020,10 @@ export default function App() {
                 fetchWorkerContext({ paymentMonth: workerPaymentMonth }),
                 fetchWorkerPaymentHistory({ paymentMonth: workerHistoryPaymentMonth }),
               ]);
-              const props = getWorkerDomainProperties(ctx);
-              const stillValid =
-                workerSelectedPropertyId != null &&
-                props.some((p) => p.id === Number(workerSelectedPropertyId));
-              const nextId = stillValid ? workerSelectedPropertyId : props[0]?.id ?? null;
-              setWorkerSelectedPropertyId(nextId);
+              const domains = getWorkerDomains(ctx);
+              const stillValid = workerSelectedDomain && domains.includes(workerSelectedDomain);
+              const nextDomain = stillValid ? workerSelectedDomain : domains[0] || null;
+              setWorkerSelectedDomain(nextDomain);
               setData((prev) => ({
                 ...prev,
                 workerContext: ctx,

@@ -14,13 +14,6 @@ export async function fetchGamServiceAccountEmail() {
   return json.data;
 }
 
-export async function fetchSaInviteResearch() {
-  const res = await fetch("/api/gam-networks/sa-invite-research", { headers: getAuthHeaders() });
-  if (!res.ok) throw new Error(`${res.status}`);
-  const json = await res.json();
-  return json.data;
-}
-
 export async function createGamNetwork({ networkCode, displayName }) {
   const res = await fetch("/api/gam-networks", {
     method: "POST",
