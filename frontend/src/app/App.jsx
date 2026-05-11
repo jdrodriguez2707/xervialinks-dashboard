@@ -18,6 +18,7 @@ import GamNetworksModule from "../features/admin/components/GamNetworksModule";
 import LoginForm from "../features/auth/components/LoginForm";
 import SummaryCards from "../features/admin/components/SummaryCards";
 import PayoutsTable from "../features/admin/components/PayoutsTable";
+import AdminEarningsPaymentStatusPanel from "../features/admin/components/AdminEarningsPaymentStatusPanel";
 import PaymentHistoryTable from "../features/admin/components/PaymentHistoryTable";
 import WorkersList from "../features/admin/components/WorkersList";
 import WorkerDashboard from "../features/worker/components/WorkerDashboard";
@@ -1116,8 +1117,12 @@ function AdminDashboard({
         <PayoutsTable
           payouts={payouts.payouts}
           totalPayout={payouts.totalPayout}
-          workers={workers}
           highlightedWorkerId={highlightedEarningsWorkerId}
+          isLoading={isRefreshing}
+        />
+        <AdminEarningsPaymentStatusPanel
+          payouts={payouts.payouts}
+          workers={workers}
           paymentMonth={adminPaymentMonth}
           onPaymentMonthChange={onChangeAdminPaymentMonth}
           paymentMonthOptionsTick={paymentMonthOptionsTick}
