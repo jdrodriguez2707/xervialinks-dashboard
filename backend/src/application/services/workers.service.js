@@ -2,6 +2,7 @@ const bcrypt = require("bcryptjs");
 const workersRepo = require("../../domain/repositories/workers.repository");
 const authRepo = require("../../domain/repositories/auth.repository");
 const gamNetworksRepo = require("../../domain/repositories/gamNetworks.repository");
+const { normalizeEmail } = require("../../domain/utils/email");
 const { isAssignableSubdomain } = require("./sites.service");
 const { encryptPassword, decryptPassword } = require("../../infrastructure/security/passwordVault");
 
@@ -74,13 +75,14 @@ function getAllWorkers(includeDeleted = false, paymentMonth = null, includePassw
 }
 
 function getWorkerByEmail(email, paymentMonth = null) {
+  const normalized = normalizeEmail(email);
   return (
-    workersRepo.findByEmail(email, { paymentMonth: resolvePaymentMonth(paymentMonth) }) || null
+    workersRepo.findByEmail(normalized, { paymentMonth: resolvePaymentMonth(paymentMonth) }) || null
   );
 }
 
 function getWorkerByEmailIncludingDeleted(email) {
-  return workersRepo.findByEmail(email, { includeDeleted: true }) || null;
+  return workersRepo.findByEmail(normalizeEmail(email), { includeDeleted: true }) || null;
 }
 
 function getWorkerById(id, paymentMonth = null, includePassword = false) {
@@ -106,17 +108,21 @@ async function createWorker({ name, email, percentage, password }) {
     throw new ValidationError("El porcentaje debe ser un número entre 0 y 100 (exclusivo)");
   }
 
-  const existingWorker = workersRepo.findByEmail(email, { includeDeleted: true });
-  if (existingWorker) throw new ConflictError(`El email ${email} ya está en uso`);
+  const emailNorm = normalizeEmail(email);
+  const existingWorker = workersRepo.findByEmail(emailNorm, { includeDeleted: true });
+  if (existingWorker) throw new ConflictError(`El email ${emailNorm} ya está en uso`);
 
-  const existingUser = authRepo.findByEmail(email);
+  const existingUser = authRepo.findByEmail(emailNorm);
   if (existingUser)
-    throw new ConflictError(`Ya existe una cuenta de usuario con el email ${email}`);
+    throw new ConflictError(`Ya existe una cuenta de usuario con el email ${emailNorm}`);
 
   const trimmedPassword = String(password).trim();
   const passwordHash = await bcrypt.hash(trimmedPassword, 10);
   const passwordCipher = encryptPassword(trimmedPassword);
-  return workersRepo.createWithUser({ name, email, percentage }, { passwordHash, passwordCipher });
+  return workersRepo.createWithUser(
+    { name, email: emailNorm, percentage },
+    { passwordHash, passwordCipher },
+  );
 }
 
 function deleteWorker(id) {
@@ -228,7 +234,7 @@ async function updateWorker(workerId, body, opts = {}) {
   }
 
   const name = String(rawName).trim();
-  const email = String(rawEmail).trim();
+  const email = normalizeEmail(rawEmail);
   if (!name || !email) {
     throw new ValidationError("Nombre y email no pueden estar vacíos");
   }

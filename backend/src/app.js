@@ -3,9 +3,12 @@ require("express-async-errors");
 const express = require("express");
 const cors = require("cors");
 const morgan = require("morgan");
+const helmet = require("helmet");
 
+const env = require("./infrastructure/config/env");
 const { authenticate, requireAdmin } = require("./api/middleware/authenticate");
 const healthRoutes = require("./api/routes/health.routes");
+const internalRoutes = require("./api/routes/internal.routes");
 const authRoutes = require("./api/routes/auth.routes");
 const summaryRoutes = require("./api/routes/summary.routes");
 const sitesRoutes = require("./api/routes/sites.routes");
@@ -18,9 +21,25 @@ const errorHandler = require("./api/middleware/errorHandler");
 
 const app = express();
 
-app.use(cors());
-app.use(express.json());
-app.use(morgan("dev"));
+if (env.nodeEnv === "production") {
+  app.set("trust proxy", 1);
+}
+
+app.use(
+  helmet({
+    contentSecurityPolicy: false,
+    crossOriginResourcePolicy: { policy: "cross-origin" },
+  }),
+);
+
+const corsOptions = buildCorsOptions();
+app.use(cors(corsOptions));
+
+app.use(express.json({ limit: "64kb" }));
+app.use(env.nodeEnv === "production" ? morgan("combined") : morgan("dev"));
+
+// Cron / internal (no JWT; protected by X-Cron-Secret when configured)
+app.use("/api/internal", internalRoutes);
 
 // Public routes
 app.use("/api/health", healthRoutes);
@@ -39,3 +58,25 @@ app.use("/api/gam-networks", authenticate, requireAdmin, gamNetworksRoutes);
 app.use(errorHandler);
 
 module.exports = app;
+
+function buildCorsOptions() {
+  const raw = String(env.CORS_ORIGIN || "").trim();
+  if (!raw) {
+    if (env.nodeEnv === "production") {
+      console.warn(
+        "[cors] CORS_ORIGIN is empty in production — cross-origin browser requests will be rejected.",
+      );
+      return { origin: false, credentials: false };
+    }
+    return { origin: true, credentials: false };
+  }
+  const list = raw
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);
+  if (list.length === 0) return { origin: true, credentials: false };
+  return {
+    origin: list.length === 1 ? list[0] : list,
+    credentials: false,
+  };
+}

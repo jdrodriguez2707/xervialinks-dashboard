@@ -3,7 +3,16 @@ const bcrypt = require("bcryptjs");
 const path = require("path");
 const env = require("../config/env");
 
-const DB_PATH = env.NODE_ENV === "test" ? ":memory:" : path.join(__dirname, "../../../data/app.db");
+function resolveDbPath() {
+  if (process.env.NODE_ENV === "test") return ":memory:";
+  const configured = String(env.DATABASE_PATH || "").trim();
+  if (configured) {
+    return path.isAbsolute(configured) ? configured : path.resolve(process.cwd(), configured);
+  }
+  return path.join(__dirname, "../../../data/app.db");
+}
+
+const DB_PATH = resolveDbPath();
 
 let db;
 

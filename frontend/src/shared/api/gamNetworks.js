@@ -1,21 +1,24 @@
 import { getAuthHeaders } from "./auth";
+import { apiUrl } from "./client";
 
 export async function fetchGamNetworks() {
-  const res = await fetch("/api/gam-networks", { headers: getAuthHeaders() });
+  const res = await fetch(apiUrl("/api/gam-networks"), { headers: getAuthHeaders() });
   if (!res.ok) throw new Error(`${res.status}`);
   const json = await res.json();
   return json.data;
 }
 
 export async function fetchGamServiceAccountEmail() {
-  const res = await fetch("/api/gam-networks/service-account-email", { headers: getAuthHeaders() });
+  const res = await fetch(apiUrl("/api/gam-networks/service-account-email"), {
+    headers: getAuthHeaders(),
+  });
   if (!res.ok) throw new Error(`${res.status}`);
   const json = await res.json();
   return json.data;
 }
 
 export async function createGamNetwork({ networkCode, displayName }) {
-  const res = await fetch("/api/gam-networks", {
+  const res = await fetch(apiUrl("/api/gam-networks"), {
     method: "POST",
     headers: { "Content-Type": "application/json", ...getAuthHeaders() },
     body: JSON.stringify({ networkCode, displayName }),
@@ -30,7 +33,7 @@ export async function createGamNetwork({ networkCode, displayName }) {
 
 export async function verifyGamNetwork(networkCode) {
   const res = await fetch(
-    `/api/gam-networks/${encodeURIComponent(networkCode)}/verify`,
+    apiUrl(`/api/gam-networks/${encodeURIComponent(networkCode)}/verify`),
     { method: "POST", headers: getAuthHeaders() },
   );
   if (!res.ok) {
@@ -43,7 +46,7 @@ export async function verifyGamNetwork(networkCode) {
 
 export async function syncGamNetworkNow(networkCode) {
   const res = await fetch(
-    `/api/gam-networks/${encodeURIComponent(networkCode)}/sync`,
+    apiUrl(`/api/gam-networks/${encodeURIComponent(networkCode)}/sync`),
     { method: "POST", headers: getAuthHeaders() },
   );
   if (!res.ok) {
@@ -56,7 +59,7 @@ export async function syncGamNetworkNow(networkCode) {
 
 export async function setDefaultGamNetwork(networkCode) {
   const res = await fetch(
-    `/api/gam-networks/${encodeURIComponent(networkCode)}/default`,
+    apiUrl(`/api/gam-networks/${encodeURIComponent(networkCode)}/default`),
     { method: "PATCH", headers: getAuthHeaders() },
   );
   if (!res.ok) {
@@ -69,7 +72,7 @@ export async function setDefaultGamNetwork(networkCode) {
 
 export async function updateGamNetworkDisplayName(networkCode, displayName) {
   const res = await fetch(
-    `/api/gam-networks/${encodeURIComponent(networkCode)}/display-name`,
+    apiUrl(`/api/gam-networks/${encodeURIComponent(networkCode)}/display-name`),
     {
       method: "PATCH",
       headers: { "Content-Type": "application/json", ...getAuthHeaders() },
@@ -85,7 +88,7 @@ export async function updateGamNetworkDisplayName(networkCode, displayName) {
 }
 
 export async function deleteGamNetwork(networkCode) {
-  const res = await fetch(`/api/gam-networks/${encodeURIComponent(networkCode)}`, {
+  const res = await fetch(apiUrl(`/api/gam-networks/${encodeURIComponent(networkCode)}`), {
     method: "DELETE",
     headers: getAuthHeaders(),
   });

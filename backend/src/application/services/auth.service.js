@@ -2,6 +2,10 @@ const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const authRepo = require("../../domain/repositories/auth.repository");
 const env = require("../../infrastructure/config/env");
+const { normalizeEmail } = require("../../domain/utils/email");
+
+const MAX_EMAIL_LEN = 254;
+const MAX_PASSWORD_LEN = 128;
 
 class ValidationError extends Error {
   constructor(message) {
@@ -31,11 +35,18 @@ async function login(email, password) {
   if (!email || !password) {
     throw new ValidationError("Email y contraseña son requeridos");
   }
+  if (typeof email !== "string" || typeof password !== "string") {
+    throw new ValidationError("Email y contraseña son requeridos");
+  }
+  const normalized = normalizeEmail(email);
+  if (normalized.length > MAX_EMAIL_LEN || String(password).length > MAX_PASSWORD_LEN) {
+    throw new ValidationError("Credenciales inválidas");
+  }
 
-  const user = authRepo.findByEmail(email);
+  const user = authRepo.findByEmail(normalized);
   if (!user) throw new UnauthorizedError("Credenciales inválidas");
 
-  const valid = await bcrypt.compare(password, user.password_hash);
+  const valid = await bcrypt.compare(String(password), user.password_hash);
   if (!valid) throw new UnauthorizedError("Credenciales inválidas");
   const updatedUser = authRepo.updateLastLogin(user.id) || user;
 
@@ -63,11 +74,16 @@ async function register({ name, email, password, role = "worker" }) {
     throw new ValidationError("Rol inválido");
   }
 
-  const existing = authRepo.findByEmail(email);
-  if (existing) throw new ConflictError(`El email ${email} ya está en uso`);
+  const normalizedEmail = normalizeEmail(email);
+  if (normalizedEmail.length > MAX_EMAIL_LEN || String(password).length > MAX_PASSWORD_LEN) {
+    throw new ValidationError("Datos inválidos");
+  }
 
-  const passwordHash = await bcrypt.hash(password, 10);
-  return authRepo.create({ name, email, passwordHash, role });
+  const existing = authRepo.findByEmail(normalizedEmail);
+  if (existing) throw new ConflictError(`El email ${normalizedEmail} ya está en uso`);
+
+  const passwordHash = await bcrypt.hash(String(password), 10);
+  return authRepo.create({ name, email: normalizedEmail, passwordHash, role });
 }
 
 function getAdminProfile(userId) {
@@ -95,9 +111,12 @@ function updateAdminProfile(userId, { name, email }) {
     throw new UnauthorizedError("Cuenta no disponible");
   }
   const nextName = String(name || "").trim();
-  const nextEmail = String(email || "").trim();
+  const nextEmail = normalizeEmail(email);
   if (!nextName || !nextEmail) {
     throw new ValidationError("Nombre y correo son requeridos");
+  }
+  if (nextEmail.length > MAX_EMAIL_LEN) {
+    throw new ValidationError("El correo no tiene un formato válido");
   }
   if (!isValidEmail(nextEmail)) {
     throw new ValidationError("El correo no tiene un formato válido");

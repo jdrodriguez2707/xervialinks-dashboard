@@ -1,4 +1,5 @@
 import { getAuthHeaders } from "./auth";
+import { apiUrl } from "./client";
 
 export async function fetchPayouts(filters = {}) {
   const params = new URLSearchParams();
@@ -7,7 +8,7 @@ export async function fetchPayouts(filters = {}) {
   if (filters.networkCode) params.set("networkCode", filters.networkCode);
 
   const query = params.toString();
-  const url = `/api/payouts${query ? `?${query}` : ""}`;
+  const url = apiUrl(`/api/payouts${query ? `?${query}` : ""}`);
 
   const res = await fetch(url, { headers: getAuthHeaders() });
   if (!res.ok) throw new Error(`${res.status}`);
@@ -19,7 +20,9 @@ export async function fetchPaymentHistory({ networkCode } = {}) {
   const params = new URLSearchParams();
   if (networkCode) params.set("networkCode", networkCode);
   const qs = params.toString();
-  const res = await fetch(`/api/payouts/history${qs ? `?${qs}` : ""}`, { headers: getAuthHeaders() });
+  const res = await fetch(apiUrl(`/api/payouts/history${qs ? `?${qs}` : ""}`), {
+    headers: getAuthHeaders(),
+  });
   if (!res.ok) throw new Error(`${res.status}`);
   const json = await res.json();
   return json.data;

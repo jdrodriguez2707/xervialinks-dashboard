@@ -1,11 +1,12 @@
 import { getAuthHeaders } from "./auth";
+import { apiUrl } from "./client";
 
 /** Solo BD: subdominios + info de pago (rápido, sin GAM). */
 export async function fetchWorkerContext({ paymentMonth } = {}) {
   const params = new URLSearchParams();
   if (paymentMonth) params.set("paymentMonth", paymentMonth);
   const query = params.toString();
-  const url = `/api/worker/context${query ? `?${query}` : ""}`;
+  const url = apiUrl(`/api/worker/context${query ? `?${query}` : ""}`);
   const res = await fetch(url, { headers: getAuthHeaders() });
   if (!res.ok) {
     const payload = await res.json().catch(() => ({}));
@@ -27,7 +28,7 @@ export async function fetchWorkerDashboard({ domain } = {}) {
     // ignore if browser cannot resolve timezone
   }
   const query = params.toString();
-  const url = `/api/worker/dashboard${query ? `?${query}` : ""}`;
+  const url = apiUrl(`/api/worker/dashboard${query ? `?${query}` : ""}`);
   const res = await fetch(url, { headers: getAuthHeaders() });
   if (!res.ok) {
     const payload = await res.json().catch(() => ({}));
@@ -38,7 +39,7 @@ export async function fetchWorkerDashboard({ domain } = {}) {
 }
 
 export async function upsertWorkerPaymentInfo({ methodType, paymentDetails }) {
-  const res = await fetch("/api/worker/payment-info", {
+  const res = await fetch(apiUrl("/api/worker/payment-info"), {
     method: "PUT",
     headers: {
       "Content-Type": "application/json",
@@ -58,7 +59,7 @@ export async function fetchWorkerPaymentHistory({ paymentMonth }) {
   const params = new URLSearchParams();
   if (paymentMonth) params.set("paymentMonth", paymentMonth);
   const query = params.toString();
-  const url = `/api/worker/payment-history${query ? `?${query}` : ""}`;
+  const url = apiUrl(`/api/worker/payment-history${query ? `?${query}` : ""}`);
   const res = await fetch(url, { headers: getAuthHeaders() });
   if (!res.ok) {
     const payload = await res.json().catch(() => ({}));

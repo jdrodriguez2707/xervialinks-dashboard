@@ -1,8 +1,10 @@
+import { apiUrl } from "./client";
+
 const TOKEN_KEY = "adm_token";
 const USER_KEY = "adm_user";
 
 export async function login(email, password) {
-  const res = await fetch("/api/auth/login", {
+  const res = await fetch(apiUrl("/api/auth/login"), {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ email, password }),
@@ -61,7 +63,7 @@ export function getAuthHeaders() {
 
 /** JWT payload: { userId, email, role }. Use before heavy dashboard fetches to avoid a burst of 401s. */
 export async function fetchSession() {
-  const res = await fetch("/api/auth/me", { headers: getAuthHeaders() });
+  const res = await fetch(apiUrl("/api/auth/me"), { headers: getAuthHeaders() });
   if (!res.ok) {
     if (res.status === 401) throw new Error("401");
     const err = await res.json().catch(() => ({}));
@@ -72,7 +74,7 @@ export async function fetchSession() {
 }
 
 export async function fetchAdminProfile() {
-  const res = await fetch("/api/auth/profile", { headers: getAuthHeaders() });
+  const res = await fetch(apiUrl("/api/auth/profile"), { headers: getAuthHeaders() });
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
     throw new Error(err.error || `${res.status}`);
@@ -82,7 +84,7 @@ export async function fetchAdminProfile() {
 }
 
 export async function updateAdminProfile(payload) {
-  const res = await fetch("/api/auth/profile", {
+  const res = await fetch(apiUrl("/api/auth/profile"), {
     method: "PATCH",
     headers: { "Content-Type": "application/json", ...getAuthHeaders() },
     body: JSON.stringify(payload),
@@ -96,7 +98,7 @@ export async function updateAdminProfile(payload) {
 }
 
 export async function changeAdminPassword(payload) {
-  const res = await fetch("/api/auth/change-password", {
+  const res = await fetch(apiUrl("/api/auth/change-password"), {
     method: "PATCH",
     headers: { "Content-Type": "application/json", ...getAuthHeaders() },
     body: JSON.stringify(payload),
