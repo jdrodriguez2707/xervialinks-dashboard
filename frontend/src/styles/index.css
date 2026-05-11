@@ -263,10 +263,6 @@
     @apply truncate;
   }
 
-  .worker-stats-sync-note {
-    @apply mb-2 text-center text-xs leading-relaxed text-muted-foreground sm:text-sm;
-  }
-
   .admin-mobile-menu-btn {
     @apply inline-flex shrink-0 items-center justify-center rounded-md border border-input bg-background p-2 transition-colors hover:bg-accent lg:hidden;
   }

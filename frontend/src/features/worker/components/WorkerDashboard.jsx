@@ -97,7 +97,6 @@ function MetricSection({ title, loading, data, getValue, format, highlight }) {
 }
 
 export default function WorkerDashboard({
-  syncStatusLabel,
   workerContext,
   workerMetrics,
   workerPaymentHistory,
@@ -255,12 +254,6 @@ export default function WorkerDashboard({
 
   return (
     <div className="space-y-6 pb-16">
-      {activeTab === "stats" && syncStatusLabel ? (
-        <p className="worker-stats-sync-note" role="status">
-          {syncStatusLabel}
-        </p>
-      ) : null}
-
       {!hasDomains ? (
         <EmptyState
           title="Panel no disponible aun"
@@ -269,13 +262,13 @@ export default function WorkerDashboard({
       ) : activeTab === "stats" ? (
         <div className="space-y-4">
           {hasDomains && (
-            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-center">
+            <div className="flex justify-center">
               <Select
                 value={selectedDomainValue}
                 onValueChange={handleDomainSwitch}
                 disabled={!canSwitchDomain}
               >
-                <SelectTrigger className="sm:w-72">
+                <SelectTrigger className="w-full max-w-md sm:w-72">
                   <SelectValue placeholder="Seleccionar subdominio" />
                 </SelectTrigger>
                 <SelectContent>
@@ -286,9 +279,6 @@ export default function WorkerDashboard({
                   ))}
                 </SelectContent>
               </Select>
-              {!canSwitchDomain && (
-                <p className="text-xs text-muted-foreground">Solo tienes un subdominio asignado.</p>
-              )}
             </div>
           )}
           {metricsError && (

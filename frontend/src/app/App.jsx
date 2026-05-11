@@ -95,17 +95,13 @@ function getDefaultPaymentMonth(date = new Date()) {
   return `${target.getFullYear()}-${month}`;
 }
 
-function formatSyncStatusLabel(lastSyncedAt, mode = "admin") {
+function formatSyncStatusLabel(lastSyncedAt) {
   if (!lastSyncedAt) {
-    return mode === "worker"
-      ? "Última actualización: pendiente"
-      : "Última sincronización Ad Manager: pendiente";
+    return "Última sincronización Ad Manager: pendiente";
   }
   const date = parseSyncTimestamp(lastSyncedAt);
   if (Number.isNaN(date.getTime())) {
-    return mode === "worker"
-      ? "Última actualización: pendiente"
-      : "Última sincronización Ad Manager: pendiente";
+    return "Última sincronización Ad Manager: pendiente";
   }
   const formatted = new Intl.DateTimeFormat("es-ES", {
     day: "2-digit",
@@ -114,9 +110,7 @@ function formatSyncStatusLabel(lastSyncedAt, mode = "admin") {
     hour: "2-digit",
     minute: "2-digit",
   }).format(date);
-  return mode === "worker"
-    ? `Última actualización: ${formatted}`
-    : `Última sincronización Ad Manager: ${formatted}`;
+  return `Última sincronización Ad Manager: ${formatted}`;
 }
 
 function parseSyncTimestamp(value) {
@@ -396,10 +390,9 @@ export default function App() {
             .catch(() => {});
         });
       } else {
-        const [context, paymentHistory, sync] = await Promise.all([
+        const [context, paymentHistory] = await Promise.all([
           fetchWorkerContext({ paymentMonth: workerPaymentMonth }),
           fetchWorkerPaymentHistory({ paymentMonth: workerHistoryPaymentMonth }),
-          fetchSyncStatus().catch(() => null),
         ]);
         if (seq !== loadInitialSeqRef.current) return;
         const domains = getWorkerDomains(context);
@@ -415,7 +408,6 @@ export default function App() {
           workerMetrics: null,
           workerPaymentHistory: paymentHistory,
         });
-        setSyncStatus(sync);
         setWorkerSelectedDomain(initialDomain);
         setWorkerMetricsError(null);
         if (initialDomain) {
@@ -450,13 +442,12 @@ export default function App() {
   }, [adminActiveModule, user?.role]);
 
   useEffect(() => {
-    if (!user) return;
+    if (!user || user.role !== "admin") return;
     const timer = window.setInterval(async () => {
       try {
-        const status =
-          user.role === "admin" && adminActiveNetworkCode
-            ? await fetchSyncStatus({ networkCode: adminActiveNetworkCode })
-            : await fetchSyncStatus();
+        const status = adminActiveNetworkCode
+          ? await fetchSyncStatus({ networkCode: adminActiveNetworkCode })
+          : await fetchSyncStatus();
         setSyncStatus(status);
       } catch {
         // Keep last known sync status during transient errors.
@@ -904,7 +895,6 @@ export default function App() {
                 <p className="app-sync-status">
                   {formatSyncStatusLabel(
                     syncStatus?.activeNetworkLastSyncedAt || syncStatus?.lastSyncedAt,
-                    "admin",
                   )}
                 </p>
                 <ThemeToggle />
@@ -1007,7 +997,6 @@ export default function App() {
 
       <main className="app-main">
         <WorkerDashboard
-          syncStatusLabel={formatSyncStatusLabel(syncStatus?.lastSyncedAt, "worker")}
           workerContext={data?.workerContext ?? null}
           workerMetrics={data?.workerMetrics ?? null}
           workerPaymentHistory={data?.workerPaymentHistory ?? null}
