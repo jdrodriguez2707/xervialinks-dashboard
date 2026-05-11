@@ -4,7 +4,7 @@ const reportsRepo = require("../../domain/repositories/reports.repository");
 /**
  * POST /api/internal/sync-reports
  * Intended for Railway Cron or similar (header X-Cron-Secret).
- * Runs batch window + 12-month backfill sequentially.
+ * Runs batch window + historical backfill (REPORTS_BACKFILL_WINDOW_DAYS) sequentially.
  */
 async function postCronSyncReports(_req, res) {
   const batch = await reportsSync.syncReportsBatch({});

@@ -47,7 +47,8 @@ const env = {
   REPORTS_BACKFILL_INTERVAL_MS:
     parseInt(process.env.REPORTS_BACKFILL_INTERVAL_MS, 10) || 24 * 60 * 60 * 1000,
   REPORTS_BATCH_WINDOW_DAYS: parseInt(process.env.REPORTS_BATCH_WINDOW_DAYS, 10) || 30,
-  REPORTS_BACKFILL_WINDOW_DAYS: parseInt(process.env.REPORTS_BACKFILL_WINDOW_DAYS, 10) || 370,
+  /** Historical backfill span (days). Default 120 (~4 months) to keep GAM createReport ranges smaller; set e.g. 370 for ~12 months. */
+  REPORTS_BACKFILL_WINDOW_DAYS: parseInt(process.env.REPORTS_BACKFILL_WINDOW_DAYS, 10) || 120,
 };
 
 env.isProductionJwtWeak =

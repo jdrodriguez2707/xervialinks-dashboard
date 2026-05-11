@@ -30,6 +30,7 @@ Guía operativa para el monorepo **ad-manager-dashboard**: frontend estático en
 | `CRON_SECRET` | Activa `POST /api/internal/sync-reports` con cabecera `X-Cron-Secret: <valor>`. |
 | `ENABLE_SYNC_SCHEDULER` | `false` para desactivar `setInterval` en el proceso y usar solo cron externo. |
 | `SKIP_STARTUP_SYNC` | `true` para no ejecutar sync al arrancar (solo si todo lo hace cron). |
+| `REPORTS_BACKFILL_WINDOW_DAYS` | Días de historial que pide el backfill a GAM en una sola corrida (por defecto en código: **120**). Sube p. ej. a `370` si necesitas ~12 meses y la API lo acepta. |
 
 Ver [backend/.env.example](../backend/.env.example) para el listado completo.
 
