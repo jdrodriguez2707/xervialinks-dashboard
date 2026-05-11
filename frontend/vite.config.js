@@ -9,8 +9,8 @@ export default defineConfig({
     VitePWA({
       registerType: "autoUpdate",
       manifest: {
-        name: "Ad Manager Dashboard",
-        short_name: "AdManager",
+        name: "XerviaLinks Metrics",
+        short_name: "XerviaLinks",
         description: "Ingresos, trabajadores y redes de Google Ad Manager",
         theme_color: "#7c3aed",
         background_color: "#0f172a",
