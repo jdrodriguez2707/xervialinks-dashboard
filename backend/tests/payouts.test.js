@@ -259,4 +259,130 @@ describe("GET /api/payouts/history", () => {
     );
     expect(removed).toBeUndefined();
   });
+
+  it("keeps admin payment history amount after worker percentage changes (frozen at mark paid)", async () => {
+    const workerRes = await request(app)
+      .post("/api/workers")
+      .set("Authorization", `Bearer ${token}`)
+      .send({
+        name: "Frozen Payout Worker",
+        email: "frozen.payout@example.com",
+        percentage: 50,
+        password: "pass123",
+      });
+    const workerId = workerRes.body.data.id;
+
+    await request(app)
+      .post(`/api/workers/${workerId}/properties`)
+      .set("Authorization", `Bearer ${token}`)
+      .send({ type: "domain", value: "frozen.pay.test.example.com" });
+
+    const paymentMonth = todayISO("America/Bogota").slice(0, 7);
+
+    const markPaid = await request(app)
+      .patch(`/api/workers/${workerId}/payment-status`)
+      .set("Authorization", `Bearer ${token}`)
+      .set("X-Client-Timezone", "America/Bogota")
+      .send({ status: "paid", paymentMonth });
+    expect(markPaid.status).toBe(200);
+
+    const historyBefore = await request(app)
+      .get("/api/payouts/history")
+      .set("Authorization", `Bearer ${token}`)
+      .set("X-Client-Timezone", "America/Bogota");
+    const rowBefore = historyBefore.body.data.find(
+      (e) => e.workerName === "Frozen Payout Worker" && e.paymentMonth === paymentMonth,
+    );
+    expect(rowBefore).toBeDefined();
+    const amountBefore = rowBefore.amount;
+
+    const patchPct = await request(app)
+      .patch(`/api/workers/${workerId}`)
+      .set("Authorization", `Bearer ${token}`)
+      .send({
+        name: "Frozen Payout Worker",
+        email: "frozen.payout@example.com",
+        percentage: 60,
+        domains: ["frozen.pay.test.example.com"],
+      });
+    expect(patchPct.status).toBe(200);
+
+    const historyAfter = await request(app)
+      .get("/api/payouts/history")
+      .set("Authorization", `Bearer ${token}`)
+      .set("X-Client-Timezone", "America/Bogota");
+    const rowAfter = historyAfter.body.data.find(
+      (e) => e.workerName === "Frozen Payout Worker" && e.paymentMonth === paymentMonth,
+    );
+    expect(rowAfter).toBeDefined();
+    expect(rowAfter.amount).toBe(amountBefore);
+  });
+
+  it("mantiene el mismo monto en historial admin tras paid → pending → % → paid otra vez", async () => {
+    const workerRes = await request(app)
+      .post("/api/workers")
+      .set("Authorization", `Bearer ${token}`)
+      .send({
+        name: "Refreeze Worker",
+        email: "refreeze.worker@example.com",
+        percentage: 40,
+        password: "pass123",
+      });
+    const workerId = workerRes.body.data.id;
+
+    await request(app)
+      .post(`/api/workers/${workerId}/properties`)
+      .set("Authorization", `Bearer ${token}`)
+      .send({ type: "domain", value: "refreeze.pay.test.example.com" });
+
+    const paymentMonth = todayISO("America/Bogota").slice(0, 7);
+
+    await request(app)
+      .patch(`/api/workers/${workerId}/payment-status`)
+      .set("Authorization", `Bearer ${token}`)
+      .set("X-Client-Timezone", "America/Bogota")
+      .send({ status: "paid", paymentMonth });
+
+    const h1 = await request(app)
+      .get("/api/payouts/history")
+      .set("Authorization", `Bearer ${token}`)
+      .set("X-Client-Timezone", "America/Bogota");
+    const row1 = h1.body.data.find(
+      (e) => e.workerName === "Refreeze Worker" && e.paymentMonth === paymentMonth,
+    );
+    expect(row1).toBeDefined();
+    const amount1 = row1.amount;
+
+    await request(app)
+      .patch(`/api/workers/${workerId}/payment-status`)
+      .set("Authorization", `Bearer ${token}`)
+      .set("X-Client-Timezone", "America/Bogota")
+      .send({ status: "pending", paymentMonth });
+
+    await request(app)
+      .patch(`/api/workers/${workerId}`)
+      .set("Authorization", `Bearer ${token}`)
+      .send({
+        name: "Refreeze Worker",
+        email: "refreeze.worker@example.com",
+        percentage: 90,
+        domains: ["refreeze.pay.test.example.com"],
+      });
+
+    await request(app)
+      .patch(`/api/workers/${workerId}/payment-status`)
+      .set("Authorization", `Bearer ${token}`)
+      .set("X-Client-Timezone", "America/Bogota")
+      .send({ status: "paid", paymentMonth });
+
+    const h2 = await request(app)
+      .get("/api/payouts/history")
+      .set("Authorization", `Bearer ${token}`)
+      .set("X-Client-Timezone", "America/Bogota");
+    const row2 = h2.body.data.find(
+      (e) => e.workerName === "Refreeze Worker" && e.paymentMonth === paymentMonth,
+    );
+    expect(row2).toBeDefined();
+    expect(row2.amount).toBe(amount1);
+  });
 });

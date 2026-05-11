@@ -19,7 +19,14 @@ async function listPaymentHistory({ timeZone, networkCode } = {}) {
   }
 
   return paidStatuses.map((row) => {
-    const payout = payoutsByMonth.get(row.paymentMonth)?.get(row.workerId)?.payout || 0;
+    const frozen =
+      row.paidTotalAmount != null && row.paidTotalAmount !== ""
+        ? Number(row.paidTotalAmount)
+        : null;
+    const payout =
+      frozen != null && !Number.isNaN(frozen)
+        ? frozen
+        : payoutsByMonth.get(row.paymentMonth)?.get(row.workerId)?.payout || 0;
     return {
       paidAt: row.paidAt,
       paymentMonth: row.paymentMonth,

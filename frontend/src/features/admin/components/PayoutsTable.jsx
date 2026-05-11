@@ -1,7 +1,11 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { HandCoins } from "lucide-react";
 import { updateWorkerPaymentStatus } from "../../../shared/api/workers";
 import { toUserErrorMessage } from "../../../shared/lib/uiError";
+import {
+  buildAccumulatedPaymentMonthOptions,
+  formatPaymentMonthLabel,
+} from "../../../shared/lib/paymentMonthOptions";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { TableCell, TableRow } from "@/components/ui/table";
@@ -41,6 +45,7 @@ const ADMIN_TABLE_DENSITY_CLASS =
  *   }>,
  *   highlightedWorkerId?: number | null,
  *   onRefresh?: () => void,
+ *   paymentMonthOptionsTick?: string,
  * }} props
  */
 export default function PayoutsTable({
@@ -52,6 +57,7 @@ export default function PayoutsTable({
   onPaymentMonthChange,
   onRefresh,
   isLoading = false,
+  paymentMonthOptionsTick = "",
 }) {
   const [selectedWorker, setSelectedWorker] = useState(null);
   const [updatingPaymentStatus, setUpdatingPaymentStatus] = useState(false);
@@ -71,7 +77,20 @@ export default function PayoutsTable({
     });
   }, [payouts]);
 
-  const paymentMonthOptions = useMemo(() => buildPaymentMonthOptions(), []);
+  const paymentMonthOptions = useMemo(
+    () => buildAccumulatedPaymentMonthOptions(new Date()),
+    [paymentMonthOptionsTick],
+  );
+  const latestAllowedMonth = paymentMonthOptions[0]?.value;
+
+  useEffect(() => {
+    if (!latestAllowedMonth || !onPaymentMonthChange) return;
+    const allowed = new Set(paymentMonthOptions.map((o) => o.value));
+    if (!paymentMonth || !allowed.has(paymentMonth)) {
+      onPaymentMonthChange(latestAllowedMonth);
+    }
+  }, [paymentMonthOptions, paymentMonth, latestAllowedMonth, onPaymentMonthChange]);
+
   const paymentMonthLabel = formatPaymentMonthLabel(paymentMonth);
   const selectedWorkerCurrentStatus =
     selectedWorker && !selectedWorker.deletedAt
@@ -372,23 +391,3 @@ export default function PayoutsTable({
   );
 }
 
-function buildPaymentMonthOptions(total = 12, date = new Date()) {
-  const options = [];
-  const start = new Date(date.getFullYear(), date.getMonth() - 1, 1);
-  for (let i = 0; i < total; i += 1) {
-    const monthDate = new Date(start.getFullYear(), start.getMonth() - i, 1);
-    const value = `${monthDate.getFullYear()}-${String(monthDate.getMonth() + 1).padStart(2, "0")}`;
-    options.push({ value, label: formatPaymentMonthLabel(value) });
-  }
-  return options;
-}
-
-function formatPaymentMonthLabel(paymentMonth) {
-  const m = /^(\d{4})-(\d{2})$/.exec(String(paymentMonth || ""));
-  if (!m) return String(paymentMonth || "");
-  const year = Number(m[1]);
-  const monthIndex = Number(m[2]) - 1;
-  const date = new Date(year, monthIndex, 1);
-  const label = new Intl.DateTimeFormat("es-ES", { month: "long", year: "numeric" }).format(date);
-  return label.charAt(0).toUpperCase() + label.slice(1);
-}

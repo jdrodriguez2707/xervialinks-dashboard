@@ -5,6 +5,7 @@ const gamNetworksRepo = require("../../domain/repositories/gamNetworks.repositor
 const { normalizeEmail } = require("../../domain/utils/email");
 const { isAssignableSubdomain } = require("./sites.service");
 const { encryptPassword, decryptPassword } = require("../../infrastructure/security/passwordVault");
+const workerPaymentHistoryService = require("./workerPaymentHistory.service");
 
 class ValidationError extends Error {
   constructor(message) {
@@ -333,7 +334,7 @@ async function updateWorker(workerId, body, opts = {}) {
   }
 }
 
-function updateWorkerPaymentStatus(workerId, status, paymentMonth = null) {
+async function updateWorkerPaymentStatus(workerId, status, paymentMonth = null, { timeZone } = {}) {
   const VALID_STATUSES = ["pending", "paid"];
   if (!VALID_STATUSES.includes(status)) {
     throw new ValidationError(`El estado debe ser uno de: ${VALID_STATUSES.join(", ")}`);
@@ -347,7 +348,33 @@ function updateWorkerPaymentStatus(workerId, status, paymentMonth = null) {
   if (worker.deleted_at) {
     throw new ValidationError("No se puede cambiar el estado de pago de trabajadores inactivos");
   }
-  return workersRepo.upsertPaymentStatus(numericId, status, resolvedMonth);
+
+  if (status === "paid") {
+    const before = workersRepo.getPaymentStatusRow(numericId, resolvedMonth);
+    if (before.paymentStatus === "paid" && before.paidRowsJson) {
+      return workersRepo.getPaymentStatus(numericId, resolvedMonth);
+    }
+    if (before.paidRowsJson && before.paidTotalAmount != null && !Number.isNaN(Number(before.paidTotalAmount))) {
+      return workersRepo.upsertPaymentStatus(numericId, status, resolvedMonth, {
+        paidTotalAmount: Number(before.paidTotalAmount),
+        paidRowsJson: before.paidRowsJson,
+      });
+    }
+    const workerForSnapshot = workersRepo.findById(numericId, { paymentMonth: resolvedMonth });
+    const tz = timeZone || "America/Bogota";
+    const snap = await workerPaymentHistoryService.computePaidSnapshot(
+      workerForSnapshot,
+      resolvedMonth,
+      tz,
+    );
+    const paidRowsJson = JSON.stringify(snap.rows);
+    return workersRepo.upsertPaymentStatus(numericId, status, resolvedMonth, {
+      paidTotalAmount: snap.totalNet,
+      paidRowsJson,
+    });
+  }
+
+  return workersRepo.upsertPaymentStatus(numericId, status, resolvedMonth, null);
 }
 
 function resolvePaymentMonth(paymentMonth) {

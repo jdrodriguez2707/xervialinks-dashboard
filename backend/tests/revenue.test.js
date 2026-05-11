@@ -277,6 +277,7 @@ describe("GET /api/worker/dashboard", () => {
 
 describe("GET /api/worker/payment-history", () => {
   let workerToken;
+  let paymentHistoryWorkerId;
 
   beforeAll(async () => {
     const workerRes = await request(app)
@@ -289,6 +290,7 @@ describe("GET /api/worker/payment-history", () => {
         password: "pass123",
       });
     const workerId = workerRes.body.data.id;
+    paymentHistoryWorkerId = workerId;
 
     await request(app)
       .post(`/api/workers/${workerId}/properties`)
@@ -299,6 +301,7 @@ describe("GET /api/worker/payment-history", () => {
     await request(app)
       .patch(`/api/workers/${workerId}/payment-status`)
       .set("Authorization", `Bearer ${adminToken}`)
+      .set("X-Client-Timezone", "America/Bogota")
       .send({ status: "paid", paymentMonth });
 
     const loginRes = await request(app)
@@ -321,5 +324,51 @@ describe("GET /api/worker/payment-history", () => {
     expect(res.body.data.rows[0]).toHaveProperty("impressions");
     expect(res.body.data.rows[0]).toHaveProperty("payout");
     expect(res.body.data.rows[0]).toHaveProperty("paymentStatus");
+  });
+
+  it("mantiene montos del periodo tras paid → pending → cambio de porcentaje", async () => {
+    const paymentMonth = todayISO("America/Bogota").slice(0, 7);
+    const histBefore = await request(app)
+      .get(`/api/worker/payment-history?paymentMonth=${paymentMonth}`)
+      .set("Authorization", `Bearer ${workerToken}`)
+      .set("X-Client-Timezone", "America/Bogota");
+    expect(histBefore.status).toBe(200);
+    const totalBefore = histBefore.body.data.rows.reduce((s, r) => s + Number(r.payout || 0), 0);
+    expect(histBefore.body.data.paymentStatus).toBe("paid");
+
+    await request(app)
+      .patch(`/api/workers/${paymentHistoryWorkerId}/payment-status`)
+      .set("Authorization", `Bearer ${adminToken}`)
+      .set("X-Client-Timezone", "America/Bogota")
+      .send({ status: "pending", paymentMonth });
+
+    await request(app)
+      .patch(`/api/workers/${paymentHistoryWorkerId}`)
+      .set("Authorization", `Bearer ${adminToken}`)
+      .send({
+        name: "Payment History Worker",
+        email: "payment.history.worker@example.com",
+        percentage: 5,
+        domains: ["plez.barbacoadicto.com"],
+      });
+
+    // Evitar misma marca temporal que session_invalidated_at (JWT iat en segundos).
+    await new Promise((r) => setTimeout(r, 1100));
+
+    const loginAgain = await request(app)
+      .post("/api/auth/login")
+      .send({ email: "payment.history.worker@example.com", password: "pass123" });
+    expect(loginAgain.status).toBe(200);
+    const freshWorkerToken = loginAgain.body.data.token;
+
+    const histAfter = await request(app)
+      .get(`/api/worker/payment-history?paymentMonth=${paymentMonth}`)
+      .set("Authorization", `Bearer ${freshWorkerToken}`)
+      .set("X-Client-Timezone", "America/Bogota");
+
+    expect(histAfter.status).toBe(200);
+    expect(histAfter.body.data.paymentStatus).toBe("pending");
+    const totalAfter = histAfter.body.data.rows.reduce((s, r) => s + Number(r.payout || 0), 0);
+    expect(totalAfter).toBeCloseTo(totalBefore, 2);
   });
 });

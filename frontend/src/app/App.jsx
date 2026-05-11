@@ -930,6 +930,7 @@ export default function App() {
                 onChangeAdminEarningsRange={setAdminEarningsRange}
                 adminPaymentMonth={adminPaymentMonth}
                 onChangeAdminPaymentMonth={setAdminPaymentMonth}
+                paymentMonthOptionsTick={currentDateLabel}
                 activeModule={adminActiveModule}
                 adminActiveNetworkCode={adminActiveNetworkCode}
                 onGamNetworksUpdated={async () => {
@@ -1009,6 +1010,7 @@ export default function App() {
           workerContext={data?.workerContext ?? null}
           workerMetrics={data?.workerMetrics ?? null}
           workerPaymentHistory={data?.workerPaymentHistory ?? null}
+          paymentMonthOptionsTick={currentDateLabel}
           selectedDomain={workerSelectedDomain}
           onDomainChange={async (nextDomain) => {
             setWorkerSelectedDomain(nextDomain);
@@ -1059,6 +1061,7 @@ function AdminDashboard({
   onChangeAdminEarningsRange,
   adminPaymentMonth,
   onChangeAdminPaymentMonth,
+  paymentMonthOptionsTick,
   activeModule,
   adminActiveNetworkCode,
   onGamNetworksUpdated,
@@ -1117,6 +1120,7 @@ function AdminDashboard({
           highlightedWorkerId={highlightedEarningsWorkerId}
           paymentMonth={adminPaymentMonth}
           onPaymentMonthChange={onChangeAdminPaymentMonth}
+          paymentMonthOptionsTick={paymentMonthOptionsTick}
           onRefresh={onWorkersPaymentStatusRefresh}
           isLoading={isRefreshing}
         />

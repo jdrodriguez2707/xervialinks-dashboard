@@ -1,23 +1,20 @@
 const reportsRepo = require("../../domain/repositories/reports.repository");
-const workersService = require("./workers.service");
+const workersRepo = require("../../domain/repositories/workers.repository");
 const { getAssignedDomainSlots } = require("./payouts.service");
 
-async function getWorkerPaymentHistoryByEmail(email, { paymentMonth, timeZone }) {
-  const worker = workersService.getWorkerByEmail(email, paymentMonth);
-  if (!worker) {
-    return { period: paymentMonth, rows: [], paymentStatus: "pending" };
-  }
-
+/**
+ * Live payout breakdown for a worker + payment month (uses current worker.percentage).
+ * Used when period is pending and to build the snapshot when marking paid.
+ *
+ * @returns {{ rows: Array<{ domain: string, impressions: number, grossRevenue: number, percentage: number, payout: number }>, totalNet: number, percentage: number }}
+ */
+async function computePaidSnapshot(worker, paymentMonth, timeZone) {
   const slots = getAssignedDomainSlots(worker.properties);
-
   if (slots.length === 0) {
-    return {
-      period: paymentMonth,
-      rows: [],
-      paymentStatus: worker.paymentStatus || "pending",
-    };
+    return { rows: [], totalNet: 0, percentage: Number(worker.percentage) || 0 };
   }
 
+  const pct = Number(worker.percentage) || 0;
   const { startDate, endDate } = monthRange(paymentMonth);
   const networkCodes = [...new Set(slots.map((s) => s.gamNetworkCode))];
   const reports = await reportsRepo.findAll({ startDate, endDate, timeZone, networkCodes });
@@ -36,10 +33,57 @@ async function getWorkerPaymentHistoryByEmail(email, { paymentMonth, timeZone })
     });
   }
 
-  const rows = [...byDomain.entries()].map(([domain, agg]) => ({
-    domain,
-    impressions: agg.impressions,
-    payout: parseFloat(((agg.grossRevenue * worker.percentage) / 100).toFixed(2)),
+  const rows = [...byDomain.entries()].map(([domain, agg]) => {
+    const payout = parseFloat(((agg.grossRevenue * pct) / 100).toFixed(2));
+    return {
+      domain,
+      impressions: agg.impressions,
+      grossRevenue: parseFloat(Number(agg.grossRevenue || 0).toFixed(6)),
+      percentage: pct,
+      payout,
+    };
+  });
+
+  const totalNet = parseFloat(rows.reduce((sum, r) => sum + r.payout, 0).toFixed(2));
+  return { rows, totalNet, percentage: pct };
+}
+
+async function getWorkerPaymentHistoryByEmail(email, { paymentMonth, timeZone }) {
+  const worker = workersRepo.findByEmail(email, { paymentMonth });
+  if (!worker) {
+    return { period: paymentMonth, rows: [], paymentStatus: "pending" };
+  }
+
+  const statusRow = workersRepo.getPaymentStatusRow(worker.id, paymentMonth);
+  const effectiveStatus = statusRow.paymentStatus || "pending";
+
+  if (statusRow.paidRowsJson) {
+    try {
+      const parsed = JSON.parse(statusRow.paidRowsJson);
+      const rows = Array.isArray(parsed)
+        ? parsed.map((r) => ({
+            domain: r.domain,
+            impressions: r.impressions ?? 0,
+            payout: r.payout ?? 0,
+            paymentStatus: effectiveStatus,
+          }))
+        : [];
+      return {
+        period: paymentMonth,
+        rows,
+        paymentStatus: effectiveStatus,
+        paidTotalAmount: statusRow.paidTotalAmount,
+      };
+    } catch {
+      // fall through to live calculation
+    }
+  }
+
+  const live = await computePaidSnapshot(worker, paymentMonth, timeZone);
+  const rows = live.rows.map((r) => ({
+    domain: r.domain,
+    impressions: r.impressions,
+    payout: r.payout,
     paymentStatus: worker.paymentStatus || "pending",
   }));
 
@@ -47,6 +91,7 @@ async function getWorkerPaymentHistoryByEmail(email, { paymentMonth, timeZone })
     period: paymentMonth,
     rows,
     paymentStatus: worker.paymentStatus || "pending",
+    paidTotalAmount: null,
   };
 }
 
@@ -66,4 +111,7 @@ function toISO(date) {
   return `${year}-${month}-${day}`;
 }
 
-module.exports = { getWorkerPaymentHistoryByEmail };
+module.exports = {
+  getWorkerPaymentHistoryByEmail,
+  computePaidSnapshot,
+};

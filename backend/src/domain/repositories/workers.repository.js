@@ -166,31 +166,78 @@ function getPaymentInfo(workerId) {
 }
 
 function getPaymentStatus(workerId, paymentMonth) {
+  const full = getPaymentStatusRow(workerId, paymentMonth);
+  return {
+    paymentStatus: full.paymentStatus,
+    paymentStatusUpdatedAt: full.paymentStatusUpdatedAt,
+    paymentMonth: full.paymentMonth,
+    paidTotalAmount: full.paidTotalAmount,
+  };
+}
+
+/** Full row including frozen payout JSON when status is paid. */
+function getPaymentStatusRow(workerId, paymentMonth) {
   const db = getDb();
   const month = String(paymentMonth || "").trim();
   if (!month) {
-    return { paymentStatus: "pending", paymentStatusUpdatedAt: null, paymentMonth: null };
+    return {
+      paymentStatus: "pending",
+      paymentStatusUpdatedAt: null,
+      paymentMonth: null,
+      paidTotalAmount: null,
+      paidRowsJson: null,
+    };
   }
   const row = db
     .prepare(
-      `SELECT status AS paymentStatus, updated_at AS paymentStatusUpdatedAt, payment_month AS paymentMonth
+      `SELECT status AS paymentStatus,
+              updated_at AS paymentStatusUpdatedAt,
+              payment_month AS paymentMonth,
+              paid_total_amount AS paidTotalAmount,
+              paid_rows_json AS paidRowsJson
        FROM worker_payment_status
        WHERE worker_id = ? AND payment_month = ?`,
     )
     .get(workerId, month);
-  return row || { paymentStatus: "pending", paymentStatusUpdatedAt: null, paymentMonth: month };
+  return (
+    row || {
+      paymentStatus: "pending",
+      paymentStatusUpdatedAt: null,
+      paymentMonth: month,
+      paidTotalAmount: null,
+      paidRowsJson: null,
+    }
+  );
 }
 
-function upsertPaymentStatus(workerId, status, paymentMonth) {
+/**
+ * @param {{ paidTotalAmount?: number|null, paidRowsJson?: string|null }} [snapshot] Al marcar paid, montos congelados. Al marcar pending, se conservan columnas paid_* si ya existían (no se borran).
+ */
+function upsertPaymentStatus(workerId, status, paymentMonth, snapshot = null) {
   const db = getDb();
   const month = String(paymentMonth || "").trim();
+  const paidTotal =
+    status === "paid" && snapshot && snapshot.paidTotalAmount != null
+      ? Number(snapshot.paidTotalAmount)
+      : null;
+  const paidRows =
+    status === "paid" && snapshot && snapshot.paidRowsJson != null ? String(snapshot.paidRowsJson) : null;
+
   db.prepare(
-    `INSERT INTO worker_payment_status (worker_id, payment_month, status, updated_at)
-     VALUES (?, ?, ?, datetime('now'))
+    `INSERT INTO worker_payment_status (worker_id, payment_month, status, updated_at, paid_total_amount, paid_rows_json)
+     VALUES (?, ?, ?, datetime('now'), ?, ?)
      ON CONFLICT(worker_id, payment_month) DO UPDATE SET
        status = excluded.status,
-       updated_at = datetime('now')`,
-  ).run(workerId, month, status);
+       updated_at = datetime('now'),
+       paid_total_amount = CASE
+         WHEN excluded.status = 'paid' AND excluded.paid_total_amount IS NOT NULL THEN excluded.paid_total_amount
+         ELSE worker_payment_status.paid_total_amount
+       END,
+       paid_rows_json = CASE
+         WHEN excluded.status = 'paid' AND excluded.paid_rows_json IS NOT NULL THEN excluded.paid_rows_json
+         ELSE worker_payment_status.paid_rows_json
+       END`,
+  ).run(workerId, month, status, paidTotal, paidRows);
   return getPaymentStatus(workerId, month);
 }
 
@@ -215,6 +262,8 @@ function listPaidPaymentStatuses() {
          ps.worker_id AS workerId,
          ps.payment_month AS paymentMonth,
          ps.updated_at AS paidAt,
+         ps.paid_total_amount AS paidTotalAmount,
+         ps.paid_rows_json AS paidRowsJson,
          w.name AS workerName,
          p.method_type AS methodType
        FROM worker_payment_status ps
@@ -237,7 +286,10 @@ function attachProperties(worker, { paymentMonth = null } = {}) {
     ...worker,
     properties,
     paymentInfo: getPaymentInfo(worker.id),
-    ...paymentStatus,
+    paymentStatus: paymentStatus.paymentStatus,
+    paymentStatusUpdatedAt: paymentStatus.paymentStatusUpdatedAt,
+    paymentMonth: paymentStatus.paymentMonth,
+    paidTotalAmount: paymentStatus.paidTotalAmount,
   };
 }
 
@@ -326,6 +378,7 @@ module.exports = {
   addProperty,
   findPropertyByTypeAndValue,
   getPaymentStatus,
+  getPaymentStatusRow,
   upsertPaymentStatus,
   upsertPaymentInfo,
   listPaidPaymentStatuses,

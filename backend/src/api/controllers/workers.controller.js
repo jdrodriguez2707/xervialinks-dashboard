@@ -1,4 +1,5 @@
 const workersService = require("../../application/services/workers.service");
+const { clientTimeZoneFromRequest } = require("../utils/clientTz");
 
 async function listWorkers(req, res) {
   const includeDeleted = req.query.includeDeleted === "true" || req.query.includeDeleted === "1";
@@ -47,10 +48,12 @@ async function purgeInactiveWorker(req, res) {
 
 async function updatePaymentStatus(req, res) {
   const { status, paymentMonth } = req.body || {};
-  const paymentStatus = workersService.updateWorkerPaymentStatus(
+  const timeZone = clientTimeZoneFromRequest(req);
+  const paymentStatus = await workersService.updateWorkerPaymentStatus(
     req.params.id,
     status,
     paymentMonth,
+    { timeZone },
   );
   res.json({ data: paymentStatus });
 }

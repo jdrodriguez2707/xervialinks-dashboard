@@ -2,6 +2,10 @@ import { useEffect, useMemo, useState } from "react";
 import { BarChart3, Globe, CreditCard, CircleDollarSign } from "lucide-react";
 import { upsertWorkerPaymentInfo } from "../../../shared/api/worker";
 import { toUserErrorMessage } from "../../../shared/lib/uiError";
+import {
+  buildAccumulatedPaymentMonthOptions,
+  formatPaymentMonthLabel,
+} from "../../../shared/lib/paymentMonthOptions";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -109,6 +113,8 @@ export default function WorkerDashboard({
   onPaymentMonthChange,
   paymentHistoryMonth,
   onPaymentHistoryMonthChange,
+  /** Cambia cuando avanza el calendario (p. ej. label de fecha en App) para recalcular la lista de meses. */
+  paymentMonthOptionsTick = "",
 }) {
   const [activeTab, setActiveTab] = useState("stats");
   const [selectedRange, setSelectedRange] = useState("today");
@@ -168,7 +174,28 @@ export default function WorkerDashboard({
   const hasDomains = uniqueDomainList.length > 0;
   const paymentStatus = workerContext?.paymentStatus || "pending";
   const paymentStatusLabel = paymentStatus === "paid" ? "Pagado" : "Pendiente de pago";
-  const paymentMonthOptions = useMemo(() => buildPaymentMonthOptions(), []);
+  const paymentMonthOptions = useMemo(
+    () => buildAccumulatedPaymentMonthOptions(new Date()),
+    [paymentMonthOptionsTick],
+  );
+  const latestAllowedMonth = paymentMonthOptions[0]?.value;
+
+  useEffect(() => {
+    if (!latestAllowedMonth || !onPaymentMonthChange) return;
+    const allowed = new Set(paymentMonthOptions.map((o) => o.value));
+    if (!paymentMonth || !allowed.has(paymentMonth)) {
+      onPaymentMonthChange(latestAllowedMonth);
+    }
+  }, [paymentMonthOptions, paymentMonth, latestAllowedMonth, onPaymentMonthChange]);
+
+  useEffect(() => {
+    if (!latestAllowedMonth || !onPaymentHistoryMonthChange) return;
+    const allowed = new Set(paymentMonthOptions.map((o) => o.value));
+    if (!paymentHistoryMonth || !allowed.has(paymentHistoryMonth)) {
+      onPaymentHistoryMonthChange(latestAllowedMonth);
+    }
+  }, [paymentMonthOptions, paymentHistoryMonth, latestAllowedMonth, onPaymentHistoryMonthChange]);
+
   const paymentMonthLabel = formatPaymentMonthLabel(paymentMonth);
   const paymentHistoryMonthLabel = formatPaymentMonthLabel(paymentHistoryMonth);
   const paymentHistoryRows = workerPaymentHistory?.rows || [];
@@ -570,23 +597,3 @@ export default function WorkerDashboard({
   );
 }
 
-function buildPaymentMonthOptions(total = 12, date = new Date()) {
-  const options = [];
-  const start = new Date(date.getFullYear(), date.getMonth() - 1, 1);
-  for (let i = 0; i < total; i += 1) {
-    const monthDate = new Date(start.getFullYear(), start.getMonth() - i, 1);
-    const value = `${monthDate.getFullYear()}-${String(monthDate.getMonth() + 1).padStart(2, "0")}`;
-    options.push({ value, label: formatPaymentMonthLabel(value) });
-  }
-  return options;
-}
-
-function formatPaymentMonthLabel(paymentMonth) {
-  const m = /^(\d{4})-(\d{2})$/.exec(String(paymentMonth || ""));
-  if (!m) return String(paymentMonth || "");
-  const year = Number(m[1]);
-  const monthIndex = Number(m[2]) - 1;
-  const date = new Date(year, monthIndex, 1);
-  const label = new Intl.DateTimeFormat("es-ES", { month: "long", year: "numeric" }).format(date);
-  return label.charAt(0).toUpperCase() + label.slice(1);
-}

@@ -100,6 +100,8 @@ function applySchema(database) {
     CREATE INDEX IF NOT EXISTS idx_reports_domain ON reports(domain);
   `);
   ensureWorkerPaymentStatusMonthly(database);
+  ensureColumn(database, "worker_payment_status", "paid_total_amount", "REAL");
+  ensureColumn(database, "worker_payment_status", "paid_rows_json", "TEXT");
   ensureMultiGamSchema(database);
 
   seedAdminUser(database);
