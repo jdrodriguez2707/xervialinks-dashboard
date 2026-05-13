@@ -20,6 +20,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { cn } from "@/lib/utils";
 
 function slotKey(value, gamNetworkCode) {
   return `${String(value || "").trim()}|||${String(gamNetworkCode || "").trim()}`;
@@ -142,17 +143,26 @@ export default function WorkerEditModal({
 
   return (
     <Dialog open={!!worker} onOpenChange={(value) => (!value ? onClose() : null)}>
-      <DialogContent className="sm:max-w-2xl border-border/60">
-        <DialogHeader>
-          <DialogTitle>Editar trabajador · {worker.name}</DialogTitle>
-          <DialogDescription>
-            Actualiza datos y subdominios. Los nuevos subdominios usan la red seleccionada en la
-            cabecera del panel ({net ? labelForNetwork(net, gamNetworks) : "ninguna"}).
-          </DialogDescription>
-        </DialogHeader>
+      <DialogContent
+        onOpenAutoFocus={(e) => e.preventDefault()}
+        className={cn(
+          "flex w-[min(100vw-1rem,42rem)] max-w-2xl flex-col gap-0 overflow-hidden border-border/60 p-0",
+          "max-h-[min(90dvh,calc(100dvh-1.5rem))]",
+        )}
+      >
+        <div className="shrink-0 space-y-1.5 border-b border-border/60 px-5 pb-4 pt-5 pr-12 text-left sm:px-6 sm:pb-5 sm:pt-6">
+          <DialogHeader className="space-y-2 p-0 text-left">
+            <DialogTitle>Editar trabajador · {worker.name}</DialogTitle>
+            <DialogDescription>
+              Actualiza datos y subdominios. Los nuevos subdominios usan la red seleccionada en la
+              cabecera del panel ({net ? labelForNetwork(net, gamNetworks) : "ninguna"}).
+            </DialogDescription>
+          </DialogHeader>
+        </div>
 
-        <form className="space-y-4" onSubmit={handleSubmit}>
-          <div className="grid gap-4 sm:grid-cols-2">
+        <form className="flex min-h-0 flex-1 flex-col overflow-hidden" onSubmit={handleSubmit}>
+          <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 py-4 sm:px-6 sm:py-5">
+            <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-2">
               <Label htmlFor="worker-edit-name">Nombre</Label>
               <Input
@@ -241,9 +251,9 @@ export default function WorkerEditModal({
                 </Button>
               </div>
             </div>
-          </div>
+            </div>
 
-          <div className="rounded-lg border border-border bg-muted/40 p-4 space-y-3">
+            <div className="mt-4 rounded-lg border border-border bg-muted/40 p-4 space-y-3">
             <div>
               <p className="text-sm font-semibold">Subdominios</p>
               <p className="text-xs text-muted-foreground">
@@ -303,10 +313,15 @@ export default function WorkerEditModal({
               </Button>
             </div>
           </div>
+          </div>
 
-          {error && <p className="text-sm font-medium text-danger">{error}</p>}
+          {error ? (
+            <p className="shrink-0 border-t border-destructive/20 bg-destructive/5 px-5 py-3 text-sm font-medium text-destructive sm:px-6">
+              {error}
+            </p>
+          ) : null}
 
-          <DialogFooter>
+          <DialogFooter className="shrink-0 gap-2 border-t border-border/60 bg-muted/30 px-5 py-4 sm:flex-row sm:justify-end sm:space-x-2 sm:px-6 sm:py-4">
             <Button type="button" variant="secondary" onClick={onClose}>
               Cancelar
             </Button>

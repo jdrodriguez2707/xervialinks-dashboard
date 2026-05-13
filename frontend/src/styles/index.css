@@ -165,13 +165,14 @@
     @apply min-h-screen bg-background text-foreground;
   }
 
+  /* Solo el contenido principal hace scroll; el sidebar ocupa el alto del viewport y el pie queda fijo abajo. */
   .app--admin {
-    @apply relative flex min-h-screen;
+    @apply relative flex h-dvh max-h-dvh min-h-0 flex-col overflow-hidden lg:flex-row;
   }
 
   .admin-sidebar {
-    @apply fixed inset-y-0 left-0 z-50 flex h-screen w-64 max-w-[min(100vw,18rem)] -translate-x-full flex-col overflow-y-auto border-r border-border bg-card shadow-xl transition-transform duration-300 ease-out;
-    @apply lg:relative lg:inset-auto lg:z-auto lg:h-auto lg:min-h-screen lg:max-h-none lg:w-64 lg:max-w-none lg:translate-x-0 lg:shadow-none;
+    @apply fixed inset-y-0 left-0 z-50 flex h-dvh max-h-dvh w-64 max-w-[min(100vw,18rem)] -translate-x-full flex-col overflow-hidden border-r border-border bg-card shadow-xl transition-transform duration-300 ease-out;
+    @apply lg:relative lg:inset-auto lg:z-auto lg:min-h-0 lg:w-64 lg:max-w-none lg:translate-x-0 lg:shadow-none lg:self-stretch;
   }
 
   .admin-sidebar.open {
@@ -179,11 +180,11 @@
   }
 
   .admin-sidebar-brand {
-    @apply hidden px-6 py-5 text-lg font-bold bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent lg:block;
+    @apply hidden shrink-0 px-6 py-5 text-lg font-bold bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent lg:block;
   }
 
   .admin-sidebar-mobile-top {
-    @apply flex items-center justify-between gap-3 border-b border-border px-4 py-4 lg:hidden;
+    @apply flex shrink-0 items-center justify-between gap-3 border-b border-border px-4 py-4 lg:hidden;
   }
 
   .admin-sidebar-mobile-brand {
@@ -195,7 +196,7 @@
   }
 
   .admin-sidebar-nav {
-    @apply flex-1 px-3 py-4 space-y-1;
+    @apply min-h-0 flex-1 overflow-y-auto overscroll-contain px-3 py-4 space-y-1;
   }
 
   .admin-sidebar-nav button {
@@ -208,7 +209,7 @@
   }
 
   .admin-sidebar-footer {
-    @apply px-4 py-4 border-t border-border;
+    @apply mt-auto shrink-0 border-t border-border px-4 py-4;
   }
 
   .admin-sidebar-user {
@@ -232,11 +233,11 @@
   }
 
   .admin-main-shell {
-    @apply flex min-h-screen min-w-0 flex-1 flex-col;
+    @apply flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden;
   }
 
   .app-header {
-    @apply min-h-16 border-b border-border bg-card/50 backdrop-blur px-4 lg:px-8 flex items-center justify-between gap-3 sm:gap-4;
+    @apply shrink-0 min-h-16 border-b border-border bg-card/50 backdrop-blur px-4 lg:px-8 flex items-center justify-between gap-3 sm:gap-4;
   }
 
   .app-header--worker .header-title-group {
@@ -308,7 +309,7 @@
   }
 
   .app-main {
-    @apply p-4 lg:p-8;
+    @apply min-h-0 flex-1 overflow-y-auto overscroll-contain p-4 lg:p-8;
   }
 
   .app-main > section {
