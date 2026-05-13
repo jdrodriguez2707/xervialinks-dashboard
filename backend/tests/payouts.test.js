@@ -418,3 +418,105 @@ describe("GET /api/payouts/history", () => {
     expect(row2.amount).toBe(amount1);
   });
 });
+
+function utcMonthRange(paymentMonth) {
+  const [yS, mS] = String(paymentMonth || "").split("-");
+  const y = Number(yS);
+  const m = Number(mS);
+  const start = new Date(Date.UTC(y, m - 1, 1));
+  const end = new Date(Date.UTC(y, m, 0));
+  const iso = (d) => d.toISOString().slice(0, 10);
+  return { startDate: iso(start), endDate: iso(end) };
+}
+
+describe("PUT /api/payouts/worker-domain-net-revenue-override", () => {
+  let twoSlotWorkerId;
+  let workerEmail;
+  let workerToken;
+  let netCode;
+
+  beforeAll(async () => {
+    const { getDb } = require("../src/infrastructure/database/database");
+    const netRow = getDb()
+      .prepare(
+        "SELECT network_code AS c FROM gam_networks ORDER BY is_default DESC, id ASC LIMIT 1",
+      )
+      .get();
+    netCode = netRow?.c || "default";
+
+    workerEmail = `domain.cohere.${Date.now()}@example.com`;
+    const workerRes = await request(app)
+      .post("/api/workers")
+      .set("Authorization", `Bearer ${token}`)
+      .send({
+        name: "Domain Cohere Worker",
+        email: workerEmail,
+        percentage: 60,
+        password: "pass123",
+      });
+    expect(workerRes.status).toBe(201);
+    twoSlotWorkerId = workerRes.body.data.id;
+
+    const qs = `?networkCode=${encodeURIComponent(netCode)}`;
+    for (const domain of ["cohere-a.barbacoadicto.com", "cohere-b.barbacoadicto.com"]) {
+      const propRes = await request(app)
+        .post(`/api/workers/${twoSlotWorkerId}/properties${qs}`)
+        .set("Authorization", `Bearer ${token}`)
+        .send({ type: "domain", value: domain });
+      expect(propRes.status).toBe(201);
+    }
+
+    const loginRes = await request(app)
+      .post("/api/auth/login")
+      .send({ email: workerEmail, password: "pass123" });
+    expect(loginRes.status).toBe(200);
+    workerToken = loginRes.body.data.token;
+  });
+
+  it("alinea GET /api/payouts (desglose) con GET /api/worker/payment-history cuando un slot tiene override y el otro no", async () => {
+    const tz = "America/Bogota";
+    const paymentMonth = todayISO(tz).slice(0, 7);
+    const { startDate, endDate } = utcMonthRange(paymentMonth);
+    const overriddenDomain = "cohere-a.barbacoadicto.com";
+
+    const put = await request(app)
+      .put("/api/payouts/worker-domain-net-revenue-override")
+      .set("Authorization", `Bearer ${token}`)
+      .query({ networkCode: netCode })
+      .send({
+        workerId: twoSlotWorkerId,
+        gamNetworkCode: netCode,
+        domain: overriddenDomain,
+        periodStart: startDate,
+        periodEnd: endDate,
+        netRevenue: 500,
+      });
+    expect(put.status).toBe(200);
+
+    const pays = await request(app)
+      .get(
+        `/api/payouts?startDate=${startDate}&endDate=${endDate}&networkCode=${encodeURIComponent(netCode)}`,
+      )
+      .set("Authorization", `Bearer ${token}`)
+      .set("X-Client-Timezone", tz);
+
+    expect(pays.status).toBe(200);
+    const wrow = pays.body.data.payouts.find((p) => p.workerId === twoSlotWorkerId);
+    expect(wrow).toBeDefined();
+    expect(wrow.hasDomainRevenueOverrides).toBe(true);
+    const bd = wrow.domainBreakdown || [];
+    expect(bd.length).toBe(2);
+    const sumPreview = bd.reduce((s, r) => s + Number(r.payoutPreview || 0), 0);
+    expect(wrow.payout).toBeCloseTo(sumPreview, 2);
+
+    const hist = await request(app)
+      .get(`/api/worker/payment-history?paymentMonth=${paymentMonth}`)
+      .set("Authorization", `Bearer ${workerToken}`)
+      .set("X-Client-Timezone", tz);
+
+    expect(hist.status).toBe(200);
+    const sumRows = hist.body.data.rows.reduce((s, r) => s + Number(r.payout || 0), 0);
+    expect(hist.body.data.totalPayout).toBeCloseTo(sumRows, 2);
+    expect(hist.body.data.totalPayout).toBeCloseTo(wrow.payout, 2);
+  });
+});

@@ -104,6 +104,7 @@ function applySchema(database) {
   ensureColumn(database, "worker_payment_status", "paid_rows_json", "TEXT");
   ensureMultiGamSchema(database);
   ensureWorkerNetRevenueOverridesTable(database);
+  ensureWorkerDomainNetRevenueOverridesTable(database);
 
   seedAdminUser(database);
 }
@@ -255,6 +256,24 @@ function ensureWorkerNetRevenueOverridesTable(database) {
   `);
 }
 
+function ensureWorkerDomainNetRevenueOverridesTable(database) {
+  database.exec(`
+    CREATE TABLE IF NOT EXISTS worker_domain_net_revenue_overrides (
+      id               INTEGER PRIMARY KEY AUTOINCREMENT,
+      worker_id        INTEGER NOT NULL REFERENCES workers(id) ON DELETE CASCADE,
+      gam_network_code TEXT    NOT NULL,
+      domain           TEXT    NOT NULL,
+      period_start     TEXT    NOT NULL,
+      period_end       TEXT    NOT NULL,
+      net_revenue      REAL    NOT NULL,
+      updated_at       TEXT    DEFAULT (datetime('now')),
+      UNIQUE (worker_id, gam_network_code, domain, period_start, period_end)
+    );
+    CREATE INDEX IF NOT EXISTS idx_worker_domain_net_rev_lookup
+      ON worker_domain_net_revenue_overrides (worker_id, gam_network_code, period_start, period_end);
+  `);
+}
+
 function ensureWorkerPaymentStatusMonthly(database) {
   const columns = database.prepare("PRAGMA table_info(worker_payment_status)").all();
   const hasPaymentMonth = columns.some((c) => c.name === "payment_month");
@@ -301,7 +320,8 @@ function resetDb() {
     DELETE FROM reports;
     DELETE FROM gam_networks;
     DELETE FROM worker_net_revenue_overrides;
-    DELETE FROM sqlite_sequence WHERE name IN ('workers', 'properties', 'users', 'worker_payment_info', 'worker_payment_status', 'reports', 'gam_networks', 'worker_net_revenue_overrides');
+    DELETE FROM worker_domain_net_revenue_overrides;
+    DELETE FROM sqlite_sequence WHERE name IN ('workers', 'properties', 'users', 'worker_payment_info', 'worker_payment_status', 'reports', 'gam_networks', 'worker_net_revenue_overrides', 'worker_domain_net_revenue_overrides');
   `);
   ensureMultiGamSchema(database);
   seedAdminUser(database);

@@ -39,6 +39,45 @@ async function putWorkerNetRevenueOverride(req, res) {
   res.json({ data: row });
 }
 
+/**
+ * Override por subdominio. Si existen overrides por dominio para ese trabajador+red+periodo,
+ * el override agregado por red (worker_net_revenue_overrides) deja de aplicarse para ese triple.
+ */
+async function putWorkerDomainNetRevenueOverride(req, res) {
+  if (req.user?.role !== "admin") {
+    return res.status(403).json({ error: "Se requieren permisos de administrador" });
+  }
+  const body = req.body || {};
+  const networkCode = gamNetworksService.resolveNetworkForAdminQuery(
+    body.gamNetworkCode ?? req.query.networkCode,
+  );
+  const row = payoutsService.upsertWorkerDomainNetRevenueOverrideAdmin({
+    workerId: body.workerId,
+    gamNetworkCode: networkCode,
+    domain: body.domain,
+    periodStart: body.periodStart,
+    periodEnd: body.periodEnd,
+    netRevenue: body.netRevenue,
+  });
+  res.json({ data: row });
+}
+
+async function deleteWorkerDomainNetRevenueOverride(req, res) {
+  if (req.user?.role !== "admin") {
+    return res.status(403).json({ error: "Se requieren permisos de administrador" });
+  }
+  const q = req.query || {};
+  const networkCode = gamNetworksService.resolveNetworkForAdminQuery(q.networkCode);
+  payoutsService.deleteWorkerDomainNetRevenueOverrideAdmin({
+    workerId: q.workerId,
+    gamNetworkCode: networkCode,
+    domain: q.domain,
+    periodStart: q.periodStart,
+    periodEnd: q.periodEnd,
+  });
+  res.status(204).send();
+}
+
 async function getPaymentHistory(req, res) {
   if (req.user?.role !== "admin") {
     return res.status(403).json({ error: "Se requieren permisos de administrador" });
@@ -49,4 +88,10 @@ async function getPaymentHistory(req, res) {
   res.json({ data: history });
 }
 
-module.exports = { getPayouts, getPaymentHistory, putWorkerNetRevenueOverride };
+module.exports = {
+  getPayouts,
+  getPaymentHistory,
+  putWorkerNetRevenueOverride,
+  putWorkerDomainNetRevenueOverride,
+  deleteWorkerDomainNetRevenueOverride,
+};

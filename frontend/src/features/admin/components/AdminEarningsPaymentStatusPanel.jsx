@@ -129,7 +129,6 @@ export default function AdminEarningsPaymentStatusPanel({
     <div className="space-y-3 pt-6 border-t border-border/60">
       <SectionHeader
         title="Pagos por periodo"
-        description="El periodo aquí no cambia al seleccionar hoy, ayer u otros rangos de la tabla superior. Usa el mes para marcar pagado o pendiente."
       />
 
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
