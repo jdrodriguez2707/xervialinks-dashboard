@@ -205,6 +205,38 @@ describe("GET /api/payouts", () => {
     const hidden = future.body.data.payouts.find((w) => w.workerId === deletedWorkerId);
     expect(hidden).toBeUndefined();
   });
+
+  it("admin can persist net revenue override and recalculated payout", async () => {
+    const { getDb } = require("../src/infrastructure/database/database");
+    const netRow = getDb()
+      .prepare(
+        "SELECT network_code AS c FROM gam_networks ORDER BY is_default DESC, id ASC LIMIT 1",
+      )
+      .get();
+    const netCode = netRow?.c || "default";
+    const today = new Date().toLocaleDateString("en-CA", { timeZone: "America/Bogota" });
+    const put = await request(app)
+      .put("/api/payouts/worker-net-revenue-override")
+      .set("Authorization", `Bearer ${token}`)
+      .send({
+        workerId,
+        gamNetworkCode: netCode,
+        periodStart: today,
+        periodEnd: today,
+        netRevenue: 1000,
+      });
+    expect(put.status).toBe(200);
+
+    const res = await request(app)
+      .get(
+        `/api/payouts?startDate=${today}&endDate=${today}&networkCode=${encodeURIComponent(netCode)}`,
+      )
+      .set("Authorization", `Bearer ${token}`);
+    const grace = res.body.data.payouts.find((w) => w.workerId === workerId);
+    expect(grace.assignedRevenue).toBe(1000);
+    expect(grace.hasRevenueOverride).toBe(true);
+    expect(grace.payout).toBe(700);
+  });
 });
 
 describe("GET /api/payouts/history", () => {

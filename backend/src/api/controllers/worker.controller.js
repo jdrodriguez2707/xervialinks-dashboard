@@ -26,11 +26,13 @@ async function getContext(req, res) {
       .status(403)
       .json({ error: "Tu cuenta de trabajador fue eliminada. Contacta al administrador." });
   }
-  const worker = workersService.getWorkerByEmail(req.user.email, req.query.paymentMonth);
+  const timeZone = clientTimeZoneFromRequest(req);
+  const worker = workersService.getWorkerByEmail(req.user.email, req.query.paymentMonth, timeZone);
 
   res.json({
     data: {
       workerId: worker.id,
+      percentage: worker.percentage,
       properties: stripGamNetworkFromWorkerProperties(worker.properties),
       paymentInfo: worker.paymentInfo || null,
       paymentStatus: worker.paymentStatus || "pending",
@@ -101,8 +103,8 @@ async function getPaymentHistory(req, res) {
       .json({ error: "Tu cuenta de trabajador fue eliminada. Contacta al administrador." });
   }
 
-  const paymentMonth = workersService.resolvePaymentMonth(req.query.paymentMonth);
   const timeZone = clientTimeZoneFromRequest(req);
+  const paymentMonth = workersService.resolvePaymentMonth(req.query.paymentMonth, timeZone);
   const history = await workerPaymentHistoryService.getWorkerPaymentHistoryByEmail(req.user.email, {
     paymentMonth,
     timeZone,

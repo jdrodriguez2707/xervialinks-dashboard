@@ -107,7 +107,7 @@ async function getWorkerDashboardPeriods(worker, timeZone, filters = {}) {
   if (requestedDomain) {
     const matching = allSlots.filter((s) => s.value === requestedDomain);
     if (matching.length === 0) {
-      const empty = { revenue: 0, ecpm: 0, impressions: 0 };
+      const empty = { revenue: 0, grossRevenue: 0, ecpm: 0, impressions: 0 };
       return {
         today: empty,
         yesterday: empty,
@@ -119,7 +119,7 @@ async function getWorkerDashboardPeriods(worker, timeZone, filters = {}) {
   }
 
   if (slots.length === 0) {
-    const empty = { revenue: 0, ecpm: 0, impressions: 0 };
+    const empty = { revenue: 0, grossRevenue: 0, ecpm: 0, impressions: 0 };
     return {
       today: empty,
       yesterday: empty,
@@ -153,6 +153,7 @@ async function getWorkerDashboardPeriods(worker, timeZone, filters = {}) {
   const pct = worker.percentage;
   const build = (raw) => ({
     revenue: applyPercentage(raw.revenue, pct),
+    grossRevenue: raw.revenue,
     ecpm: raw.ecpm,
     impressions: raw.impressions,
   });

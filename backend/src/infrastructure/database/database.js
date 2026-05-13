@@ -103,6 +103,7 @@ function applySchema(database) {
   ensureColumn(database, "worker_payment_status", "paid_total_amount", "REAL");
   ensureColumn(database, "worker_payment_status", "paid_rows_json", "TEXT");
   ensureMultiGamSchema(database);
+  ensureWorkerNetRevenueOverridesTable(database);
 
   seedAdminUser(database);
 }
@@ -237,6 +238,23 @@ function ensureMultiGamSchema(database) {
   }
 }
 
+function ensureWorkerNetRevenueOverridesTable(database) {
+  database.exec(`
+    CREATE TABLE IF NOT EXISTS worker_net_revenue_overrides (
+      id               INTEGER PRIMARY KEY AUTOINCREMENT,
+      worker_id        INTEGER NOT NULL REFERENCES workers(id) ON DELETE CASCADE,
+      gam_network_code TEXT    NOT NULL,
+      period_start     TEXT    NOT NULL,
+      period_end       TEXT    NOT NULL,
+      net_revenue      REAL    NOT NULL,
+      updated_at       TEXT    DEFAULT (datetime('now')),
+      UNIQUE (worker_id, gam_network_code, period_start, period_end)
+    );
+    CREATE INDEX IF NOT EXISTS idx_worker_net_rev_override_lookup
+      ON worker_net_revenue_overrides (worker_id, gam_network_code, period_start, period_end);
+  `);
+}
+
 function ensureWorkerPaymentStatusMonthly(database) {
   const columns = database.prepare("PRAGMA table_info(worker_payment_status)").all();
   const hasPaymentMonth = columns.some((c) => c.name === "payment_month");
@@ -282,7 +300,8 @@ function resetDb() {
     DELETE FROM users;
     DELETE FROM reports;
     DELETE FROM gam_networks;
-    DELETE FROM sqlite_sequence WHERE name IN ('workers', 'properties', 'users', 'worker_payment_info', 'worker_payment_status', 'reports', 'gam_networks');
+    DELETE FROM worker_net_revenue_overrides;
+    DELETE FROM sqlite_sequence WHERE name IN ('workers', 'properties', 'users', 'worker_payment_info', 'worker_payment_status', 'reports', 'gam_networks', 'worker_net_revenue_overrides');
   `);
   ensureMultiGamSchema(database);
   seedAdminUser(database);

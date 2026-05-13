@@ -6,6 +6,7 @@ const { normalizeEmail } = require("../../domain/utils/email");
 const { isAssignableSubdomain } = require("./sites.service");
 const { encryptPassword, decryptPassword } = require("../../infrastructure/security/passwordVault");
 const workerPaymentHistoryService = require("./workerPaymentHistory.service");
+const { getDefaultPaymentMonthKey, getDefaultTimeZone } = require("./clientTimezone");
 
 class ValidationError extends Error {
   constructor(message) {
@@ -65,8 +66,8 @@ function normalizeDomainAssignments(raw, defaultGamNetworkCode) {
   return out;
 }
 
-function getAllWorkers(includeDeleted = false, paymentMonth = null, includePassword = false) {
-  const resolvedMonth = resolvePaymentMonth(paymentMonth);
+function getAllWorkers(includeDeleted = false, paymentMonth = null, includePassword = false, timeZone) {
+  const resolvedMonth = resolvePaymentMonth(paymentMonth, timeZone);
   const workers = workersRepo.findAll({
     includeDeleted: !!includeDeleted,
     paymentMonth: resolvedMonth,
@@ -75,10 +76,11 @@ function getAllWorkers(includeDeleted = false, paymentMonth = null, includePassw
   return workers.map(attachPasswordField);
 }
 
-function getWorkerByEmail(email, paymentMonth = null) {
+function getWorkerByEmail(email, paymentMonth = null, timeZone) {
   const normalized = normalizeEmail(email);
   return (
-    workersRepo.findByEmail(normalized, { paymentMonth: resolvePaymentMonth(paymentMonth) }) || null
+    workersRepo.findByEmail(normalized, { paymentMonth: resolvePaymentMonth(paymentMonth, timeZone) }) ||
+    null
   );
 }
 
@@ -86,9 +88,9 @@ function getWorkerByEmailIncludingDeleted(email) {
   return workersRepo.findByEmail(normalizeEmail(email), { includeDeleted: true }) || null;
 }
 
-function getWorkerById(id, paymentMonth = null, includePassword = false) {
+function getWorkerById(id, paymentMonth = null, includePassword = false, timeZone) {
   const worker = workersRepo.findById(Number(id), {
-    paymentMonth: resolvePaymentMonth(paymentMonth),
+    paymentMonth: resolvePaymentMonth(paymentMonth, timeZone),
   });
   if (!worker) throw new NotFoundError(`Worker ${id} not found`);
   return includePassword ? attachPasswordField(worker) : worker;
@@ -339,7 +341,8 @@ async function updateWorkerPaymentStatus(workerId, status, paymentMonth = null, 
   if (!VALID_STATUSES.includes(status)) {
     throw new ValidationError(`El estado debe ser uno de: ${VALID_STATUSES.join(", ")}`);
   }
-  const resolvedMonth = resolvePaymentMonth(paymentMonth);
+  const tz = timeZone || getDefaultTimeZone();
+  const resolvedMonth = resolvePaymentMonth(paymentMonth, tz);
   const numericId = Number(workerId);
   const worker = workersRepo.findById(numericId, { includeDeleted: true });
   if (!worker) {
@@ -361,7 +364,6 @@ async function updateWorkerPaymentStatus(workerId, status, paymentMonth = null, 
       });
     }
     const workerForSnapshot = workersRepo.findById(numericId, { paymentMonth: resolvedMonth });
-    const tz = timeZone || "America/Bogota";
     const snap = await workerPaymentHistoryService.computePaidSnapshot(
       workerForSnapshot,
       resolvedMonth,
@@ -377,23 +379,15 @@ async function updateWorkerPaymentStatus(workerId, status, paymentMonth = null, 
   return workersRepo.upsertPaymentStatus(numericId, status, resolvedMonth, null);
 }
 
-function resolvePaymentMonth(paymentMonth) {
+function resolvePaymentMonth(paymentMonth, timeZone) {
   if (paymentMonth == null || String(paymentMonth).trim() === "") {
-    return getPreviousMonthKey();
+    return getDefaultPaymentMonthKey(timeZone);
   }
   const month = String(paymentMonth).trim();
   if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(month)) {
     throw new ValidationError("El periodo de pago debe tener formato YYYY-MM");
   }
   return month;
-}
-
-function getPreviousMonthKey(date = new Date()) {
-  const year = date.getUTCFullYear();
-  const monthIdx = date.getUTCMonth() - 1;
-  const target = new Date(Date.UTC(year, monthIdx, 1));
-  const month = String(target.getUTCMonth() + 1).padStart(2, "0");
-  return `${target.getUTCFullYear()}-${month}`;
 }
 
 function attachPasswordField(worker) {

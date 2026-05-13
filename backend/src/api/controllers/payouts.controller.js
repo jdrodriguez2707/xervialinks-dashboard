@@ -21,6 +21,24 @@ async function getPayouts(req, res) {
   res.json({ data: result });
 }
 
+async function putWorkerNetRevenueOverride(req, res) {
+  if (req.user?.role !== "admin") {
+    return res.status(403).json({ error: "Se requieren permisos de administrador" });
+  }
+  const body = req.body || {};
+  const networkCode = gamNetworksService.resolveNetworkForAdminQuery(
+    body.gamNetworkCode ?? req.query.networkCode,
+  );
+  const row = payoutsService.upsertWorkerNetRevenueOverrideAdmin({
+    workerId: body.workerId,
+    gamNetworkCode: networkCode,
+    periodStart: body.periodStart,
+    periodEnd: body.periodEnd,
+    netRevenue: body.netRevenue,
+  });
+  res.json({ data: row });
+}
+
 async function getPaymentHistory(req, res) {
   if (req.user?.role !== "admin") {
     return res.status(403).json({ error: "Se requieren permisos de administrador" });
@@ -31,4 +49,4 @@ async function getPaymentHistory(req, res) {
   res.json({ data: history });
 }
 
-module.exports = { getPayouts, getPaymentHistory };
+module.exports = { getPayouts, getPaymentHistory, putWorkerNetRevenueOverride };

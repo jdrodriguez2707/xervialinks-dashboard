@@ -333,7 +333,10 @@ describe("GET /api/worker/payment-history", () => {
       .set("Authorization", `Bearer ${workerToken}`)
       .set("X-Client-Timezone", "America/Bogota");
     expect(histBefore.status).toBe(200);
-    const totalBefore = histBefore.body.data.rows.reduce((s, r) => s + Number(r.payout || 0), 0);
+    const totalBefore =
+      histBefore.body.data.totalPayout != null
+        ? Number(histBefore.body.data.totalPayout)
+        : histBefore.body.data.rows.reduce((s, r) => s + Number(r.payout || 0), 0);
     expect(histBefore.body.data.paymentStatus).toBe("paid");
 
     await request(app)
@@ -368,7 +371,10 @@ describe("GET /api/worker/payment-history", () => {
 
     expect(histAfter.status).toBe(200);
     expect(histAfter.body.data.paymentStatus).toBe("pending");
-    const totalAfter = histAfter.body.data.rows.reduce((s, r) => s + Number(r.payout || 0), 0);
+    const totalAfter =
+      histAfter.body.data.totalPayout != null
+        ? Number(histAfter.body.data.totalPayout)
+        : histAfter.body.data.rows.reduce((s, r) => s + Number(r.payout || 0), 0);
     expect(totalAfter).toBeCloseTo(totalBefore, 2);
   });
 });

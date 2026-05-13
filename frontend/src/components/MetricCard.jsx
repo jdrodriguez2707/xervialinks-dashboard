@@ -12,18 +12,25 @@ export function MetricCard({
   active = false,
   gradientBorder = false,
   onClick,
+  cornerBadge = null,
 }) {
   return (
     <Card
       onClick={onClick}
       className={cn(
         "transition-all duration-200 cursor-pointer overflow-hidden relative group",
+        cornerBadge && "pt-5",
         active || gradientBorder
           ? "metric-card-active shadow-lg shadow-primary/10"
           : "hover:border-primary/50",
         !onClick && "cursor-default",
       )}
     >
+      {cornerBadge ? (
+        <span className="absolute left-3 top-3 z-10 rounded-md bg-muted/90 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground border border-border/60">
+          {cornerBadge}
+        </span>
+      ) : null}
       <CardHeader className="flex flex-row items-center justify-between pb-2">
         <CardTitle className="text-sm font-medium text-muted-foreground">{title}</CardTitle>
         {Icon && <Icon className={cn("w-4 h-4 text-muted-foreground", active && "text-primary")} />}

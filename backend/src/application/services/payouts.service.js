@@ -1,5 +1,7 @@
 const reportsRepo = require("../../domain/repositories/reports.repository");
 const workersRepo = require("../../domain/repositories/workers.repository");
+const workerNetRevenueOverridesRepo = require("../../domain/repositories/workerNetRevenueOverrides.repository");
+const gamNetworksRepo = require("../../domain/repositories/gamNetworks.repository");
 
 /**
  * Calculates the payout for each worker based on their assigned properties
@@ -70,11 +72,26 @@ async function calculatePayouts(filters = {}, requesterEmail = null) {
           r.date <= effectiveEnd,
       );
 
-      const assignedRevenue = sumRevenue(matchingReports);
+      const assignedRevenueGam = sumRevenue(matchingReports);
       const assignedImpressions = sumImpressions(matchingReports);
+      const netCode =
+        reportFilters.networkCode != null && String(reportFilters.networkCode).trim() !== ""
+          ? String(reportFilters.networkCode).trim()
+          : null;
+      const overrideRow =
+        !requesterEmail && netCode
+          ? workerNetRevenueOverridesRepo.find(
+              worker.id,
+              netCode,
+              effectiveStart,
+              effectiveEnd,
+            )
+          : null;
+      const assignedRevenue =
+        overrideRow != null ? Number(overrideRow.netRevenue) : assignedRevenueGam;
       const payout = computePayout(assignedRevenue, worker.percentage);
 
-      if (workerDeletedCalendar && assignedRevenue === 0 && assignedImpressions === 0) {
+      if (workerDeletedCalendar && assignedRevenueGam === 0 && assignedImpressions === 0) {
         return null;
       }
 
@@ -88,6 +105,8 @@ async function calculatePayouts(filters = {}, requesterEmail = null) {
         domainSlots,
         assignedProperties: worker.properties,
         assignedRevenue,
+        assignedRevenueGam,
+        hasRevenueOverride: overrideRow != null,
         assignedImpressions,
         payout,
       };
@@ -97,6 +116,61 @@ async function calculatePayouts(filters = {}, requesterEmail = null) {
   const totalPayout = parseFloat(payouts.reduce((sum, w) => sum + w.payout, 0).toFixed(6));
 
   return { payouts, totalPayout };
+}
+
+/**
+ * Admin: guarda ingreso neto manual para un trabajador + red + rango de fechas (alinea con GET /api/payouts).
+ */
+function upsertWorkerNetRevenueOverrideAdmin({
+  workerId,
+  gamNetworkCode,
+  periodStart,
+  periodEnd,
+  netRevenue,
+}) {
+  const ps = String(periodStart || "").trim();
+  const pe = String(periodEnd || "").trim();
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(ps) || !/^\d{4}-\d{2}-\d{2}$/.test(pe)) {
+    const e = new Error("periodStart y periodEnd deben ser fechas YYYY-MM-DD");
+    e.statusCode = 400;
+    throw e;
+  }
+  if (ps > pe) {
+    const e = new Error("La fecha inicial no puede ser posterior a la final");
+    e.statusCode = 400;
+    throw e;
+  }
+  const wid = Number(workerId);
+  if (!Number.isFinite(wid)) {
+    const e = new Error("Trabajador inválido");
+    e.statusCode = 400;
+    throw e;
+  }
+  const worker = workersRepo.findById(wid, { includeDeleted: true });
+  if (!worker) {
+    const e = new Error("Trabajador no encontrado");
+    e.statusCode = 404;
+    throw e;
+  }
+  const code = String(gamNetworkCode || "").trim();
+  if (!code || !gamNetworksRepo.findByCode(code)) {
+    const e = new Error("Código de red no registrado");
+    e.statusCode = 400;
+    throw e;
+  }
+  const net = Number(netRevenue);
+  if (!Number.isFinite(net) || net < 0) {
+    const e = new Error("Ingreso neto inválido");
+    e.statusCode = 400;
+    throw e;
+  }
+  return workerNetRevenueOverridesRepo.upsert({
+    workerId: wid,
+    gamNetworkCode: code,
+    periodStart: ps,
+    periodEnd: pe,
+    netRevenue: net,
+  });
 }
 
 // ─── Pure helpers (easy to unit-test in isolation) ────────────────────────────
@@ -171,4 +245,5 @@ module.exports = {
   sumRevenue,
   sumImpressions,
   deletedAtToBusinessCalendarISO,
+  upsertWorkerNetRevenueOverrideAdmin,
 };

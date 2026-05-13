@@ -76,6 +76,33 @@ function isValidISODate(value) {
   return typeof value === "string" && /^\d{4}-\d{2}-\d{2}$/.test(value);
 }
 
+/**
+ * Día 1–23 del mes: el periodo de pago "en curso" es el mes calendario anterior (se liquida el 23).
+ * Día 24 en adelante: el periodo en curso es el mes calendario actual (liquidación el 23 del mes siguiente).
+ * @param {string} [timeZone]
+ * @param {Date} [referenceDate]
+ * @returns {string} YYYY-MM
+ */
+function getDefaultPaymentMonthKey(timeZone, referenceDate = new Date()) {
+  const tz = timeZone || getDefaultTimeZone();
+  const f = new Intl.DateTimeFormat("en-CA", {
+    timeZone: tz,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  });
+  const parts = f.formatToParts(referenceDate);
+  const y = Number(parts.find((p) => p.type === "year")?.value);
+  const m = Number(parts.find((p) => p.type === "month")?.value);
+  const d = Number(parts.find((p) => p.type === "day")?.value);
+  if (d <= 23) {
+    const py = m === 1 ? y - 1 : y;
+    const pm = m === 1 ? 12 : m - 1;
+    return `${py}-${String(pm).padStart(2, "0")}`;
+  }
+  return `${y}-${String(m).padStart(2, "0")}`;
+}
+
 module.exports = {
   resolveClientTimeZone,
   getDefaultTimeZone,
@@ -84,4 +111,5 @@ module.exports = {
   daysAgoISO,
   currentMonthStartISO,
   isValidISODate,
+  getDefaultPaymentMonthKey,
 };

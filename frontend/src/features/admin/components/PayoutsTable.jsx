@@ -1,9 +1,13 @@
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { TableCell, TableRow } from "@/components/ui/table";
 import { Skeleton } from "@/components/ui/skeleton";
 import EmptyState from "@/components/EmptyState";
 import DataTable from "@/components/DataTable";
+import { upsertWorkerNetRevenueOverride } from "../../../shared/api/payouts";
+import { toUserErrorMessage } from "../../../shared/lib/uiError";
 
 const ADMIN_TABLE_DENSITY_CLASS =
   "text-xs sm:text-sm [&_th]:px-2.5 [&_td]:px-2.5 [&_th]:py-2 [&_td]:py-2.5 sm:[&_th]:px-4 sm:[&_td]:p-4";
@@ -13,10 +17,15 @@ const ADMIN_TABLE_DENSITY_CLASS =
  *   payouts: Array<{
  *     workerId: number, name: string, email?: string, percentage: number,
  *     assignedDomains: string[], assignedRevenue: number,
+ *     assignedRevenueGam?: number,
+ *     hasRevenueOverride?: boolean,
  *     assignedImpressions: number, payout: number, deletedAt?: string | null
  *   }>,
  *   totalPayout: number,
  *   highlightedWorkerId?: number | null,
+ *   earningsDateRange: { startDate: string, endDate: string },
+ *   networkCode: string | null | undefined,
+ *   onNetOverrideSaved?: () => void | Promise<void>,
  * }} props
  */
 export default function PayoutsTable({
@@ -24,7 +33,14 @@ export default function PayoutsTable({
   totalPayout,
   highlightedWorkerId = null,
   isLoading = false,
+  earningsDateRange = { startDate: "", endDate: "" },
+  networkCode = null,
+  onNetOverrideSaved,
 }) {
+  const [draftNetByWorker, setDraftNetByWorker] = useState({});
+  const [savingWorkerId, setSavingWorkerId] = useState(null);
+  const [rowError, setRowError] = useState(null);
+
   const payoutsOrdered = useMemo(() => {
     return [...payouts].sort((a, b) => {
       const aInactive = !!a.deletedAt;
@@ -33,6 +49,62 @@ export default function PayoutsTable({
       return String(a.name || "").localeCompare(String(b.name || ""), "es");
     });
   }, [payouts]);
+
+  const payoutSignature = useMemo(
+    () =>
+      payouts
+        .map(
+          (p) =>
+            `${p.workerId}:${p.assignedRevenue}:${p.payout}:${p.hasRevenueOverride ? 1 : 0}`,
+        )
+        .join("|"),
+    [payouts],
+  );
+
+  useEffect(() => {
+    setDraftNetByWorker({});
+    setRowError(null);
+  }, [payoutSignature, earningsDateRange.startDate, earningsDateRange.endDate, networkCode]);
+
+  function netInputValue(w) {
+    const d = draftNetByWorker[w.workerId];
+    if (d !== undefined && d !== "") return d;
+    return String(Number(w.assignedRevenue ?? 0).toFixed(2));
+  }
+
+  async function handleRecalculate(w) {
+    setRowError(null);
+    const raw = netInputValue(w);
+    const net = parseFloat(String(raw).replace(",", "."));
+    if (!Number.isFinite(net) || net < 0) {
+      setRowError("Introduce un ingreso neto válido (número ≥ 0).");
+      return;
+    }
+    if (!networkCode || !earningsDateRange.startDate || !earningsDateRange.endDate) {
+      setRowError("Falta contexto de red o fechas.");
+      return;
+    }
+    setSavingWorkerId(w.workerId);
+    try {
+      await upsertWorkerNetRevenueOverride({
+        workerId: w.workerId,
+        gamNetworkCode: networkCode,
+        periodStart: earningsDateRange.startDate,
+        periodEnd: earningsDateRange.endDate,
+        netRevenue: net,
+      });
+      setDraftNetByWorker((prev) => {
+        const next = { ...prev };
+        delete next[w.workerId];
+        return next;
+      });
+      await onNetOverrideSaved?.();
+    } catch (err) {
+      setRowError(toUserErrorMessage(err, "No se pudo guardar el ajuste."));
+    } finally {
+      setSavingWorkerId(null);
+    }
+  }
 
   if (isLoading) {
     return (
@@ -43,7 +115,7 @@ export default function PayoutsTable({
             "Trabajador",
             "Subdominios asignados",
             "Impresiones",
-            "Ingresos asignados",
+            "Ingresos netos",
             "%",
             "Ganancia",
           ]}
@@ -60,7 +132,7 @@ export default function PayoutsTable({
                 <Skeleton className="h-4 w-16" />
               </TableCell>
               <TableCell>
-                <Skeleton className="h-4 w-20" />
+                <Skeleton className="h-8 w-24" />
               </TableCell>
               <TableCell>
                 <Skeleton className="h-4 w-8" />
@@ -85,14 +157,22 @@ export default function PayoutsTable({
   }
 
   return (
-    <div className="admin-table-shell">
+    <div className="admin-table-shell space-y-2">
+      <p className="text-xs text-muted-foreground max-w-3xl">
+        Los ingresos netos provienen de Ad Manager salvo que los ajustes aquí. Pulsa{" "}
+        <strong>Recalcular ganancia</strong> para aplicar el porcentaje del trabajador sobre el neto
+        indicado. Para que el cambio coincida con el <strong>Historial de pagos</strong> del
+        trabajador (mismo mes calendario), elige el <strong>mes completo</strong> en el selector de
+        periodo de arriba.
+      </p>
+      {rowError && <p className="text-sm font-medium text-destructive">{rowError}</p>}
       <DataTable
         className={ADMIN_TABLE_DENSITY_CLASS}
         columns={[
           "Trabajador",
           "Subdominios asignados",
           "Impresiones",
-          "Ingresos asignados",
+          "Ingresos netos",
           "%",
           "Ganancia",
         ]}
@@ -136,7 +216,44 @@ export default function PayoutsTable({
               )}
             </TableCell>
             <TableCell className="tabular-nums">{w.assignedImpressions.toLocaleString()}</TableCell>
-            <TableCell className="tabular-nums">${w.assignedRevenue.toFixed(2)}</TableCell>
+            <TableCell className="align-top min-w-[9rem] max-w-[11rem]">
+              <div className="flex flex-col gap-2">
+                <div className="flex items-center gap-1">
+                  <span className="text-muted-foreground text-xs shrink-0">$</span>
+                  <Input
+                    type="text"
+                    inputMode="decimal"
+                    className="h-8 text-xs tabular-nums"
+                    disabled={!!w.deletedAt || w.assignedDomains.length === 0}
+                    value={netInputValue(w)}
+                    onChange={(e) =>
+                      setDraftNetByWorker((prev) => ({
+                        ...prev,
+                        [w.workerId]: e.target.value,
+                      }))
+                    }
+                    aria-label={`Ingresos netos ${w.name}`}
+                  />
+                </div>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="secondary"
+                  className="h-8 text-xs w-full"
+                  disabled={
+                    !!w.deletedAt ||
+                    w.assignedDomains.length === 0 ||
+                    savingWorkerId === w.workerId
+                  }
+                  onClick={() => handleRecalculate(w)}
+                >
+                  {savingWorkerId === w.workerId ? "Guardando…" : "Recalcular ganancia"}
+                </Button>
+                {w.hasRevenueOverride ? (
+                  <span className="text-[10px] text-muted-foreground">Ajustado manualmente</span>
+                ) : null}
+              </div>
+            </TableCell>
             <TableCell className="tabular-nums">{w.percentage}%</TableCell>
             <TableCell className="tabular-nums font-semibold">${w.payout.toFixed(2)}</TableCell>
           </TableRow>

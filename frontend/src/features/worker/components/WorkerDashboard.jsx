@@ -26,6 +26,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Badge } from "@/components/ui/badge";
 import { MetricCard } from "@/components/MetricCard";
 import SectionHeader from "@/components/SectionHeader";
 import EmptyState from "@/components/EmptyState";
@@ -63,36 +64,13 @@ function getWorkerTabStorageKey(workerId) {
   return `${WORKER_TAB_STORAGE_PREFIX}:${workerId || "unknown"}`;
 }
 
-function SkeletonCards() {
+function SkeletonCards({ count = 4 }) {
   return (
-    <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-      {PERIODS.map((p) => (
-        <Skeleton key={p} className="h-24 rounded-lg" />
+    <div className={`grid gap-3 sm:grid-cols-2 ${count > 4 ? "lg:grid-cols-5" : "lg:grid-cols-4"}`}>
+      {Array.from({ length: count }).map((_, i) => (
+        <Skeleton key={i} className="h-24 rounded-lg" />
       ))}
     </div>
-  );
-}
-
-function MetricSection({ title, loading, data, getValue, format, highlight }) {
-  return (
-    <section className="space-y-3">
-      <h2 className="text-base font-semibold">{title}</h2>
-      {loading ? (
-        <SkeletonCards />
-      ) : (
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-          {PERIODS.map((period) => (
-            <MetricCard
-              key={period}
-              title={PERIOD_LABELS[period]}
-              value={format(getValue(data, period))}
-              active={period === "currentMonth" && highlight}
-              gradientBorder
-            />
-          ))}
-        </div>
-      )}
-    </section>
   );
 }
 
@@ -198,6 +176,10 @@ export default function WorkerDashboard({
   const paymentMonthLabel = formatPaymentMonthLabel(paymentMonth);
   const paymentHistoryMonthLabel = formatPaymentMonthLabel(paymentHistoryMonth);
   const paymentHistoryRows = workerPaymentHistory?.rows || [];
+  const paymentHistoryTotalPayout =
+    workerPaymentHistory?.totalPayout != null && !Number.isNaN(Number(workerPaymentHistory.totalPayout))
+      ? Number(workerPaymentHistory.totalPayout)
+      : paymentHistoryRows.reduce((sum, r) => sum + (r.payout || 0), 0);
   const selectedDomainValue =
     selectedDomain && uniqueDomainList.includes(selectedDomain)
       ? selectedDomain
@@ -286,14 +268,37 @@ export default function WorkerDashboard({
               {metricsError}
             </p>
           )}
-          <MetricSection
-            title="Ingresos estimados"
-            loading={metricsLoading}
-            data={mergedDashboard}
-            getValue={(d, period) => d?.[period]?.revenue}
-            format={fmtCurrency}
-            highlight
-          />
+          <section className="space-y-3">
+            <div className="flex items-center justify-between gap-3">
+              <h2 className="text-base font-semibold">Ingresos estimados</h2>
+              {workerContext?.percentage != null ? (
+                <Badge className="bg-primary/15 text-primary tabular-nums shrink-0">
+                  {Number(workerContext.percentage)}%
+                </Badge>
+              ) : null}
+            </div>
+            {metricsLoading ? (
+              <SkeletonCards count={5} />
+            ) : (
+              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+                {PERIODS.map((period) => (
+                  <MetricCard
+                    key={period}
+                    title={PERIOD_LABELS[period]}
+                    value={fmtCurrency(mergedDashboard?.[period]?.revenue)}
+                    active={period === "currentMonth"}
+                    gradientBorder
+                  />
+                ))}
+                <MetricCard
+                  title="Este mes (neto)"
+                  subtitle="Sin aplicar tu porcentaje"
+                  value={fmtCurrency(mergedDashboard?.currentMonth?.grossRevenue)}
+                  gradientBorder
+                />
+              </div>
+            )}
+          </section>
 
           <section className="space-y-3">
             <div className="flex items-center justify-between gap-3">
@@ -374,37 +379,6 @@ export default function WorkerDashboard({
             }
           />
 
-          <Card>
-            <CardContent className="space-y-4 pt-6">
-              <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                <span className="text-sm font-medium">Período de pago: {paymentMonthLabel}</span>
-                <Select
-                  value={paymentMonth}
-                  onValueChange={(value) => onPaymentMonthChange?.(value)}
-                >
-                  <SelectTrigger className="sm:w-56">
-                    <SelectValue placeholder="Seleccionar período" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {paymentMonthOptions.map((option) => (
-                      <SelectItem key={option.value} value={option.value}>
-                        {option.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-muted-foreground">Estado de pago</span>
-                <StatusBadge
-                  status={paymentStatus === "paid" ? "paid" : "pending"}
-                  label={paymentStatusLabel}
-                />
-              </div>
-            </CardContent>
-          </Card>
-
           {paymentInfo ? (
             <Card>
               <CardHeader className="pb-2">
@@ -425,11 +399,6 @@ export default function WorkerDashboard({
             <EmptyState
               title="Información de pago pendiente"
               description="Aun no has agregado tu método de pago. Completa esta información para facilitar la gestión de tus pagos."
-              action={
-                <Button type="button" onClick={openPaymentDialog}>
-                  Agregar información de pago
-                </Button>
-              }
             />
           )}
         </div>
@@ -496,10 +465,17 @@ export default function WorkerDashboard({
                 </Card>
               ))}
               <Card className="sm:col-span-2 lg:col-span-3">
-                <CardContent className="flex items-center justify-between pt-6">
-                  <p className="text-sm font-semibold text-muted-foreground">Ganancia total</p>
-                  <p className="text-lg font-semibold tabular-nums">
-                    {fmtCurrency(paymentHistoryRows.reduce((sum, r) => sum + (r.payout || 0), 0))}
+                <CardContent className="space-y-3 pt-6">
+                  <div className="flex items-center justify-between gap-3">
+                    <p className="text-sm font-semibold text-muted-foreground">Ganancia total</p>
+                    <p className="text-lg font-semibold tabular-nums">
+                      {fmtCurrency(paymentHistoryTotalPayout)}
+                    </p>
+                  </div>
+                  <p className="text-xs text-muted-foreground leading-relaxed border-t border-border/60 pt-3">
+                    Las ganancias por subdominio reflejan tus datos en Ad Manager. El total puede
+                    diferir si el administrador aplica un ajuste acordado (por ejemplo deducciones de
+                    Ad Manager); eso solo modifica esta suma y lo coordina el admin contigo.
                   </p>
                 </CardContent>
               </Card>
