@@ -177,7 +177,8 @@ export default function WorkerDashboard({
   const paymentHistoryMonthLabel = formatPaymentMonthLabel(paymentHistoryMonth);
   const paymentHistoryRows = workerPaymentHistory?.rows || [];
   const paymentHistoryTotalPayout =
-    workerPaymentHistory?.totalPayout != null && !Number.isNaN(Number(workerPaymentHistory.totalPayout))
+    workerPaymentHistory?.totalPayout != null &&
+    !Number.isNaN(Number(workerPaymentHistory.totalPayout))
       ? Number(workerPaymentHistory.totalPayout)
       : paymentHistoryRows.reduce((sum, r) => sum + (r.payout || 0), 0);
   const selectedDomainValue =
@@ -473,9 +474,10 @@ export default function WorkerDashboard({
                     </p>
                   </div>
                   <p className="text-xs text-muted-foreground leading-relaxed border-t border-border/60 pt-3">
-                    Las ganancias por subdominio reflejan tus datos en Ad Manager. El total puede
-                    diferir si el administrador aplica un ajuste acordado (por ejemplo deducciones de
-                    Ad Manager); eso solo modifica esta suma y lo coordina el admin contigo.
+                    Este panel muestra ingresos brutos en tiempo real para usuarios con
+                    visualización al 100%. El pago final puede variar según porcentajes y acuerdos
+                    establecidos. El valor neto oficial será enviado por el administrador en el
+                    reporte mensual.
                   </p>
                 </CardContent>
               </Card>
@@ -562,4 +564,3 @@ export default function WorkerDashboard({
     </div>
   );
 }
-
