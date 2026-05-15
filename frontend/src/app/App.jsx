@@ -1012,7 +1012,7 @@ export default function App() {
   }
 
   return (
-    <div className="app">
+    <div className="app app--worker">
       <header className="app-header app-header--worker">
         <div className="header-title-group">
           <h1 className="worker-header-brand">XerviaLinks Metrics</h1>

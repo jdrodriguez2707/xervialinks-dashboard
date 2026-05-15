@@ -359,7 +359,9 @@ export default function WorkerDashboard({
                     <CardTitle className="text-sm text-muted-foreground">Subdominio</CardTitle>
                   </CardHeader>
                   <CardContent>
-                    <p className="text-sm font-semibold">{d}</p>
+                    <p className="text-sm font-semibold leading-snug break-words [overflow-wrap:anywhere]">
+                      {d}
+                    </p>
                   </CardContent>
                 </Card>
               ))}
@@ -439,28 +441,32 @@ export default function WorkerDashboard({
               {paymentHistoryRows.map((row) => (
                 <Card key={`${row.domain}-${paymentHistoryMonth}`}>
                   <CardContent className="space-y-3 pt-6">
-                    <div className="flex items-center justify-between">
+                    <div className="space-y-1.5">
                       <p className="text-xs text-muted-foreground">Subdominio</p>
-                      <p className="text-sm font-semibold">{row.domain}</p>
+                      <p className="text-sm font-semibold leading-snug break-words [overflow-wrap:anywhere]">
+                        {row.domain}
+                      </p>
                     </div>
-                    <div className="flex items-center justify-between">
-                      <p className="text-xs text-muted-foreground">Impresiones</p>
-                      <p className="text-sm font-semibold tabular-nums">
+                    <div className="flex min-w-0 items-center justify-between gap-3">
+                      <p className="shrink-0 text-xs text-muted-foreground">Impresiones</p>
+                      <p className="min-w-0 text-right text-sm font-semibold tabular-nums">
                         {fmtImpressions(row.impressions)}
                       </p>
                     </div>
-                    <div className="flex items-center justify-between">
-                      <p className="text-xs text-muted-foreground">Ganancias</p>
-                      <p className="text-sm font-semibold tabular-nums">
+                    <div className="flex min-w-0 items-center justify-between gap-3">
+                      <p className="shrink-0 text-xs text-muted-foreground">Ganancias</p>
+                      <p className="min-w-0 text-right text-sm font-semibold tabular-nums">
                         {fmtCurrency(row.payout)}
                       </p>
                     </div>
-                    <div className="flex items-center justify-between">
-                      <p className="text-xs text-muted-foreground">Estado de pago</p>
-                      <StatusBadge
-                        status={row.paymentStatus === "paid" ? "paid" : "pending"}
-                        label={row.paymentStatus === "paid" ? "Pagado" : "Pendiente de pago"}
-                      />
+                    <div className="flex min-w-0 items-center justify-between gap-3">
+                      <p className="shrink-0 text-xs text-muted-foreground">Estado de pago</p>
+                      <div className="min-w-0 shrink-0">
+                        <StatusBadge
+                          status={row.paymentStatus === "paid" ? "paid" : "pending"}
+                          label={row.paymentStatus === "paid" ? "Pagado" : "Pendiente de pago"}
+                        />
+                      </div>
                     </div>
                   </CardContent>
                 </Card>
