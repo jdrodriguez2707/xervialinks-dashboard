@@ -4,6 +4,24 @@
 
 ---
 
+## 💼 El Problema del cliente y la Solución
+
+En la industria de la monetización de medios digitales, los editores y redes de blogs que utilizan **Google Ad Manager (GAM)** se enfrentan a un reto operativo constante: **la distribución transparente y automatizada de los ingresos publicitarios entre múltiples editores, redactores o socios de contenido.** Este era la problemática que tenía mi cliente al trabajar con varios socios y gestionar sus ganancias. Tenía que enviar manualmente las métricas e ingresos de cada subdominio y gestionar los pagos de cada socio, lo cual era un proceso tedioso y propenso a errores.
+
+### 🛑 El Desafío (El Problema)
+1. **Falta de granularidad nativa:** Google Ad Manager consolida la información a nivel de red, pero no cuenta con un sistema nativo ágil para fragmentar y asignar ingresos de forma dinámica por dominio/subdominio a colaboradores individuales con diferentes esquemas de comisión.
+2. **Confidencialidad y Opacidad:** Dar acceso directo a la consola de GAM a redactores o colaboradores externos compromete la seguridad y la privacidad de datos globales. Sin embargo, no darles acceso genera desconfianza y fricción al no poder verificar el rendimiento de sus propios artículos.
+3. **Carga Administrativa Compleja:** Gestionar el reparto de ingresos mediante hojas de cálculo manuales para decenas de colaboradores a fin de mes es propenso a errores humanos, requiere demasiado tiempo y ralentiza los procesos de pago.
+
+### 🚀 La Solución: XerviaLinks Dashboard
+Esta plataforma actúa como una capa de abstracción inteligente sobre la API de Google Ad Manager para resolver este problema de negocio:
+* **Asignación y Comisiones a la Medida:** El administrador vincula subdominios a trabajadores específicos y define el porcentaje de ganancia correspondiente de forma individual.
+* **Portal de Autoservicio para Colaboradores:** Cada trabajador accede a un panel privado y seguro donde puede visualizar únicamente las métricas de sus dominios asignados (Ingresos Brutos, Ganancias Netas) con total transparencia y en tiempo real.
+* **Seguimiento de Pagos Automatizado:** Simplifica la contabilidad permitiendo marcar estados de pago (`Pagado` vs `Pendiente`), registrar el historial de depósitos y garantizar la claridad financiera mutua.
+
+---
+
+
 ## 📹 Video de Demostración
 
 <!-- 🎬 ESPACIO RESERVADO PARA VIDEO DE DEMOSTRACIÓN -->
