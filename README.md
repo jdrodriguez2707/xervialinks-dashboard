@@ -95,6 +95,7 @@ Esta plataforma actúa como una capa de abstracción inteligente sobre la API de
 | **Base de Datos** | SQLite (`better-sqlite3`) | Base de datos relacional embebida SQL de alta velocidad |
 | **Integraciones** | Google Ad Manager API | Integración mediante `google-auth-library` con fallback de datos mock |
 | **Autenticación y Seguridad** | JWT + bcrypt | Tokens Bearer seguros, contraseñas encriptadas, limitación de tasa y cabeceras Helmet |
+| **Tests** | Jest + Supertest | Pruebas unitarias, de integración y de snapshot |
 | **Gestor de Paquetes** | `pnpm` | Gestor de paquetes eficiente listo para monorepos |
 
 ---
