@@ -472,18 +472,15 @@ export default function WorkerDashboard({
                 </Card>
               ))}
               <Card className="sm:col-span-2 lg:col-span-3">
-                <CardContent className="space-y-3 pt-6">
-                  <div className="flex items-center justify-between gap-3">
+                <CardContent className="space-y-3 pt-6 border-b border-purple-600 rounded">
+                  {/* <div className="flex items-center justify-between gap-3">
                     <p className="text-sm font-semibold text-muted-foreground">Ganancia total</p>
                     <p className="text-lg font-semibold tabular-nums">
                       {fmtCurrency(paymentHistoryTotalPayout)}
                     </p>
-                  </div>
-                  <p className="text-xs text-muted-foreground leading-relaxed border-t border-border/60 pt-3">
-                    Este panel muestra ingresos brutos en tiempo real para usuarios con
-                    visualización al 100%. El pago final puede variar según porcentajes y acuerdos
-                    establecidos. El valor neto oficial será enviado por el administrador en el
-                    reporte mensual.
+                  </div> */}
+                  <p className="text-xs text-muted-foreground leading-relaxed">
+                    Espera a que Xervia te contacte via WhatsApp con los resultados totales del mes y te envie los pagos correspondientes.
                   </p>
                 </CardContent>
               </Card>
