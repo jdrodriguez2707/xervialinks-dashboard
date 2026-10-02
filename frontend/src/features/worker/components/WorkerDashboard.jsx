@@ -110,7 +110,7 @@ export default function WorkerDashboard({
     () => [
       { id: "stats", label: "Estadísticas", icon: BarChart3 },
       { id: "domains", label: "Subdominios", icon: Globe },
-      { id: "payment", label: "Pago", icon: CreditCard },
+      // { id: "payment", label: "Pago", icon: CreditCard },
       { id: "payment-history", label: "Historial de pagos", icon: CircleDollarSign },
     ],
     [],
