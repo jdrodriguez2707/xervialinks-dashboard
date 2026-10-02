@@ -106,15 +106,15 @@ export default function WorkerDashboard({
     };
   }, [workerContext, workerMetrics]);
 
-  const tabs = useMemo(
-    () => [
-      { id: "stats", label: "Estadísticas", icon: BarChart3 },
-      { id: "domains", label: "Subdominios", icon: Globe },
-      // { id: "payment", label: "Pago", icon: CreditCard },
-      { id: "payment-history", label: "Historial de pagos", icon: CircleDollarSign },
-    ],
-    [],
-  );
+  // const tabs = useMemo(
+  //   () => [
+  //     { id: "stats", label: "Estadísticas", icon: BarChart3 },
+  //     // { id: "domains", label: "Subdominios", icon: Globe },
+  //     // { id: "payment", label: "Pago", icon: CreditCard },
+  //     // { id: "payment-history", label: "Historial de pagos", icon: CircleDollarSign },
+  //   ],
+  //   [],
+  // );
 
   const [openPaymentModal, setOpenPaymentModal] = useState(false);
   const [paymentMethodType, setPaymentMethodType] = useState("");
@@ -407,7 +407,7 @@ export default function WorkerDashboard({
         </div>
       )}
 
-      {activeTab === "payment-history" && (
+      {/* {activeTab === "payment-history" && (
         <div className="space-y-4">
           <SectionHeader
             title="Historial de pagos"
@@ -473,12 +473,12 @@ export default function WorkerDashboard({
               ))}
               <Card className="sm:col-span-2 lg:col-span-3">
                 <CardContent className="space-y-3 pt-6 border-b border-purple-600 rounded">
-                  {/* <div className="flex items-center justify-between gap-3">
+                  <div className="flex items-center justify-between gap-3">
                     <p className="text-sm font-semibold text-muted-foreground">Ganancia total</p>
                     <p className="text-lg font-semibold tabular-nums">
                       {fmtCurrency(paymentHistoryTotalPayout)}
                     </p>
-                  </div> */}
+                  </div>
                   <p className="text-xs text-muted-foreground leading-relaxed">
                     Espera a que Xervia te contacte via WhatsApp con los resultados totales del mes y te envie los pagos correspondientes.
                   </p>
@@ -487,7 +487,7 @@ export default function WorkerDashboard({
             </div>
           )}
         </div>
-      )}
+      )} */}
 
       <Dialog
         open={openPaymentModal}
@@ -538,7 +538,7 @@ export default function WorkerDashboard({
         </DialogContent>
       </Dialog>
 
-      {hasDomains && (
+      {/* {hasDomains && (
         <nav className="fixed bottom-4 left-1/2 -translate-x-1/2 z-30 flex items-center justify-center gap-2 rounded-full border border-border/70 bg-card/80 px-3 py-2 shadow-xl backdrop-blur-xl supports-[backdrop-filter]:bg-card/70">
           {tabs.map((tab) => {
             const Icon = tab.icon;
@@ -563,7 +563,7 @@ export default function WorkerDashboard({
             );
           })}
         </nav>
-      )}
+      )} */}
     </div>
   );
 }
