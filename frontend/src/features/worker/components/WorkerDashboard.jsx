@@ -292,7 +292,7 @@ export default function WorkerDashboard({
                   />
                 ))}
                 <MetricCard
-                  title="Este mes (neto)"
+                  title="Este mes (bruto)"
                   subtitle="Sin aplicar tu porcentaje"
                   value={fmtCurrency(mergedDashboard?.currentMonth?.grossRevenue)}
                   gradientBorder
