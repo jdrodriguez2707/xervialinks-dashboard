@@ -3,7 +3,12 @@ const reportsRepo = require("../../domain/repositories/reports.repository");
 const gamNetworksRepo = require("../../domain/repositories/gamNetworks.repository");
 const { fetchReports } = require("../../infrastructure/integrations/gamReports");
 const { buildMockReports } = require("../../infrastructure/integrations/mockReports");
-const { getDefaultTimeZone, todayISO, daysAgoISO } = require("./clientTimezone");
+const {
+  getDefaultTimeZone,
+  todayISO,
+  daysAgoISO,
+  currentMonthStartISO,
+} = require("./clientTimezone");
 
 const DEFAULT_BATCH_WINDOW_DAYS = env.REPORTS_BATCH_WINDOW_DAYS;
 const TWELVE_MONTHS_WINDOW_DAYS = env.REPORTS_BACKFILL_WINDOW_DAYS;
@@ -12,10 +17,19 @@ function listNetworksToSync() {
   return gamNetworksRepo.listCodesWithAccessOk();
 }
 
+function previousMonthStartISO(timeZone, referenceDate) {
+  const [year, month] = currentMonthStartISO(timeZone, referenceDate).split("-").map(Number);
+  return new Date(Date.UTC(year, month - 2, 1)).toISOString().slice(0, 10);
+}
+
 async function syncReportsBatch(options = {}) {
   const tz = options.timeZone || getDefaultTimeZone();
   const endDate = options.endDate || todayISO(tz);
-  const startDate = options.startDate || daysAgoISO(DEFAULT_BATCH_WINDOW_DAYS, tz);
+  const startDate =
+    options.startDate ||
+    (options.includePreviousMonth
+      ? previousMonthStartISO(tz, endDate)
+      : daysAgoISO(DEFAULT_BATCH_WINDOW_DAYS, tz));
   const source = env.USE_REAL_GAM_API ? "gam-batch" : "mock-batch";
 
   let codes = listNetworksToSync();
@@ -92,4 +106,9 @@ async function syncReportsBackfill12Months(options = {}) {
   };
 }
 
-module.exports = { syncReportsBatch, syncReportsBackfill12Months, listNetworksToSync };
+module.exports = {
+  syncReportsBatch,
+  syncReportsBackfill12Months,
+  listNetworksToSync,
+  previousMonthStartISO,
+};

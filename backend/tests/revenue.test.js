@@ -11,7 +11,10 @@ const {
   getYesterdayRevenue,
   getLast7DaysRevenue,
   getCurrentMonthRevenue,
+  calculateChangePercent,
+  getWorkerDashboardPeriods,
 } = require("../src/application/services/revenue.service");
+const reportsRepo = require("../src/domain/repositories/reports.repository");
 
 let adminToken;
 
@@ -70,6 +73,200 @@ describe("applyPercentage", () => {
 
   it("rounds to 2 decimal places", () => {
     expect(applyPercentage(100, 33.333)).toBe(33.33);
+  });
+});
+
+describe("calculateChangePercent", () => {
+  it("calculates positive and negative changes to one decimal place", () => {
+    expect(calculateChangePercent(125, 100)).toBe(25);
+    expect(calculateChangePercent(80, 100)).toBe(-20);
+  });
+
+  it("returns null for equal values and a zero comparison baseline", () => {
+    expect(calculateChangePercent(100, 100)).toBeNull();
+    expect(calculateChangePercent(100, 0)).toBeNull();
+  });
+
+  it("returns null when the change rounds to zero", () => {
+    expect(calculateChangePercent(100.04, 100)).toBeNull();
+  });
+});
+
+describe("getWorkerDashboardPeriods comparisons", () => {
+  it("compares yesterday, previous 7 days, and equivalent month-to-date metrics", async () => {
+    const reports = [];
+    for (
+      let date = new Date("2026-02-01T00:00:00.000Z");
+      date <= new Date("2026-03-10T00:00:00.000Z");
+      date.setUTCDate(date.getUTCDate() + 1)
+    ) {
+      const dateISO = date.toISOString().slice(0, 10);
+      let revenue = dateISO.startsWith("2026-02-") ? 10 : 20;
+      if (dateISO === "2026-03-08") revenue = 40;
+      reports.push({
+        date: dateISO,
+        domain: "worker.example.com",
+        networkCode: "network-1",
+        revenue,
+        impressions: revenue * 10,
+      });
+    }
+    reports.push(
+      {
+        date: "2026-03-09",
+        domain: "other.example.com",
+        networkCode: "network-1",
+        revenue: 10000,
+        impressions: 100000,
+      },
+      {
+        date: "2026-03-09",
+        domain: "worker.example.com",
+        networkCode: "another-network",
+        revenue: 10000,
+        impressions: 100000,
+      },
+    );
+
+    const findAllSpy = jest.spyOn(reportsRepo, "findAll").mockResolvedValue(reports);
+    try {
+      const result = await getWorkerDashboardPeriods(
+        {
+          percentage: 50,
+          properties: [
+            {
+              type: "domain",
+              value: "worker.example.com",
+              gamNetworkCode: "network-1",
+            },
+          ],
+        },
+        "America/Bogota",
+        { referenceDate: "2026-03-10" },
+      );
+
+      expect(findAllSpy).toHaveBeenCalledWith(
+        expect.objectContaining({ startDate: "2026-02-01", endDate: "2026-03-10" }),
+      );
+      expect(result.today).not.toHaveProperty("comparison");
+      expect(result.yesterday.comparison).toEqual({
+        revenue: -50,
+        grossRevenue: -50,
+        impressions: -50,
+      });
+      expect(result.last7Days.comparison).toEqual({
+        revenue: 77.8,
+        grossRevenue: 77.8,
+        impressions: 77.8,
+      });
+      expect(result.currentMonth.comparison).toEqual({
+        revenue: 122.2,
+        grossRevenue: 122.2,
+        impressions: 122.2,
+      });
+    } finally {
+      findAllSpy.mockRestore();
+    }
+  });
+
+  it("clamps the comparable month end when the previous month is shorter", async () => {
+    const reports = [
+      {
+        date: "2026-02-28",
+        domain: "worker.example.com",
+        networkCode: "network-1",
+        revenue: 10,
+        impressions: 100,
+      },
+      {
+        date: "2026-03-30",
+        domain: "worker.example.com",
+        networkCode: "network-1",
+        revenue: 30,
+        impressions: 300,
+      },
+      {
+        date: "2026-03-31",
+        domain: "worker.example.com",
+        networkCode: "network-1",
+        revenue: 50,
+        impressions: 500,
+      },
+    ];
+    const findAllSpy = jest.spyOn(reportsRepo, "findAll").mockResolvedValue(reports);
+    try {
+      const result = await getWorkerDashboardPeriods(
+        {
+          percentage: 50,
+          properties: [
+            {
+              type: "domain",
+              value: "worker.example.com",
+              gamNetworkCode: "network-1",
+            },
+          ],
+        },
+        "America/Bogota",
+        { referenceDate: "2026-03-31" },
+      );
+
+      expect(result.currentMonth.comparison).toEqual({
+        revenue: 200,
+        grossRevenue: 200,
+        impressions: 200,
+      });
+      expect(result.currentMonth.grossRevenue).toBe(80);
+      expect(findAllSpy).toHaveBeenCalledWith(
+        expect.objectContaining({ startDate: "2026-02-01", endDate: "2026-03-31" }),
+      );
+    } finally {
+      findAllSpy.mockRestore();
+    }
+  });
+
+  it("shows no monthly comparison on the first day before any full current-month day exists", async () => {
+    const reports = [
+      {
+        date: "2026-02-01",
+        domain: "worker.example.com",
+        networkCode: "network-1",
+        revenue: 10,
+        impressions: 100,
+      },
+      {
+        date: "2026-03-01",
+        domain: "worker.example.com",
+        networkCode: "network-1",
+        revenue: 50,
+        impressions: 500,
+      },
+    ];
+    const findAllSpy = jest.spyOn(reportsRepo, "findAll").mockResolvedValue(reports);
+    try {
+      const result = await getWorkerDashboardPeriods(
+        {
+          percentage: 50,
+          properties: [
+            {
+              type: "domain",
+              value: "worker.example.com",
+              gamNetworkCode: "network-1",
+            },
+          ],
+        },
+        "America/Bogota",
+        { referenceDate: "2026-03-01" },
+      );
+
+      expect(result.currentMonth.grossRevenue).toBe(50);
+      expect(result.currentMonth.comparison).toEqual({
+        revenue: null,
+        grossRevenue: null,
+        impressions: null,
+      });
+    } finally {
+      findAllSpy.mockRestore();
+    }
   });
 });
 
@@ -236,6 +433,16 @@ describe("GET /api/worker/dashboard", () => {
       expect(typeof data[period].revenue).toBe("number");
       expect(typeof data[period].ecpm).toBe("number");
       expect(typeof data[period].impressions).toBe("number");
+    }
+    expect(data.today).not.toHaveProperty("comparison");
+    for (const period of ["yesterday", "last7Days", "currentMonth"]) {
+      for (const metric of ["revenue", "grossRevenue", "impressions"]) {
+        expect(data[period].comparison).toHaveProperty(metric);
+        expect(
+          data[period].comparison[metric] === null ||
+            typeof data[period].comparison[metric] === "number",
+        ).toBe(true);
+      }
     }
   });
 

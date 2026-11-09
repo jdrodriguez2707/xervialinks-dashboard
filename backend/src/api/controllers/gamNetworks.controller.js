@@ -1,5 +1,6 @@
 const gamNetworksService = require("../../application/services/gamNetworks.service");
 const { syncReportsBatch } = require("../../application/services/reportsSync.service");
+const { clientTimeZoneFromRequest } = require("../utils/clientTz");
 
 async function listNetworks(_req, res) {
   const rows = gamNetworksService.listNetworks();
@@ -53,7 +54,11 @@ async function syncNetworkNow(req, res) {
   if (row.accessStatus !== "ok") {
     return res.status(400).json({ error: "Verifica el acceso antes de sincronizar esta red" });
   }
-  const result = await syncReportsBatch({ onlyNetworkCode: code });
+  const result = await syncReportsBatch({
+    onlyNetworkCode: code,
+    includePreviousMonth: true,
+    timeZone: clientTimeZoneFromRequest(req),
+  });
   res.json({ data: { networkCode: code, ...result } });
 }
 

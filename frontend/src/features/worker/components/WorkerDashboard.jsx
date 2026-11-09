@@ -58,6 +58,16 @@ const fmtEcpm = (n) =>
 
 const fmtImpressions = (n) => new Intl.NumberFormat("es-MX").format(n ?? 0);
 
+function getMetricComparison(periodData, metric) {
+  const percentage = periodData?.comparison?.[metric];
+  if (percentage == null) return { direction: "neutral" };
+
+  return {
+    direction: percentage > 0 ? "up" : "down",
+    value: `${Math.abs(percentage).toFixed(1)}%`,
+  };
+}
+
 const WORKER_TAB_STORAGE_PREFIX = "workerDashboardActiveTab";
 
 function getWorkerTabStorageKey(workerId) {
@@ -271,7 +281,9 @@ export default function WorkerDashboard({
           )}
           <section className="space-y-3">
             <div className="flex items-center justify-between gap-3">
-              <h2 className="text-base font-semibold">Ingresos estimados</h2>
+              <div>
+                <h2 className="text-base font-semibold">Ingresos estimados</h2>
+              </div>
               {workerContext?.percentage != null ? (
                 <Badge className="bg-primary/15 text-primary tabular-nums shrink-0">
                   {Number(workerContext.percentage)}%
@@ -287,6 +299,11 @@ export default function WorkerDashboard({
                     key={period}
                     title={PERIOD_LABELS[period]}
                     value={fmtCurrency(mergedDashboard?.[period]?.revenue)}
+                    comparison={
+                      period === "today"
+                        ? null
+                        : getMetricComparison(mergedDashboard?.[period], "revenue")
+                    }
                     active={period === "currentMonth"}
                     gradientBorder
                   />
@@ -295,6 +312,7 @@ export default function WorkerDashboard({
                   title="Este mes (bruto)"
                   subtitle="Sin aplicar tu porcentaje"
                   value={fmtCurrency(mergedDashboard?.currentMonth?.grossRevenue)}
+                  comparison={getMetricComparison(mergedDashboard?.currentMonth, "grossRevenue")}
                   gradientBorder
                 />
               </div>
@@ -329,13 +347,20 @@ export default function WorkerDashboard({
           </section>
 
           <section className="space-y-3">
-            <h2 className="text-base font-semibold">Impresiones</h2>
+            <div>
+              <h2 className="text-base font-semibold">Impresiones</h2>
+            </div>
             {metricsLoading ? (
               <Skeleton className="h-24 rounded-lg" />
             ) : (
               <MetricCard
                 title={PERIOD_LABELS[selectedRange]}
                 value={fmtImpressions(mergedDashboard?.[selectedRange]?.impressions)}
+                comparison={
+                  selectedRange === "today"
+                    ? null
+                    : getMetricComparison(mergedDashboard?.[selectedRange], "impressions")
+                }
                 gradientBorder
               />
             )}

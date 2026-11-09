@@ -1,4 +1,5 @@
 import React from "react";
+import { ArrowDownRight, ArrowUpRight, Minus } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -13,7 +14,21 @@ export function MetricCard({
   gradientBorder = false,
   onClick,
   cornerBadge = null,
+  comparison = null,
 }) {
+  const ComparisonIcon =
+    comparison?.direction === "up"
+      ? ArrowUpRight
+      : comparison?.direction === "down"
+        ? ArrowDownRight
+        : Minus;
+  const comparisonColor =
+    comparison?.direction === "up"
+      ? "text-emerald-600 dark:text-emerald-400"
+      : comparison?.direction === "down"
+        ? "text-rose-600 dark:text-rose-400"
+        : "text-muted-foreground";
+
   return (
     <Card
       onClick={onClick}
@@ -53,6 +68,30 @@ export function MetricCard({
               {value}
             </div>
             {subtitle && <p className="text-xs text-muted-foreground mt-1">{subtitle}</p>}
+            {comparison && (
+              <div
+                className={cn("mt-2 flex items-center gap-1 text-xs font-medium", comparisonColor)}
+                aria-label={
+                  comparison.direction === "up"
+                    ? `Aumentó ${comparison.value} frente al periodo anterior`
+                    : comparison.direction === "down"
+                      ? `Disminuyó ${comparison.value} frente al periodo anterior`
+                      : "Sin cambio o base de comparación disponible"
+                }
+              >
+                <ComparisonIcon className="h-4 w-4 shrink-0" aria-hidden="true" />
+                <span>
+                  {comparison.direction === "up"
+                    ? `+${comparison.value}`
+                    : comparison.direction === "down"
+                      ? `−${comparison.value}`
+                      : "—"}
+                </span>
+                {comparison.direction !== "neutral" && (
+                  <span className="font-normal text-muted-foreground">vs. periodo anterior</span>
+                )}
+              </div>
+            )}
           </>
         )}
       </CardContent>

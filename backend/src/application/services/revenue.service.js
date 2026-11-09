@@ -84,9 +84,24 @@ function reportMatchesSlot(r, slot) {
   );
 }
 
+function previousMonthDate(dateISO) {
+  const [year, month, day] = dateISO.split("-").map(Number);
+  const previousMonthStart = new Date(Date.UTC(year, month - 2, 1));
+  const previousMonthLastDay = new Date(Date.UTC(year, month - 1, 0)).getUTCDate();
+  previousMonthStart.setUTCDate(Math.min(day, previousMonthLastDay));
+  return previousMonthStart.toISOString().slice(0, 10);
+}
+
+function calculateChangePercent(current, previous) {
+  if (previous <= 0) return null;
+  const change = Number((((current - previous) / previous) * 100).toFixed(1));
+  return change === 0 ? null : change;
+}
+
 /**
  * Returns all 4 dashboard periods for a worker, each with revenue (net),
- * eCPM (gross — reflects site performance), and impressions.
+ * eCPM (gross — reflects site performance), impressions, and comparisons
+ * against equivalent previous periods where applicable.
  *
  * @param {{ percentage: number, properties: Array }} worker
  * @param {string} timeZone  IANA timezone from the client (X-Client-Timezone)
@@ -107,9 +122,16 @@ async function getWorkerDashboardPeriods(worker, timeZone, filters = {}) {
   if (requestedDomain) {
     const matching = allSlots.filter((s) => s.value === requestedDomain);
     if (matching.length === 0) {
-      const empty = { revenue: 0, grossRevenue: 0, ecpm: 0, impressions: 0 };
+      const noComparison = { revenue: null, grossRevenue: null, impressions: null };
+      const empty = {
+        revenue: 0,
+        grossRevenue: 0,
+        ecpm: 0,
+        impressions: 0,
+        comparison: noComparison,
+      };
       return {
-        today: empty,
+        today: { revenue: 0, grossRevenue: 0, ecpm: 0, impressions: 0 },
         yesterday: empty,
         last7Days: empty,
         currentMonth: empty,
@@ -119,9 +141,16 @@ async function getWorkerDashboardPeriods(worker, timeZone, filters = {}) {
   }
 
   if (slots.length === 0) {
-    const empty = { revenue: 0, grossRevenue: 0, ecpm: 0, impressions: 0 };
+    const noComparison = { revenue: null, grossRevenue: null, impressions: null };
+    const empty = {
+      revenue: 0,
+      grossRevenue: 0,
+      ecpm: 0,
+      impressions: 0,
+      comparison: noComparison,
+    };
     return {
-      today: empty,
+      today: { revenue: 0, grossRevenue: 0, ecpm: 0, impressions: 0 },
       yesterday: empty,
       last7Days: empty,
       currentMonth: empty,
@@ -135,7 +164,19 @@ async function getWorkerDashboardPeriods(worker, timeZone, filters = {}) {
   const today = todayISO(tz, referenceDate);
   const yesterday = daysAgoISO(1, tz, referenceDate);
   const last7Start = daysAgoISO(7, tz, referenceDate);
-  const baseStart = monthStart < last7Start ? monthStart : last7Start;
+  const previousDay = daysAgoISO(2, tz, referenceDate);
+  const previousWeekStart = daysAgoISO(14, tz, referenceDate);
+  const previousMonthStart = previousMonthDate(monthStart);
+  const closedMonthEnd = yesterday >= monthStart ? yesterday : null;
+  const previousMonthEnd = closedMonthEnd
+    ? previousMonthDate(closedMonthEnd)
+    : previousMonthStart;
+  const baseStart = [
+    monthStart,
+    last7Start,
+    previousWeekStart,
+    previousMonthStart,
+  ].sort()[0];
 
   const reports = await reportsRepo.findAll({
     startDate: baseStart,
@@ -149,20 +190,43 @@ async function getWorkerDashboardPeriods(worker, timeZone, filters = {}) {
   const rawYesterday = aggregateReports(workerReports, yesterday, yesterday);
   const rawLast7 = aggregateReports(workerReports, last7Start, yesterday);
   const rawMonth = aggregateReports(workerReports, monthStart, today);
+  const rawClosedMonth = aggregateReports(workerReports, monthStart, yesterday);
+  const rawPreviousDay = aggregateReports(workerReports, previousDay, previousDay);
+  const rawPreviousWeek = aggregateReports(
+    workerReports,
+    previousWeekStart,
+    daysAgoISO(8, tz, referenceDate),
+  );
+  const rawPreviousMonth = aggregateReports(workerReports, previousMonthStart, previousMonthEnd);
 
   const pct = worker.percentage;
-  const build = (raw) => ({
+  const build = (raw, previous = null, comparisonRaw = raw) => ({
     revenue: applyPercentage(raw.revenue, pct),
     grossRevenue: raw.revenue,
     ecpm: raw.ecpm,
     impressions: raw.impressions,
+    ...(previous && {
+      comparison: {
+        revenue: calculateChangePercent(
+          applyPercentage(comparisonRaw.revenue, pct),
+          applyPercentage(previous.revenue, pct),
+        ),
+        grossRevenue: calculateChangePercent(comparisonRaw.revenue, previous.revenue),
+        impressions: calculateChangePercent(comparisonRaw.impressions, previous.impressions),
+      },
+    }),
   });
 
   return {
     today: build(rawToday),
-    yesterday: build(rawYesterday),
-    last7Days: build(rawLast7),
-    currentMonth: build(rawMonth),
+    yesterday: build(rawYesterday, rawPreviousDay),
+    last7Days: build(rawLast7, rawPreviousWeek),
+    currentMonth: closedMonthEnd
+      ? build(rawMonth, rawPreviousMonth, rawClosedMonth)
+      : {
+          ...build(rawMonth),
+          comparison: { revenue: null, grossRevenue: null, impressions: null },
+        },
   };
 }
 
@@ -180,6 +244,7 @@ module.exports = {
   getLast7DaysRevenue,
   getCurrentMonthRevenue,
   applyPercentage,
+  calculateChangePercent,
   getWorkerDashboardPeriods,
   todayISO,
   daysAgoISO,
