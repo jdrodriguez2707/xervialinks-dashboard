@@ -41,6 +41,12 @@ const PERIOD_LABELS = {
   currentMonth: "Este mes",
 };
 
+const COMPARISON_PERIOD_LABELS = {
+  yesterday: "vs. mismo día de la semana pasada",
+  last7Days: "vs. los 7 días anteriores",
+  currentMonth: "vs. mismo periodo del mes pasado",
+};
+
 const fmtCurrency = (n) =>
   new Intl.NumberFormat("es-MX", {
     style: "currency",
@@ -308,6 +314,7 @@ export default function WorkerDashboard({
                         ? null
                         : getMetricComparison(mergedDashboard?.[period], "revenue")
                     }
+                    comparisonPeriodLabel={COMPARISON_PERIOD_LABELS[period]}
                     active={period === "currentMonth"}
                     gradientBorder
                   />
@@ -317,6 +324,7 @@ export default function WorkerDashboard({
                   subtitle="Sin aplicar tu porcentaje"
                   value={fmtCurrency(mergedDashboard?.currentMonth?.grossRevenue)}
                   comparison={getMetricComparison(mergedDashboard?.currentMonth, "grossRevenue")}
+                  comparisonPeriodLabel={COMPARISON_PERIOD_LABELS.currentMonth}
                   gradientBorder
                 />
               </div>
@@ -365,6 +373,7 @@ export default function WorkerDashboard({
                     ? null
                     : getMetricComparison(mergedDashboard?.[selectedRange], "impressions")
                 }
+                comparisonPeriodLabel={COMPARISON_PERIOD_LABELS[selectedRange]}
                 gradientBorder
               />
             )}

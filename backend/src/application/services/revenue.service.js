@@ -164,7 +164,7 @@ async function getWorkerDashboardPeriods(worker, timeZone, filters = {}) {
   const today = todayISO(tz, referenceDate);
   const yesterday = daysAgoISO(1, tz, referenceDate);
   const last7Start = daysAgoISO(7, tz, referenceDate);
-  const previousDay = daysAgoISO(2, tz, referenceDate);
+  const previousSameWeekday = daysAgoISO(8, tz, referenceDate);
   const previousWeekStart = daysAgoISO(14, tz, referenceDate);
   const previousMonthStart = previousMonthDate(monthStart);
   const closedMonthEnd = yesterday >= monthStart ? yesterday : null;
@@ -191,7 +191,11 @@ async function getWorkerDashboardPeriods(worker, timeZone, filters = {}) {
   const rawLast7 = aggregateReports(workerReports, last7Start, yesterday);
   const rawMonth = aggregateReports(workerReports, monthStart, today);
   const rawClosedMonth = aggregateReports(workerReports, monthStart, yesterday);
-  const rawPreviousDay = aggregateReports(workerReports, previousDay, previousDay);
+  const rawPreviousSameWeekday = aggregateReports(
+    workerReports,
+    previousSameWeekday,
+    previousSameWeekday,
+  );
   const rawPreviousWeek = aggregateReports(
     workerReports,
     previousWeekStart,
@@ -219,7 +223,7 @@ async function getWorkerDashboardPeriods(worker, timeZone, filters = {}) {
 
   return {
     today: build(rawToday),
-    yesterday: build(rawYesterday, rawPreviousDay),
+    yesterday: build(rawYesterday, rawPreviousSameWeekday),
     last7Days: build(rawLast7, rawPreviousWeek),
     currentMonth: closedMonthEnd
       ? build(rawMonth, rawPreviousMonth, rawClosedMonth)

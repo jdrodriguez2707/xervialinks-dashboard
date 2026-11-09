@@ -102,6 +102,7 @@ describe("getWorkerDashboardPeriods comparisons", () => {
     ) {
       const dateISO = date.toISOString().slice(0, 10);
       let revenue = dateISO.startsWith("2026-02-") ? 10 : 20;
+      if (dateISO === "2026-03-02") revenue = 40;
       if (dateISO === "2026-03-08") revenue = 40;
       reports.push({
         date: dateISO,
@@ -155,14 +156,14 @@ describe("getWorkerDashboardPeriods comparisons", () => {
         impressions: -50,
       });
       expect(result.last7Days.comparison).toEqual({
-        revenue: 77.8,
-        grossRevenue: 77.8,
-        impressions: 77.8,
+        revenue: 45.5,
+        grossRevenue: 45.5,
+        impressions: 45.5,
       });
       expect(result.currentMonth.comparison).toEqual({
-        revenue: 122.2,
-        grossRevenue: 122.2,
-        impressions: 122.2,
+        revenue: 144.4,
+        grossRevenue: 144.4,
+        impressions: 144.4,
       });
     } finally {
       findAllSpy.mockRestore();

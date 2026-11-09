@@ -15,6 +15,7 @@ export function MetricCard({
   onClick,
   cornerBadge = null,
   comparison = null,
+  comparisonPeriodLabel = "vs. periodo anterior",
 }) {
   const ComparisonIcon =
     comparison?.direction === "up"
@@ -90,7 +91,9 @@ export function MetricCard({
                 <ComparisonIcon className="h-4 w-4 shrink-0" aria-hidden="true" />
                 <span>{comparisonLabel}</span>
                 {comparison.direction !== "neutral" && (
-                  <span className="font-normal text-muted-foreground">vs. periodo anterior</span>
+                  <span className="font-normal text-muted-foreground">
+                    {comparisonPeriodLabel}
+                  </span>
                 )}
               </div>
             )}
