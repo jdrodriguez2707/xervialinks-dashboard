@@ -62,6 +62,10 @@ function getMetricComparison(periodData, metric) {
   const percentage = periodData?.comparison?.[metric];
   if (percentage == null) return { direction: "neutral" };
 
+  if (percentage > 100) {
+    return { direction: "up", capped: true };
+  }
+
   return {
     direction: percentage > 0 ? "up" : "down",
     value: `${Math.abs(percentage).toFixed(1)}%`,

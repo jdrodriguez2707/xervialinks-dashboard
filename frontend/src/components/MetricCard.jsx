@@ -28,6 +28,20 @@ export function MetricCard({
       : comparison?.direction === "down"
         ? "text-rose-600 dark:text-rose-400"
         : "text-muted-foreground";
+  const comparisonLabel = comparison?.capped
+    ? ">100%"
+    : comparison?.direction === "up"
+      ? `+${comparison.value}`
+      : comparison?.direction === "down"
+        ? `−${comparison.value}`
+        : "—";
+  const comparisonAriaLabel = comparison?.capped
+    ? "Aumentó más de 100% frente al periodo anterior"
+    : comparison?.direction === "up"
+      ? `Aumentó ${comparison.value} frente al periodo anterior`
+      : comparison?.direction === "down"
+        ? `Disminuyó ${comparison.value} frente al periodo anterior`
+        : "Sin cambio o base de comparación disponible";
 
   return (
     <Card
@@ -71,22 +85,10 @@ export function MetricCard({
             {comparison && (
               <div
                 className={cn("mt-2 flex items-center gap-1 text-xs font-medium", comparisonColor)}
-                aria-label={
-                  comparison.direction === "up"
-                    ? `Aumentó ${comparison.value} frente al periodo anterior`
-                    : comparison.direction === "down"
-                      ? `Disminuyó ${comparison.value} frente al periodo anterior`
-                      : "Sin cambio o base de comparación disponible"
-                }
+                aria-label={comparisonAriaLabel}
               >
                 <ComparisonIcon className="h-4 w-4 shrink-0" aria-hidden="true" />
-                <span>
-                  {comparison.direction === "up"
-                    ? `+${comparison.value}`
-                    : comparison.direction === "down"
-                      ? `−${comparison.value}`
-                      : "—"}
-                </span>
+                <span>{comparisonLabel}</span>
                 {comparison.direction !== "neutral" && (
                   <span className="font-normal text-muted-foreground">vs. periodo anterior</span>
                 )}
