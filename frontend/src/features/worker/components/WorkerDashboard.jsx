@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { BarChart3, Globe, CreditCard, CircleDollarSign } from "lucide-react";
+import { ArrowRight, BarChart3, Globe, CreditCard, CircleDollarSign } from "lucide-react";
 import { upsertWorkerPaymentInfo } from "../../../shared/api/worker";
 import { toUserErrorMessage } from "../../../shared/lib/uiError";
 import {
@@ -128,7 +128,7 @@ export default function WorkerDashboard({
   const [activeTab, setActiveTab] = useState("stats");
   const [selectedRange, setSelectedRange] = useState("today");
   const [paymentInfo, setPaymentInfo] = useState(() => workerContext?.paymentInfo ?? null);
-  const [showDailyStats, setShowDailyStats] = useState(true);
+  const [showDailyStats, setShowDailyStats] = useState(false);
 
   const mergedDashboard = useMemo(() => {
     if (!workerContext && !workerMetrics) return null;
@@ -264,6 +264,48 @@ export default function WorkerDashboard({
 
   return (
     <div className="space-y-6 pb-16">
+      <Dialog open={showDailyStats} onOpenChange={setShowDailyStats}>
+        <DialogContent
+          id="worker-daily-stats-table"
+          onOpenAutoFocus={(event) => event.preventDefault()}
+          className="left-0 top-0 flex h-dvh max-h-none w-screen max-w-none translate-x-0 translate-y-0 flex-col gap-0 overflow-hidden rounded-none border-0 px-[10px] py-0 duration-150 data-[state=open]:slide-in-from-left-0 data-[state=open]:slide-in-from-top-0 data-[state=open]:zoom-in-100 data-[state=closed]:slide-out-to-left-0 data-[state=closed]:slide-out-to-top-0 data-[state=closed]:zoom-out-100"
+        >
+          <DialogHeader className="shrink-0 border-b border-border px-0 py-3 pr-10 sm:py-4">
+            <DialogTitle>Este mes</DialogTitle>
+            <DialogDescription>
+              Estadísticas diarias desde el 1 hasta ayer, con ganancias brutas de GAM.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
+            {metricsLoading ? (
+              <div className="p-4 sm:p-6">
+                <Skeleton className="h-52 rounded-lg" />
+              </div>
+            ) : (
+              <>
+                <DataTable
+                  className="min-w-[360px] rounded-none border-x-0 border-b-0 text-xs sm:min-w-full sm:text-sm [&_thead]:sticky [&_thead]:top-0 [&_thead]:z-10 [&_thead]:bg-card [&_th]:whitespace-nowrap [&_td]:whitespace-nowrap [&_th]:px-1 [&_td]:px-1 [&_th]:py-2 [&_td]:py-2.5 [&_th:nth-child(1)]:w-[80px] [&_td:nth-child(1)]:w-[80px] [&_th:nth-child(2)]:w-[92px] [&_td:nth-child(2)]:w-[92px] [&_th:nth-child(3)]:w-[104px] [&_td:nth-child(3)]:w-[104px] [&_th:nth-child(4)]:w-[84px] [&_td:nth-child(4)]:w-[84px] sm:[&_th]:px-4 sm:[&_td]:p-4 sm:[&_th:nth-child(n)]:w-auto sm:[&_td:nth-child(n)]:w-auto"
+                  columns={["Fecha", "Ganancia", "Impresiones", "eCPM"]}
+                  rows={mergedDashboard?.dailyStats || []}
+                  renderRow={(row) => (
+                    <TableRow key={row.date}>
+                      <TableCell className="font-medium">{formatDailyDate(row.date)}</TableCell>
+                      <TableCell className="tabular-nums">
+                        {fmtCurrency(row.grossRevenue)}
+                      </TableCell>
+                      <TableCell className="tabular-nums">
+                        {fmtImpressions(row.impressions)}
+                      </TableCell>
+                      <TableCell className="tabular-nums">{fmtEcpm(row.ecpm)}</TableCell>
+                    </TableRow>
+                  )}
+                />
+              </>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
+
       {!hasDomains ? (
         <EmptyState
           title="Panel no disponible aun"
@@ -272,7 +314,7 @@ export default function WorkerDashboard({
       ) : activeTab === "stats" ? (
         <div className="space-y-4">
           {hasDomains && (
-            <div className="flex justify-center">
+            <div className="flex justify-start">
               <Select
                 value={selectedDomainValue}
                 onValueChange={handleDomainSwitch}
@@ -296,44 +338,18 @@ export default function WorkerDashboard({
               {metricsError}
             </p>
           )}
-          <div className="flex justify-end">
+          <div className="flex justify-start">
             <Button
               type="button"
               variant="outline"
               size="sm"
-              onClick={() => setShowDailyStats((current) => !current)}
+              onClick={() => setShowDailyStats(true)}
               aria-expanded={showDailyStats}
               aria-controls="worker-daily-stats-table"
             >
-              {showDailyStats ? "Ocultar más estadísticas" : "Ver más estadísticas"}
+              Mostrar más estadísticas
             </Button>
           </div>
-          {showDailyStats && (
-            <section id="worker-daily-stats-table" className="space-y-3">
-              <h2 className="text-base font-semibold">Últimos 5 días</h2>
-              {metricsLoading ? (
-                <Skeleton className="h-52 rounded-lg" />
-              ) : (
-                <DataTable
-                  className="text-xs sm:text-sm [&_th]:px-2.5 [&_td]:px-2.5 [&_th]:py-2 [&_td]:py-2.5 sm:[&_th]:px-4 sm:[&_td]:p-4"
-                  columns={["Fecha", "Ganancia (bruta)", "Impresiones", "eCPM"]}
-                  rows={mergedDashboard?.dailyStats || []}
-                  renderRow={(row) => (
-                    <TableRow key={row.date}>
-                      <TableCell className="font-medium">{formatDailyDate(row.date)}</TableCell>
-                      <TableCell className="tabular-nums">
-                        {fmtCurrency(row.grossRevenue)}
-                      </TableCell>
-                      <TableCell className="tabular-nums">
-                        {fmtImpressions(row.impressions)}
-                      </TableCell>
-                      <TableCell className="tabular-nums">{fmtEcpm(row.ecpm)}</TableCell>
-                    </TableRow>
-                  )}
-                />
-              )}
-            </section>
-          )}
           <section className="space-y-3">
             <div className="flex items-center justify-between gap-3">
               <div>

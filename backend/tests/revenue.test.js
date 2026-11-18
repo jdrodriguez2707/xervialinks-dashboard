@@ -94,8 +94,9 @@ describe("calculateChangePercent", () => {
 });
 
 describe("getWorkerDailyStats", () => {
-  it("returns five complete days in chronological order and excludes today", () => {
+  it("returns every complete day from month start through yesterday", () => {
     const reports = [
+      { date: "2026-11-01", revenue: 5, impressions: 500 },
       { date: "2026-11-13", revenue: 10, impressions: 1000 },
       { date: "2026-11-14", revenue: 20, impressions: 2000 },
       { date: "2026-11-15", revenue: 30, impressions: 3000 },
@@ -110,20 +111,12 @@ describe("getWorkerDailyStats", () => {
       "2026-11-18",
     );
 
-    expect(result).toHaveLength(5);
-    expect(result.map((row) => row.date)).toEqual([
-      "2026-11-13",
-      "2026-11-14",
-      "2026-11-15",
-      "2026-11-16",
-      "2026-11-17",
-    ]);
-    expect(result[4]).toEqual({
-      date: "2026-11-17",
-      grossRevenue: 50,
-      impressions: 5000,
-      ecpm: 10,
-    });
+    expect(result).toHaveLength(17);
+    expect(result[0].date).toBe("2026-11-01");
+    expect(result[16].date).toBe("2026-11-17");
+    expect(result[16].grossRevenue).toBe(50);
+    expect(result[16].impressions).toBe(5000);
+    expect(result[16].ecpm).toBe(10);
   });
 });
 
@@ -517,20 +510,15 @@ describe("GET /api/worker/dashboard", () => {
     expect(data.currentMonth.impressions).toBeGreaterThanOrEqual(data.today.impressions);
   });
 
-  it("returns five gross daily rows without including today", async () => {
+  it("returns all gross month-to-date rows without including today", async () => {
     const res = await request(app)
       .get("/api/worker/dashboard?currentDate=2026-11-18")
       .set("Authorization", `Bearer ${workerToken}`);
 
     expect(res.status).toBe(200);
-    expect(res.body.data.dailyStats).toHaveLength(5);
-    expect(res.body.data.dailyStats.map((row) => row.date)).toEqual([
-      "2026-11-13",
-      "2026-11-14",
-      "2026-11-15",
-      "2026-11-16",
-      "2026-11-17",
-    ]);
+    expect(res.body.data.dailyStats).toHaveLength(17);
+    expect(res.body.data.dailyStats[0].date).toBe("2026-11-01");
+    expect(res.body.data.dailyStats[16].date).toBe("2026-11-17");
     for (const row of res.body.data.dailyStats) {
       expect(typeof row.grossRevenue).toBe("number");
       expect(typeof row.impressions).toBe("number");

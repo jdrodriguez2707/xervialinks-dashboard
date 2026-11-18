@@ -241,9 +241,13 @@ async function getWorkerDashboardPeriods(worker, timeZone, filters = {}) {
 function getWorkerDailyStats(reports, timeZone, referenceDate) {
   const tz = timeZone || getDefaultTimeZone();
   const rows = [];
+  const monthStart = currentMonthStartISO(tz, referenceDate);
+  const yesterday = daysAgoISO(1, tz, referenceDate);
+  const start = new Date(`${monthStart}T00:00:00Z`);
+  const end = new Date(`${yesterday}T00:00:00Z`);
 
-  for (let daysAgo = 5; daysAgo >= 1; daysAgo -= 1) {
-    const date = daysAgoISO(daysAgo, tz, referenceDate);
+  for (const dateCursor = start; dateCursor <= end; dateCursor.setUTCDate(dateCursor.getUTCDate() + 1)) {
+    const date = dateCursor.toISOString().slice(0, 10);
     const raw = aggregateReports(reports, date, date);
     rows.push({
       date,
