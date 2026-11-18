@@ -31,6 +31,8 @@ import { MetricCard } from "@/components/MetricCard";
 import SectionHeader from "@/components/SectionHeader";
 import EmptyState from "@/components/EmptyState";
 import StatusBadge from "@/components/StatusBadge";
+import DataTable from "@/components/DataTable";
+import { TableCell, TableRow } from "@/components/ui/table";
 
 const PERIODS = ["today", "yesterday", "last7Days", "currentMonth"];
 
@@ -63,6 +65,16 @@ const fmtEcpm = (n) =>
   }).format(n ?? 0);
 
 const fmtImpressions = (n) => new Intl.NumberFormat("es-MX").format(n ?? 0);
+
+const formatDailyDate = (date) => {
+  if (!date) return "";
+  return new Intl.DateTimeFormat("es-MX", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+    timeZone: "UTC",
+  }).format(new Date(`${date}T12:00:00Z`));
+};
 
 function getMetricComparison(periodData, metric) {
   const percentage = periodData?.comparison?.[metric];
@@ -116,6 +128,7 @@ export default function WorkerDashboard({
   const [activeTab, setActiveTab] = useState("stats");
   const [selectedRange, setSelectedRange] = useState("today");
   const [paymentInfo, setPaymentInfo] = useState(() => workerContext?.paymentInfo ?? null);
+  const [showDailyStats, setShowDailyStats] = useState(true);
 
   const mergedDashboard = useMemo(() => {
     if (!workerContext && !workerMetrics) return null;
@@ -147,13 +160,7 @@ export default function WorkerDashboard({
   }, [workerContext?.paymentInfo]);
 
   useEffect(() => {
-    if (typeof window === "undefined") return;
-    if (!workerId) {
-      setActiveTab("stats");
-      return;
-    }
-    const saved = window.sessionStorage.getItem(getWorkerTabStorageKey(workerId));
-    setActiveTab(saved || "stats");
+    setActiveTab("stats");
   }, [workerId]);
 
   function handleTabChange(nextTab) {
@@ -288,6 +295,44 @@ export default function WorkerDashboard({
             <p className="status-msg error" role="alert">
               {metricsError}
             </p>
+          )}
+          <div className="flex justify-end">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => setShowDailyStats((current) => !current)}
+              aria-expanded={showDailyStats}
+              aria-controls="worker-daily-stats-table"
+            >
+              {showDailyStats ? "Ocultar más estadísticas" : "Ver más estadísticas"}
+            </Button>
+          </div>
+          {showDailyStats && (
+            <section id="worker-daily-stats-table" className="space-y-3">
+              <h2 className="text-base font-semibold">Últimos 5 días</h2>
+              {metricsLoading ? (
+                <Skeleton className="h-52 rounded-lg" />
+              ) : (
+                <DataTable
+                  className="text-xs sm:text-sm [&_th]:px-2.5 [&_td]:px-2.5 [&_th]:py-2 [&_td]:py-2.5 sm:[&_th]:px-4 sm:[&_td]:p-4"
+                  columns={["Fecha", "Ganancia (bruta)", "Impresiones", "eCPM"]}
+                  rows={mergedDashboard?.dailyStats || []}
+                  renderRow={(row) => (
+                    <TableRow key={row.date}>
+                      <TableCell className="font-medium">{formatDailyDate(row.date)}</TableCell>
+                      <TableCell className="tabular-nums">
+                        {fmtCurrency(row.grossRevenue)}
+                      </TableCell>
+                      <TableCell className="tabular-nums">
+                        {fmtImpressions(row.impressions)}
+                      </TableCell>
+                      <TableCell className="tabular-nums">{fmtEcpm(row.ecpm)}</TableCell>
+                    </TableRow>
+                  )}
+                />
+              )}
+            </section>
           )}
           <section className="space-y-3">
             <div className="flex items-center justify-between gap-3">

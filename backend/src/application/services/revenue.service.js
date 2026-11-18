@@ -135,6 +135,7 @@ async function getWorkerDashboardPeriods(worker, timeZone, filters = {}) {
         yesterday: empty,
         last7Days: empty,
         currentMonth: empty,
+        dailyStats: [],
       };
     }
     slots = matching;
@@ -154,6 +155,7 @@ async function getWorkerDashboardPeriods(worker, timeZone, filters = {}) {
       yesterday: empty,
       last7Days: empty,
       currentMonth: empty,
+      dailyStats: [],
     };
   }
 
@@ -202,6 +204,7 @@ async function getWorkerDashboardPeriods(worker, timeZone, filters = {}) {
     daysAgoISO(8, tz, referenceDate),
   );
   const rawPreviousMonth = aggregateReports(workerReports, previousMonthStart, previousMonthEnd);
+  const dailyStats = getWorkerDailyStats(workerReports, tz, referenceDate);
 
   const pct = worker.percentage;
   const build = (raw, previous = null, comparisonRaw = raw) => ({
@@ -231,7 +234,26 @@ async function getWorkerDashboardPeriods(worker, timeZone, filters = {}) {
           ...build(rawMonth),
           comparison: { revenue: null, grossRevenue: null, impressions: null },
         },
+    dailyStats,
   };
+}
+
+function getWorkerDailyStats(reports, timeZone, referenceDate) {
+  const tz = timeZone || getDefaultTimeZone();
+  const rows = [];
+
+  for (let daysAgo = 5; daysAgo >= 1; daysAgo -= 1) {
+    const date = daysAgoISO(daysAgo, tz, referenceDate);
+    const raw = aggregateReports(reports, date, date);
+    rows.push({
+      date,
+      grossRevenue: raw.revenue,
+      impressions: raw.impressions,
+      ecpm: raw.ecpm,
+    });
+  }
+
+  return rows;
 }
 
 function aggregateReports(reports, startDate, endDate) {
@@ -250,6 +272,7 @@ module.exports = {
   applyPercentage,
   calculateChangePercent,
   getWorkerDashboardPeriods,
+  getWorkerDailyStats,
   todayISO,
   daysAgoISO,
   currentMonthStartISO,

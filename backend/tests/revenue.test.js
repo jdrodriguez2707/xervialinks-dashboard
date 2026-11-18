@@ -13,6 +13,7 @@ const {
   getCurrentMonthRevenue,
   calculateChangePercent,
   getWorkerDashboardPeriods,
+  getWorkerDailyStats,
 } = require("../src/application/services/revenue.service");
 const reportsRepo = require("../src/domain/repositories/reports.repository");
 
@@ -89,6 +90,40 @@ describe("calculateChangePercent", () => {
 
   it("returns null when the change rounds to zero", () => {
     expect(calculateChangePercent(100.04, 100)).toBeNull();
+  });
+});
+
+describe("getWorkerDailyStats", () => {
+  it("returns five complete days in chronological order and excludes today", () => {
+    const reports = [
+      { date: "2026-11-13", revenue: 10, impressions: 1000 },
+      { date: "2026-11-14", revenue: 20, impressions: 2000 },
+      { date: "2026-11-15", revenue: 30, impressions: 3000 },
+      { date: "2026-11-16", revenue: 40, impressions: 4000 },
+      { date: "2026-11-17", revenue: 50, impressions: 5000 },
+      { date: "2026-11-18", revenue: 999, impressions: 99999 },
+    ];
+
+    const result = getWorkerDailyStats(
+      reports,
+      "America/Bogota",
+      "2026-11-18",
+    );
+
+    expect(result).toHaveLength(5);
+    expect(result.map((row) => row.date)).toEqual([
+      "2026-11-13",
+      "2026-11-14",
+      "2026-11-15",
+      "2026-11-16",
+      "2026-11-17",
+    ]);
+    expect(result[4]).toEqual({
+      date: "2026-11-17",
+      grossRevenue: 50,
+      impressions: 5000,
+      ecpm: 10,
+    });
   });
 });
 
@@ -480,6 +515,27 @@ describe("GET /api/worker/dashboard", () => {
     const { data } = res.body;
     expect(data.currentMonth.revenue).toBeGreaterThanOrEqual(data.today.revenue);
     expect(data.currentMonth.impressions).toBeGreaterThanOrEqual(data.today.impressions);
+  });
+
+  it("returns five gross daily rows without including today", async () => {
+    const res = await request(app)
+      .get("/api/worker/dashboard?currentDate=2026-11-18")
+      .set("Authorization", `Bearer ${workerToken}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body.data.dailyStats).toHaveLength(5);
+    expect(res.body.data.dailyStats.map((row) => row.date)).toEqual([
+      "2026-11-13",
+      "2026-11-14",
+      "2026-11-15",
+      "2026-11-16",
+      "2026-11-17",
+    ]);
+    for (const row of res.body.data.dailyStats) {
+      expect(typeof row.grossRevenue).toBe("number");
+      expect(typeof row.impressions).toBe("number");
+      expect(typeof row.ecpm).toBe("number");
+    }
   });
 });
 
