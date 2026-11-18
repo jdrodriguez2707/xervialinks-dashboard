@@ -278,7 +278,7 @@ export default function PayoutsTable({
             "Trabajador",
             "Subdominios asignados",
             "Impresiones",
-            "Ingresos netos",
+            "Ingresos brutos",
             "%",
             "Ganancia",
           ]}
@@ -332,9 +332,9 @@ export default function PayoutsTable({
   return (
     <div className="admin-table-shell space-y-2">
       <p className="text-xs text-muted-foreground max-w-3xl">
-        Los ingresos netos provienen de Ad Manager salvo ajustes. Puedes fijar un <strong>neto total</strong>{" "}
+        Los ingresos brutos provienen de Ad Manager salvo ajustes. Puedes fijar un <strong>bruto total</strong>{" "}
         por trabajador y red (Recalcular) o, si tiene <strong>varios subdominios</strong>, un{" "}
-        <strong>neto por subdominio</strong> en el modal.
+        <strong>bruto por subdominio</strong> en el modal.
       </p>
       {rowError && <p className="text-sm font-medium text-destructive">{rowError}</p>}
       <DataTable
@@ -343,7 +343,7 @@ export default function PayoutsTable({
           "Trabajador",
           "Subdominios asignados",
           "Impresiones",
-          "Ingresos netos",
+          "Ingresos brutos",
           "%",
           "Ganancia",
         ]}
@@ -418,7 +418,7 @@ export default function PayoutsTable({
                           [w.workerId]: e.target.value,
                         }))
                       }
-                      aria-label={`Ingresos netos ${w.name}`}
+                      aria-label={`Ingresos brutos ${w.name}`}
                     />
                   </div>
                   <Button
@@ -478,7 +478,7 @@ export default function PayoutsTable({
           <div className="shrink-0 space-y-2 border-b border-border/60 px-6 pb-4 pt-6 sm:px-8 sm:pt-8">
             <DialogHeader className="space-y-2 text-left">
               <DialogTitle className="text-xl sm:text-2xl">
-                Ingresos netos por subdominio
+                Ingresos brutos por subdominio
                 {modalWorker ? ` · ${modalWorker.name}` : ""}
               </DialogTitle>
               <DialogDescription className="text-sm leading-relaxed">
@@ -509,10 +509,10 @@ export default function PayoutsTable({
                           Impresiones
                         </th>
                         <th className="px-4 py-3.5 text-center text-xs font-semibold uppercase tracking-wide text-muted-foreground sm:px-5 sm:py-4">
-                          Neto GAM
+                          Bruto GAM
                         </th>
                         <th className="px-4 py-3.5 text-center text-xs font-semibold uppercase tracking-wide text-muted-foreground sm:px-5 sm:py-4">
-                          Neto
+                          Bruto
                         </th>
                         <th className="px-4 py-3.5 text-right text-xs font-semibold uppercase tracking-wide text-muted-foreground sm:px-5 sm:py-4">
                           Ganancia
