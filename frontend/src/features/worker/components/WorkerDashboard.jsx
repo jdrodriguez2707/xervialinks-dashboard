@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { ArrowRight, BarChart3, Globe, CreditCard, CircleDollarSign } from "lucide-react";
+import { ArrowDown, ArrowUp, BarChart3, Globe, CreditCard, CircleDollarSign } from "lucide-react";
 import { upsertWorkerPaymentInfo } from "../../../shared/api/worker";
 import { toUserErrorMessage } from "../../../shared/lib/uiError";
 import {
@@ -130,6 +130,7 @@ export default function WorkerDashboard({
   const [selectedRange, setSelectedRange] = useState("today");
   const [paymentInfo, setPaymentInfo] = useState(() => workerContext?.paymentInfo ?? null);
   const [showDailyStats, setShowDailyStats] = useState(false);
+  const [dailyStatsSortOrder, setDailyStatsSortOrder] = useState("desc");
 
   const mergedDashboard = useMemo(() => {
     if (!workerContext && !workerMetrics) return null;
@@ -139,6 +140,14 @@ export default function WorkerDashboard({
       paymentInfo: workerContext?.paymentInfo ?? null,
     };
   }, [workerContext, workerMetrics]);
+
+  const sortedDailyStats = useMemo(() => {
+    const rows = [...(mergedDashboard?.dailyStats || [])];
+    return rows.sort((a, b) => {
+      const dateOrder = String(a.date).localeCompare(String(b.date));
+      return dailyStatsSortOrder === "asc" ? dateOrder : -dateOrder;
+    });
+  }, [mergedDashboard?.dailyStats, dailyStatsSortOrder]);
 
   // const tabs = useMemo(
   //   () => [
@@ -275,10 +284,10 @@ export default function WorkerDashboard({
           onOpenAutoFocus={(event) => event.preventDefault()}
           className="left-0 top-0 flex h-dvh max-h-none w-screen max-w-none translate-x-0 translate-y-0 flex-col gap-0 overflow-hidden rounded-none border-0 px-[10px] py-0 duration-150 data-[state=open]:slide-in-from-left-0 data-[state=open]:slide-in-from-top-0 data-[state=open]:zoom-in-100 data-[state=closed]:slide-out-to-left-0 data-[state=closed]:slide-out-to-top-0 data-[state=closed]:zoom-out-100"
         >
-          <DialogHeader className="shrink-0 border-b border-border px-0 py-3 pr-10 sm:py-4">
+          <DialogHeader className="shrink-0 border-b border-border px-0 py-6 sm:py-4">
             <DialogTitle>Este mes</DialogTitle>
             <DialogDescription>
-              Estadísticas diarias desde el 1 hasta ayer, con ganancias brutas de GAM.
+              Estadísticas diarias desde el 1 de este mes hasta ayer.
             </DialogDescription>
           </DialogHeader>
           <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
@@ -288,14 +297,36 @@ export default function WorkerDashboard({
               </div>
             ) : (
               <>
-                <p className="flex items-center gap-1.5 px-4 py-3 text-xs text-muted-foreground sm:hidden">
-                  Desliza hacia la derecha para ver todas las columnas
-                  <ArrowRight className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
-                </p>
+                <div className="flex justify-center gap-1 px-2 py-2" aria-label="Ordenar fechas">
+                  <Button
+                    type="button"
+                    variant={dailyStatsSortOrder === "asc" ? "secondary" : "ghost"}
+                    size="icon"
+                    className="h-8 w-8"
+                    aria-label="Orden ascendente: del día más antiguo al más reciente"
+                    aria-pressed={dailyStatsSortOrder === "asc"}
+                    title="Del día más antiguo al más reciente"
+                    onClick={() => setDailyStatsSortOrder("asc")}
+                  >
+                    <ArrowUp aria-hidden="true" />
+                  </Button>
+                  <Button
+                    type="button"
+                    variant={dailyStatsSortOrder === "desc" ? "secondary" : "ghost"}
+                    size="icon"
+                    className="h-8 w-8"
+                    aria-label="Orden descendente: del día más reciente al más antiguo"
+                    aria-pressed={dailyStatsSortOrder === "desc"}
+                    title="Del día más reciente al más antiguo"
+                    onClick={() => setDailyStatsSortOrder("desc")}
+                  >
+                    <ArrowDown aria-hidden="true" />
+                  </Button>
+                </div>
                 <DataTable
                   className="min-w-[360px] rounded-none border-x-0 border-b-0 text-xs sm:min-w-full sm:text-sm [&_thead]:sticky [&_thead]:top-0 [&_thead]:z-10 [&_thead]:bg-card [&_th]:whitespace-nowrap [&_td]:whitespace-nowrap [&_th]:px-1 [&_td]:px-1 [&_th]:py-2 [&_td]:py-2.5 [&_th:nth-child(1)]:w-[80px] [&_td:nth-child(1)]:w-[80px] [&_th:nth-child(2)]:w-[92px] [&_td:nth-child(2)]:w-[92px] [&_th:nth-child(3)]:w-[104px] [&_td:nth-child(3)]:w-[104px] [&_th:nth-child(4)]:w-[84px] [&_td:nth-child(4)]:w-[84px] sm:[&_th]:px-4 sm:[&_td]:p-4 sm:[&_th:nth-child(n)]:w-auto sm:[&_td:nth-child(n)]:w-auto"
                   columns={["Fecha", "Ganancia", "Impresiones", "eCPM"]}
-                  rows={mergedDashboard?.dailyStats || []}
+                  rows={sortedDailyStats}
                   renderRow={(row) => (
                     <TableRow key={row.date}>
                       <TableCell className="font-medium">{formatDailyDate(row.date)}</TableCell>
