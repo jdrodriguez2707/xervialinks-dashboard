@@ -10,6 +10,10 @@ import { fetchSummary } from "../shared/api/summary";
 import { fetchWorkers } from "../shared/api/workers";
 import { fetchPayouts, fetchPaymentHistory } from "../shared/api/payouts";
 import {
+  fetchWorkerDailyStatsVisibility,
+  updateWorkerDailyStatsVisibility,
+} from "../shared/api/appSettings";
+import {
   fetchWorkerContext,
   fetchWorkerDashboard,
   fetchWorkerPaymentHistory,
@@ -362,18 +366,28 @@ export default function App() {
         const range = getAdminDateRange("today");
         const earningsRange = paymentMonthToDateRangeISO(adminEarningsMonth);
         const netOpts = { networkCode: activeCode || undefined };
-        const [summary, workers, payouts, paymentHistory, sites, sync] = await Promise.all([
-          fetchSummary({ ...range, ...netOpts }),
-          fetchWorkers({ includeDeleted: true, paymentMonth: adminPaymentMonth, ...netOpts }),
-          fetchPayouts({ ...earningsRange, ...netOpts }),
-          fetchPaymentHistory(netOpts),
-          fetchSites(netOpts),
-          fetchSyncStatus(netOpts).catch(() => null),
-        ]);
+        const [summary, workers, payouts, paymentHistory, sites, sync, dailyStatsVisibility] =
+          await Promise.all([
+            fetchSummary({ ...range, ...netOpts }),
+            fetchWorkers({ includeDeleted: true, paymentMonth: adminPaymentMonth, ...netOpts }),
+            fetchPayouts({ ...earningsRange, ...netOpts }),
+            fetchPaymentHistory(netOpts),
+            fetchSites(netOpts),
+            fetchSyncStatus(netOpts).catch(() => null),
+            fetchWorkerDailyStatsVisibility(),
+          ]);
         if (seq !== loadInitialSeqRef.current) return;
         setCachedDashboardSummary("today", summary);
         setCachedEarningsPayouts(adminEarningsMonth, payouts);
-        setData({ summary, workers, payouts, paymentHistory, sites, gamNetworks: gamNetList });
+        setData({
+          summary,
+          workers,
+          payouts,
+          paymentHistory,
+          sites,
+          gamNetworks: gamNetList,
+          workerDailyStatsEnabled: dailyStatsVisibility.enabled,
+        });
         setSyncStatus(sync);
         setAdminReady(true);
 
@@ -1003,6 +1017,14 @@ export default function App() {
                   });
                 }}
                 onForceLogout={handleLogout}
+                onWorkerDailyStatsVisibilityChange={async (enabled) => {
+                  const setting = await updateWorkerDailyStatsVisibility(enabled);
+                  setData((prev) => ({
+                    ...prev,
+                    workerDailyStatsEnabled: setting.enabled,
+                  }));
+                }}
+                workerDailyStatsEnabled={data.workerDailyStatsEnabled}
               />
             )}
           </main>
@@ -1041,6 +1063,7 @@ export default function App() {
       <main className="app-main">
         <WorkerDashboard
           workerContext={data?.workerContext ?? null}
+          dailyStatsEnabled={data?.workerContext?.dailyStatsEnabled}
           workerMetrics={data?.workerMetrics ?? null}
           workerPaymentHistory={data?.workerPaymentHistory ?? null}
           paymentMonthOptionsTick={currentDateLabel}
@@ -1108,8 +1131,12 @@ function AdminDashboard({
   onNavigateToWorkerEdit,
   onAdminUserUpdated,
   onForceLogout,
+  workerDailyStatsEnabled,
+  onWorkerDailyStatsVisibilityChange,
 }) {
   const { summary, workers, payouts, paymentHistory = [], sites, gamNetworks = [] } = data;
+  const [updatingDailyStatsVisibility, setUpdatingDailyStatsVisibility] = useState(false);
+  const [dailyStatsVisibilityError, setDailyStatsVisibilityError] = useState("");
 
   const earningsMonthOptions = useMemo(() => {
     void paymentMonthOptionsTick;
@@ -1117,6 +1144,20 @@ function AdminDashboard({
   }, [paymentMonthOptionsTick]);
 
   const activeWorkers = (workers || []).filter((w) => !w.deleted_at);
+
+  async function toggleWorkerDailyStatsVisibility() {
+    setDailyStatsVisibilityError("");
+    setUpdatingDailyStatsVisibility(true);
+    try {
+      await onWorkerDailyStatsVisibilityChange(!workerDailyStatsEnabled);
+    } catch (err) {
+      setDailyStatsVisibilityError(
+        toUserErrorMessage(err, "No se pudo actualizar la visibilidad de las estadísticas."),
+      );
+    } finally {
+      setUpdatingDailyStatsVisibility(false);
+    }
+  }
 
   if (activeModule === "workers") {
     return (
@@ -1151,7 +1192,40 @@ function AdminDashboard({
             ))}
           </select>
         </div>
-        <SectionHeader title="Ganancias por trabajador" />
+        <SectionHeader
+          title="Ganancias por trabajador"
+          action={
+            <div className="flex items-center justify-between gap-3">
+              <span className="text-sm font-medium text-foreground">
+                Tabla de métricas para trabajadores
+              </span>
+              <button
+                type="button"
+                role="switch"
+                aria-checked={workerDailyStatsEnabled}
+                aria-label="Tabla de métricas para trabajadores"
+                disabled={updatingDailyStatsVisibility}
+                onClick={toggleWorkerDailyStatsVisibility}
+                className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors duration-200 ease-in-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60 ${
+                  workerDailyStatsEnabled
+                    ? "border-transparent bg-gradient-to-r from-primary to-secondary"
+                    : "border-border bg-muted"
+                }`}
+              >
+                <span
+                  className={`inline-block h-5 w-5 rounded-full border border-border bg-background shadow-sm transition-transform duration-200 ease-in-out ${
+                    workerDailyStatsEnabled ? "translate-x-5" : "translate-x-0.5"
+                  }`}
+                />
+              </button>
+            </div>
+          }
+        />
+        {dailyStatsVisibilityError && (
+          <p className="status-msg error" role="alert">
+            {dailyStatsVisibilityError}
+          </p>
+        )}
         <PayoutsTable
           payouts={payouts.payouts}
           totalPayout={payouts.totalPayout}

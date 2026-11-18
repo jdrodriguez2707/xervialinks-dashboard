@@ -108,6 +108,7 @@ function SkeletonCards({ count = 4 }) {
 
 export default function WorkerDashboard({
   workerContext,
+  dailyStatsEnabled,
   workerMetrics,
   workerPaymentHistory,
   selectedDomain,
@@ -158,6 +159,10 @@ export default function WorkerDashboard({
   useEffect(() => {
     setPaymentInfo((prev) => workerContext?.paymentInfo ?? prev ?? null);
   }, [workerContext?.paymentInfo]);
+
+  useEffect(() => {
+    if (!dailyStatsEnabled) setShowDailyStats(false);
+  }, [dailyStatsEnabled]);
 
   useEffect(() => {
     setActiveTab("stats");
@@ -283,6 +288,10 @@ export default function WorkerDashboard({
               </div>
             ) : (
               <>
+                <p className="flex items-center gap-1.5 px-4 py-3 text-xs text-muted-foreground sm:hidden">
+                  Desliza hacia la derecha para ver todas las columnas
+                  <ArrowRight className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+                </p>
                 <DataTable
                   className="min-w-[360px] rounded-none border-x-0 border-b-0 text-xs sm:min-w-full sm:text-sm [&_thead]:sticky [&_thead]:top-0 [&_thead]:z-10 [&_thead]:bg-card [&_th]:whitespace-nowrap [&_td]:whitespace-nowrap [&_th]:px-1 [&_td]:px-1 [&_th]:py-2 [&_td]:py-2.5 [&_th:nth-child(1)]:w-[80px] [&_td:nth-child(1)]:w-[80px] [&_th:nth-child(2)]:w-[92px] [&_td:nth-child(2)]:w-[92px] [&_th:nth-child(3)]:w-[104px] [&_td:nth-child(3)]:w-[104px] [&_th:nth-child(4)]:w-[84px] [&_td:nth-child(4)]:w-[84px] sm:[&_th]:px-4 sm:[&_td]:p-4 sm:[&_th:nth-child(n)]:w-auto sm:[&_td:nth-child(n)]:w-auto"
                   columns={["Fecha", "Ganancia", "Impresiones", "eCPM"]}
@@ -338,18 +347,20 @@ export default function WorkerDashboard({
               {metricsError}
             </p>
           )}
-          <div className="flex justify-start">
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={() => setShowDailyStats(true)}
-              aria-expanded={showDailyStats}
-              aria-controls="worker-daily-stats-table"
-            >
-              Mostrar más estadísticas
-            </Button>
-          </div>
+          {dailyStatsEnabled && (
+            <div className="flex justify-start">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => setShowDailyStats(true)}
+                aria-expanded={showDailyStats}
+                aria-controls="worker-daily-stats-table"
+              >
+                Mostrar más estadísticas
+              </Button>
+            </div>
+          )}
           <section className="space-y-3">
             <div className="flex items-center justify-between gap-3">
               <div>

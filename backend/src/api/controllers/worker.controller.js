@@ -3,6 +3,7 @@ const revenueService = require("../../application/services/revenue.service");
 const workerPaymentHistoryService = require("../../application/services/workerPaymentHistory.service");
 const { clientTimeZoneFromRequest } = require("../utils/clientTz");
 const { isValidISODate } = require("../../application/services/clientTimezone");
+const appSettingsService = require("../../application/services/appSettings.service");
 
 /** Worker UI must not expose Ad Manager network identifiers or labels. */
 function stripGamNetworkFromWorkerProperties(properties) {
@@ -37,6 +38,7 @@ async function getContext(req, res) {
       paymentInfo: worker.paymentInfo || null,
       paymentStatus: worker.paymentStatus || "pending",
       paymentStatusUpdatedAt: worker.paymentStatusUpdatedAt || null,
+      dailyStatsEnabled: appSettingsService.getWorkerDailyStatsEnabled(),
     },
   });
 }

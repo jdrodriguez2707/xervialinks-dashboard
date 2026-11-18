@@ -86,6 +86,15 @@ function applySchema(database) {
       synced_at   TEXT    DEFAULT (datetime('now')),
       UNIQUE (date, domain)
     );
+
+    CREATE TABLE IF NOT EXISTS app_settings (
+      key        TEXT PRIMARY KEY,
+      value      TEXT NOT NULL,
+      updated_at TEXT DEFAULT (datetime('now'))
+    );
+
+    INSERT OR IGNORE INTO app_settings (key, value)
+    VALUES ('worker_daily_stats_enabled', 'false');
   `);
   ensureColumn(database, "users", "deleted_at", "TEXT");
   ensureColumn(database, "users", "password_cipher", "TEXT");
@@ -321,9 +330,13 @@ function resetDb() {
     DELETE FROM gam_networks;
     DELETE FROM worker_net_revenue_overrides;
     DELETE FROM worker_domain_net_revenue_overrides;
+    DELETE FROM app_settings;
     DELETE FROM sqlite_sequence WHERE name IN ('workers', 'properties', 'users', 'worker_payment_info', 'worker_payment_status', 'reports', 'gam_networks', 'worker_net_revenue_overrides', 'worker_domain_net_revenue_overrides');
   `);
   ensureMultiGamSchema(database);
+  database
+    .prepare("INSERT INTO app_settings (key, value) VALUES (?, ?)")
+    .run("worker_daily_stats_enabled", "false");
   seedAdminUser(database);
 }
 
