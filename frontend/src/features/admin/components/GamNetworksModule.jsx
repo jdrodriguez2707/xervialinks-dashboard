@@ -321,10 +321,22 @@ export default function GamNetworksModule({ onNetworksChanged }) {
         <div className="space-y-3">
           {rows.map((row) => (
             <Card key={row.networkCode}>
-              <CardContent className="flex flex-col gap-3 py-4 sm:flex-row sm:items-center sm:justify-between">
+              <CardContent className="flex flex-col gap-3 py-4 xl:flex-row xl:items-center xl:justify-between">
                 <div className="min-w-0 space-y-1">
                   <div className="flex flex-wrap items-center gap-2">
-                    <span className="font-medium truncate">{row.displayName}</span>
+                    <span className="min-w-0 break-words font-medium">{row.displayName}</span>
+                    <Button
+                      type="button"
+                      size="icon"
+                      variant="ghost"
+                      className="h-8 w-8 shrink-0"
+                      title="Editar nombre visible"
+                      aria-label={`Editar nombre de ${row.displayName}`}
+                      disabled={busyCode === row.networkCode}
+                      onClick={() => openEdit(row)}
+                    >
+                      <Pencil className="h-4 w-4" />
+                    </Button>
                     {row.isDefault ? (
                       <Badge variant="secondary" className="shrink-0">
                         <Star className="mr-1 h-3 w-3" />
@@ -334,24 +346,13 @@ export default function GamNetworksModule({ onNetworksChanged }) {
                     <Badge variant="outline" className="shrink-0">
                       {statusLabel(row.accessStatus)}
                     </Badge>
-                    <Button
-                      type="button"
-                      size="icon"
-                      variant="ghost"
-                      className="h-8 w-8 shrink-0"
-                      title="Editar nombre visible"
-                      disabled={busyCode === row.networkCode}
-                      onClick={() => openEdit(row)}
-                    >
-                      <Pencil className="h-4 w-4" />
-                    </Button>
                   </div>
                   <p className="text-xs text-muted-foreground font-mono">Código: {row.networkCode}</p>
                   {row.lastError && row.accessStatus === "error" ? (
                     <p className="text-xs text-destructive break-words">{row.lastError}</p>
                   ) : null}
                 </div>
-                <div className="flex flex-wrap gap-2 shrink-0">
+                <div className="flex flex-wrap gap-2 xl:shrink-0">
                   <Button
                     type="button"
                     size="sm"

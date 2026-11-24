@@ -11,7 +11,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 export default function SummaryCards({ summary, isLoading = false }) {
   if (isLoading) {
     return (
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+      <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-3">
         {Array.from({ length: 3 }).map((_, idx) => (
           <div
             key={`summary-skeleton-${idx}`}
@@ -49,7 +49,7 @@ export default function SummaryCards({ summary, isLoading = false }) {
   ];
 
   return (
-    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+    <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-3">
       {cards.map((card) => (
         <MetricCard key={card.label} title={card.label} value={card.value} icon={card.icon} />
       ))}

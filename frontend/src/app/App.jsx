@@ -82,22 +82,32 @@ function formatUserDateLabel(date = new Date()) {
   return `${monthCapitalized} ${day}, ${year}`;
 }
 
+/** Returns the full label (wide screens) and a compact one (small screens). */
 function formatSyncStatusLabel(lastSyncedAt) {
-  if (!lastSyncedAt) {
-    return "Última sincronización Ad Manager: pendiente";
-  }
+  const pending = {
+    full: "Última sincronización Ad Manager: pendiente",
+    short: "Sync pendiente",
+  };
+  if (!lastSyncedAt) return pending;
   const date = parseSyncTimestamp(lastSyncedAt);
-  if (Number.isNaN(date.getTime())) {
-    return "Última sincronización Ad Manager: pendiente";
-  }
-  const formatted = new Intl.DateTimeFormat("es-ES", {
+  if (Number.isNaN(date.getTime())) return pending;
+  const full = new Intl.DateTimeFormat("es-ES", {
     day: "2-digit",
     month: "2-digit",
     year: "numeric",
     hour: "2-digit",
     minute: "2-digit",
   }).format(date);
-  return `Última sincronización Ad Manager: ${formatted}`;
+  const short = new Intl.DateTimeFormat("es-ES", {
+    day: "2-digit",
+    month: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(date);
+  return {
+    full: `Última sincronización Ad Manager: ${full}`,
+    short: `Últ. sync: ${short}`,
+  };
 }
 
 function parseSyncTimestamp(value) {
@@ -418,6 +428,15 @@ export default function App() {
   }, []);
 
   useEffect(() => {
+    if (!adminMenuOpen) return;
+    const onKeyDown = (e) => {
+      if (e.key === "Escape") setAdminMenuOpen(false);
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [adminMenuOpen]);
+
+  useEffect(() => {
     if (typeof document === "undefined") return;
     if (user?.role === "admin" && adminMenuOpen) {
       document.body.style.overflow = "hidden";
@@ -577,6 +596,9 @@ export default function App() {
     ADMIN_MENU_OPTIONS.find((item) => item.id === adminActiveModule) || ADMIN_MENU_OPTIONS[0];
 
   if (user.role === "admin") {
+    const adminSyncLabel = formatSyncStatusLabel(
+      syncStatus?.activeNetworkLastSyncedAt || syncStatus?.lastSyncedAt,
+    );
     return (
       <div className="app app--admin">
         <aside
@@ -665,12 +687,12 @@ export default function App() {
               <p className="app-current-date">{currentDateLabel}</p>
             </div>
             <div className="header-right">
-              <div className="header-sync-theme-row">
+              <div className="header-context">
                 {(data?.gamNetworks || []).length > 0 ? (
-                  <label className="flex items-center gap-2 text-xs text-muted-foreground max-w-[min(100%,220px)]">
+                  <label className="header-network">
                     <span className="shrink-0">Red:</span>
                     <select
-                      className="form-select admin-range-select py-1 text-xs max-w-[160px]"
+                      className="form-select header-network-select"
                       value={adminActiveNetworkCode || ""}
                       onChange={(e) => handleAdminNetworkChange(e.target.value)}
                       aria-label="Red Ad Manager activa"
@@ -683,15 +705,16 @@ export default function App() {
                     </select>
                   </label>
                 ) : null}
-                <p className="app-sync-status">
-                  {formatSyncStatusLabel(
-                    syncStatus?.activeNetworkLastSyncedAt || syncStatus?.lastSyncedAt,
-                  )}
+                <p className="app-sync-status" title={adminSyncLabel.full}>
+                  <span className="hidden xl:inline">{adminSyncLabel.full}</span>
+                  <span className="xl:hidden">{adminSyncLabel.short}</span>
                 </p>
-                <ThemeToggle />
+              </div>
+              <div className="header-actions">
                 {(loading || refreshingAdmin) && (
                   <div className="header-progress" aria-hidden="true" />
                 )}
+                <ThemeToggle />
               </div>
             </div>
           </header>

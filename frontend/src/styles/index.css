@@ -281,12 +281,37 @@
     @apply truncate text-lg font-semibold sm:text-xl;
   }
 
-  .app-header--admin .header-sync-theme-row {
-    @apply flex max-w-full flex-col items-end gap-1.5 sm:flex-row sm:flex-nowrap sm:items-center sm:gap-6;
+  /* Header admin: <md = 2 filas (menú + título + tema / red + sync); >=md = 1 fila. */
+  .app-header--admin {
+    @apply flex-wrap py-2 md:flex-nowrap;
+  }
+
+  .app-header--admin .app-current-date {
+    @apply whitespace-nowrap text-xs sm:text-sm;
+  }
+
+  .app-header--admin .header-right {
+    @apply contents md:flex md:flex-nowrap md:items-center md:justify-end md:gap-4;
+  }
+
+  .app-header--admin .header-context {
+    @apply order-last flex w-full min-w-0 items-center justify-between gap-3 md:order-none md:w-auto md:justify-end;
+  }
+
+  .app-header--admin .header-actions {
+    @apply flex shrink-0 items-center gap-2;
+  }
+
+  .app-header--admin .header-network {
+    @apply flex min-w-0 flex-1 items-center gap-2 text-xs text-muted-foreground md:flex-none;
+  }
+
+  .app-header--admin .header-network-select {
+    @apply h-8 min-w-0 flex-1 py-1 text-xs md:w-52 md:flex-none;
   }
 
   .app-header--admin .app-sync-status {
-    @apply max-w-[11rem] text-right leading-snug sm:max-w-[20rem];
+    @apply shrink-0 whitespace-nowrap text-right leading-snug;
   }
 
   .header-title-group {
@@ -377,7 +402,7 @@
 
   .workers-mgmt-list,
   .workers-list {
-    @apply grid gap-4 sm:grid-cols-2 lg:grid-cols-3;
+    @apply grid gap-4 sm:grid-cols-2 xl:grid-cols-3;
   }
 
   .worker-card {
