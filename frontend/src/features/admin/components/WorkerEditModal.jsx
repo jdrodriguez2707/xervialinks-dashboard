@@ -53,7 +53,6 @@ export default function WorkerEditModal({
 }) {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
-  const [percentage, setPercentage] = useState("");
   /** Solo si el admin escribe aquí se envía al API (evita re-enviar la contraseña actual al guardar otros datos). */
   const [newPassword, setNewPassword] = useState("");
   /** @type {{ value: string, gamNetworkCode: string }[]} */
@@ -70,7 +69,6 @@ export default function WorkerEditModal({
     if (!worker) return;
     setName(worker.name || "");
     setEmail(worker.email || "");
-    setPercentage(String(worker.percentage ?? ""));
     setNewPassword("");
     setDomainSlots(
       (worker.properties || [])
@@ -121,11 +119,9 @@ export default function WorkerEditModal({
     setError(null);
     setSubmitting(true);
     try {
-      const pct = parseFloat(percentage);
       const payload = {
         name: name.trim(),
         email: email.trim(),
-        percentage: pct,
         domains: domainSlots,
       };
       if (newPassword.trim()) {
@@ -180,19 +176,6 @@ export default function WorkerEditModal({
                 type="email"
                 value={email}
                 onChange={(ev) => setEmail(ev.target.value)}
-                required
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="worker-edit-percentage">Porcentaje (%)</Label>
-              <Input
-                id="worker-edit-percentage"
-                type="number"
-                min="0.01"
-                max="100"
-                step="0.01"
-                value={percentage}
-                onChange={(ev) => setPercentage(ev.target.value)}
                 required
               />
             </div>

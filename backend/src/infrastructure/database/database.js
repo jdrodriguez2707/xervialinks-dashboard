@@ -43,7 +43,6 @@ function applySchema(database) {
       id        INTEGER PRIMARY KEY AUTOINCREMENT,
       name      TEXT    NOT NULL,
       email     TEXT    NOT NULL UNIQUE,
-      percentage REAL   NOT NULL CHECK (percentage > 0 AND percentage <= 100),
       created_at TEXT   DEFAULT (datetime('now')),
       deleted_at TEXT
     );
@@ -55,24 +54,6 @@ function applySchema(database) {
       value     TEXT    NOT NULL,
       created_at TEXT   DEFAULT (datetime('now')),
       UNIQUE (worker_id, type, value)
-    );
-
-    CREATE TABLE IF NOT EXISTS worker_payment_info (
-      id              INTEGER PRIMARY KEY AUTOINCREMENT,
-      worker_id       INTEGER NOT NULL UNIQUE REFERENCES workers(id) ON DELETE CASCADE,
-      method_type     TEXT    NOT NULL,
-      payment_details TEXT    NOT NULL,
-      created_at      TEXT    DEFAULT (datetime('now')),
-      updated_at      TEXT    DEFAULT (datetime('now'))
-    );
-
-    CREATE TABLE IF NOT EXISTS worker_payment_status (
-      id          INTEGER PRIMARY KEY AUTOINCREMENT,
-      worker_id   INTEGER NOT NULL REFERENCES workers(id) ON DELETE CASCADE,
-      payment_month TEXT  NOT NULL,
-      status      TEXT    NOT NULL CHECK (status IN ('pending', 'paid')) DEFAULT 'pending',
-      updated_at  TEXT    DEFAULT (datetime('now')),
-      UNIQUE (worker_id, payment_month)
     );
 
     CREATE TABLE IF NOT EXISTS reports (
@@ -108,12 +89,8 @@ function applySchema(database) {
     CREATE INDEX IF NOT EXISTS idx_reports_date ON reports(date);
     CREATE INDEX IF NOT EXISTS idx_reports_domain ON reports(domain);
   `);
-  ensureWorkerPaymentStatusMonthly(database);
-  ensureColumn(database, "worker_payment_status", "paid_total_amount", "REAL");
-  ensureColumn(database, "worker_payment_status", "paid_rows_json", "TEXT");
   ensureMultiGamSchema(database);
-  ensureWorkerNetRevenueOverridesTable(database);
-  ensureWorkerDomainNetRevenueOverridesTable(database);
+  dropRevenueSharingSchema(database);
 
   seedAdminUser(database);
 }
@@ -248,67 +225,50 @@ function ensureMultiGamSchema(database) {
   }
 }
 
-function ensureWorkerNetRevenueOverridesTable(database) {
+/**
+ * The app only shares metrics; payouts, payment status/info, revenue overrides and
+ * per-worker percentages were removed. Idempotent: drops legacy tables and rebuilds
+ * `workers` without the `percentage` column when it still exists.
+ */
+function dropRevenueSharingSchema(database) {
   database.exec(`
-    CREATE TABLE IF NOT EXISTS worker_net_revenue_overrides (
-      id               INTEGER PRIMARY KEY AUTOINCREMENT,
-      worker_id        INTEGER NOT NULL REFERENCES workers(id) ON DELETE CASCADE,
-      gam_network_code TEXT    NOT NULL,
-      period_start     TEXT    NOT NULL,
-      period_end       TEXT    NOT NULL,
-      net_revenue      REAL    NOT NULL,
-      updated_at       TEXT    DEFAULT (datetime('now')),
-      UNIQUE (worker_id, gam_network_code, period_start, period_end)
-    );
-    CREATE INDEX IF NOT EXISTS idx_worker_net_rev_override_lookup
-      ON worker_net_revenue_overrides (worker_id, gam_network_code, period_start, period_end);
+    DROP TABLE IF EXISTS worker_payment_info;
+    DROP TABLE IF EXISTS worker_payment_status;
+    DROP TABLE IF EXISTS worker_payment_status_legacy;
+    DROP TABLE IF EXISTS worker_net_revenue_overrides;
+    DROP TABLE IF EXISTS worker_domain_net_revenue_overrides;
   `);
-}
 
-function ensureWorkerDomainNetRevenueOverridesTable(database) {
-  database.exec(`
-    CREATE TABLE IF NOT EXISTS worker_domain_net_revenue_overrides (
-      id               INTEGER PRIMARY KEY AUTOINCREMENT,
-      worker_id        INTEGER NOT NULL REFERENCES workers(id) ON DELETE CASCADE,
-      gam_network_code TEXT    NOT NULL,
-      domain           TEXT    NOT NULL,
-      period_start     TEXT    NOT NULL,
-      period_end       TEXT    NOT NULL,
-      net_revenue      REAL    NOT NULL,
-      updated_at       TEXT    DEFAULT (datetime('now')),
-      UNIQUE (worker_id, gam_network_code, domain, period_start, period_end)
-    );
-    CREATE INDEX IF NOT EXISTS idx_worker_domain_net_rev_lookup
-      ON worker_domain_net_revenue_overrides (worker_id, gam_network_code, period_start, period_end);
-  `);
-}
+  const workerCols = database.prepare("PRAGMA table_info(workers)").all();
+  if (!workerCols.some((c) => c.name === "percentage")) return;
 
-function ensureWorkerPaymentStatusMonthly(database) {
-  const columns = database.prepare("PRAGMA table_info(worker_payment_status)").all();
-  const hasPaymentMonth = columns.some((c) => c.name === "payment_month");
-  if (hasPaymentMonth) return;
-
-  database.exec(`
-    ALTER TABLE worker_payment_status RENAME TO worker_payment_status_legacy;
-
-    CREATE TABLE worker_payment_status (
-      id            INTEGER PRIMARY KEY AUTOINCREMENT,
-      worker_id     INTEGER NOT NULL REFERENCES workers(id) ON DELETE CASCADE,
-      payment_month TEXT    NOT NULL,
-      status        TEXT    NOT NULL CHECK (status IN ('pending', 'paid')) DEFAULT 'pending',
-      updated_at    TEXT    DEFAULT (datetime('now')),
-      UNIQUE (worker_id, payment_month)
-    );
-
-    INSERT INTO worker_payment_status (worker_id, payment_month, status, updated_at)
-    SELECT worker_id,
-           strftime('%Y-%m', 'now', 'start of month', '-1 month'),
-           status,
-           updated_at
-    FROM worker_payment_status_legacy;
-
-    DROP TABLE worker_payment_status_legacy;
-  `);
+  // FKs must be off while swapping tables, otherwise dropping `workers` cascades to `properties`.
+  // The pragma is a no-op inside a transaction, so toggle it outside.
+  const fkWasOn = database.pragma("foreign_keys", { simple: true }) === 1;
+  if (fkWasOn) database.pragma("foreign_keys = OFF");
+  try {
+    database.transaction(() => {
+      database.exec(`
+        CREATE TABLE workers_new (
+          id         INTEGER PRIMARY KEY AUTOINCREMENT,
+          name       TEXT    NOT NULL,
+          email      TEXT    NOT NULL UNIQUE,
+          created_at TEXT    DEFAULT (datetime('now')),
+          deleted_at TEXT
+        );
+        INSERT INTO workers_new (id, name, email, created_at, deleted_at)
+          SELECT id, name, email, created_at, deleted_at FROM workers;
+        DROP TABLE workers;
+        ALTER TABLE workers_new RENAME TO workers;
+      `);
+      const violations = database.pragma("foreign_key_check");
+      if (violations.length > 0) {
+        throw new Error("Foreign key check failed while removing workers.percentage");
+      }
+    })();
+  } finally {
+    if (fkWasOn) database.pragma("foreign_keys = ON");
+  }
 }
 
 function closeDb() {
@@ -321,17 +281,13 @@ function closeDb() {
 function resetDb() {
   const database = getDb();
   database.exec(`
-    DELETE FROM worker_payment_info;
-    DELETE FROM worker_payment_status;
     DELETE FROM properties;
     DELETE FROM workers;
     DELETE FROM users;
     DELETE FROM reports;
     DELETE FROM gam_networks;
-    DELETE FROM worker_net_revenue_overrides;
-    DELETE FROM worker_domain_net_revenue_overrides;
     DELETE FROM app_settings;
-    DELETE FROM sqlite_sequence WHERE name IN ('workers', 'properties', 'users', 'worker_payment_info', 'worker_payment_status', 'reports', 'gam_networks', 'worker_net_revenue_overrides', 'worker_domain_net_revenue_overrides');
+    DELETE FROM sqlite_sequence WHERE name IN ('workers', 'properties', 'users', 'reports', 'gam_networks');
   `);
   ensureMultiGamSchema(database);
   database
@@ -340,4 +296,4 @@ function resetDb() {
   seedAdminUser(database);
 }
 
-module.exports = { getDb, closeDb, resetDb };
+module.exports = { getDb, closeDb, resetDb, dropRevenueSharingSchema };

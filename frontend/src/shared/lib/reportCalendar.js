@@ -61,22 +61,8 @@ export function fullCalendarMonthEndISOInReportTZ() {
   return `${yi}-${String(mi).padStart(2, "0")}-${dd}`;
 }
 
-/** Primer y último día del mes YYYY-MM (interpretación calendario estándar, fechas ISO). */
-export function paymentMonthToDateRangeISO(paymentMonthKey) {
-  const m = /^(\d{4})-(\d{2})$/.exec(String(paymentMonthKey || ""));
-  if (!m) return { startDate: "", endDate: "" };
-  const y = parseInt(m[1], 10);
-  const mo = parseInt(m[2], 10);
-  const pad = (n) => String(n).padStart(2, "0");
-  const startDate = `${y}-${pad(mo)}-01`;
-  const last = new Date(Date.UTC(y, mo, 0));
-  const dd = String(last.getUTCDate()).padStart(2, "0");
-  const endDate = `${y}-${pad(mo)}-${dd}`;
-  return { startDate, endDate };
-}
-
 /**
- * Date range query params for admin summary/payouts — aligned with X-Client-Timezone.
+ * Date range query params for the admin summary — aligned with X-Client-Timezone.
  */
 export function getAdminDateRange(rangeKey) {
   switch (rangeKey) {

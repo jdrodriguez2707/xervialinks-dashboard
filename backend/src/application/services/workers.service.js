@@ -5,8 +5,6 @@ const gamNetworksRepo = require("../../domain/repositories/gamNetworks.repositor
 const { normalizeEmail } = require("../../domain/utils/email");
 const { isAssignableSubdomain } = require("./sites.service");
 const { encryptPassword, decryptPassword } = require("../../infrastructure/security/passwordVault");
-const workerPaymentHistoryService = require("./workerPaymentHistory.service");
-const { getDefaultPaymentMonthKey, getDefaultTimeZone } = require("./clientTimezone");
 
 class ValidationError extends Error {
   constructor(message) {
@@ -66,32 +64,22 @@ function normalizeDomainAssignments(raw, defaultGamNetworkCode) {
   return out;
 }
 
-function getAllWorkers(includeDeleted = false, paymentMonth = null, includePassword = false, timeZone) {
-  const resolvedMonth = resolvePaymentMonth(paymentMonth, timeZone);
-  const workers = workersRepo.findAll({
-    includeDeleted: !!includeDeleted,
-    paymentMonth: resolvedMonth,
-  });
+function getAllWorkers(includeDeleted = false, includePassword = false) {
+  const workers = workersRepo.findAll({ includeDeleted: !!includeDeleted });
   if (!includePassword) return workers;
   return workers.map(attachPasswordField);
 }
 
-function getWorkerByEmail(email, paymentMonth = null, timeZone) {
-  const normalized = normalizeEmail(email);
-  return (
-    workersRepo.findByEmail(normalized, { paymentMonth: resolvePaymentMonth(paymentMonth, timeZone) }) ||
-    null
-  );
+function getWorkerByEmail(email) {
+  return workersRepo.findByEmail(normalizeEmail(email)) || null;
 }
 
 function getWorkerByEmailIncludingDeleted(email) {
   return workersRepo.findByEmail(normalizeEmail(email), { includeDeleted: true }) || null;
 }
 
-function getWorkerById(id, paymentMonth = null, includePassword = false, timeZone) {
-  const worker = workersRepo.findById(Number(id), {
-    paymentMonth: resolvePaymentMonth(paymentMonth, timeZone),
-  });
+function getWorkerById(id, includePassword = false) {
+  const worker = workersRepo.findById(Number(id));
   if (!worker) throw new NotFoundError(`Worker ${id} not found`);
   return includePassword ? attachPasswordField(worker) : worker;
 }
@@ -101,14 +89,11 @@ function getWorkerById(id, paymentMonth = null, includePassword = false, timeZon
  * account atomically in a single SQLite transaction so both records are
  * always in sync.
  *
- * @param {{ name: string, email: string, percentage: number, password: string }} data
+ * @param {{ name: string, email: string, password: string }} data
  */
-async function createWorker({ name, email, percentage, password }) {
-  if (!name || !email || percentage == null || !password || !String(password).trim()) {
-    throw new ValidationError("Nombre, email, porcentaje y contraseña son requeridos");
-  }
-  if (typeof percentage !== "number" || percentage <= 0 || percentage > 100) {
-    throw new ValidationError("El porcentaje debe ser un número entre 0 y 100 (exclusivo)");
+async function createWorker({ name, email, password }) {
+  if (!name || !email || !password || !String(password).trim()) {
+    throw new ValidationError("Nombre, email y contraseña son requeridos");
   }
 
   const emailNorm = normalizeEmail(email);
@@ -123,7 +108,7 @@ async function createWorker({ name, email, percentage, password }) {
   const passwordHash = await bcrypt.hash(trimmedPassword, 10);
   const passwordCipher = encryptPassword(trimmedPassword);
   return workersRepo.createWithUser(
-    { name, email: emailNorm, percentage },
+    { name, email: emailNorm },
     { passwordHash, passwordCipher },
   );
 }
@@ -199,30 +184,11 @@ function addPropertyToWorker(workerId, { type, value, gamNetworkCode }, queryFal
   }
 }
 
-function updateWorkerPaymentInfoByEmail(email, { methodType, paymentDetails }) {
-  const worker = getWorkerByEmail(email);
-  if (!worker) {
-    throw new NotFoundError("No tienes un perfil de trabajador asignado");
-  }
-  if (!methodType || typeof methodType !== "string" || !methodType.trim()) {
-    throw new ValidationError("El tipo de método de pago es requerido");
-  }
-  if (!paymentDetails || typeof paymentDetails !== "string" || !paymentDetails.trim()) {
-    throw new ValidationError("La información de pago es requerida");
-  }
-
-  return workersRepo.upsertPaymentInfo(worker.id, {
-    methodType: methodType.trim(),
-    paymentDetails: paymentDetails.trim(),
-  });
-}
-
 /**
  * @param {number|string} workerId
  * @param {{
  *   name: string,
  *   email: string,
- *   percentage: number,
  *   password?: string,
  *   domains: (string | { value: string, gamNetworkCode?: string })[],
  * }} body
@@ -230,21 +196,16 @@ function updateWorkerPaymentInfoByEmail(email, { methodType, paymentDetails }) {
  */
 async function updateWorker(workerId, body, opts = {}) {
   const worker = getWorkerById(Number(workerId));
-  const { name: rawName, email: rawEmail, percentage, password, domains } = body;
+  const { name: rawName, email: rawEmail, password, domains } = body;
 
-  if (!rawName || !rawEmail || percentage == null || !Array.isArray(domains)) {
-    throw new ValidationError("Nombre, email, porcentaje y lista de subdominios son requeridos");
+  if (!rawName || !rawEmail || !Array.isArray(domains)) {
+    throw new ValidationError("Nombre, email y lista de subdominios son requeridos");
   }
 
   const name = String(rawName).trim();
   const email = normalizeEmail(rawEmail);
   if (!name || !email) {
     throw new ValidationError("Nombre y email no pueden estar vacíos");
-  }
-
-  const pct = Number(percentage);
-  if (typeof pct !== "number" || Number.isNaN(pct) || pct <= 0 || pct > 100) {
-    throw new ValidationError("El porcentaje debe ser un número entre 0 y 100 (exclusivo)");
   }
 
   const defaultNet = resolveGamNetworkCodeForWrite(opts.defaultGamNetworkCode, null);
@@ -315,7 +276,6 @@ async function updateWorker(workerId, body, opts = {}) {
       {
         name,
         email,
-        percentage: pct,
         passwordHash: passwordHash || null,
         passwordCipher: passwordCipher || null,
         sessionInvalidation,
@@ -336,60 +296,6 @@ async function updateWorker(workerId, body, opts = {}) {
   }
 }
 
-async function updateWorkerPaymentStatus(workerId, status, paymentMonth = null, { timeZone } = {}) {
-  const VALID_STATUSES = ["pending", "paid"];
-  if (!VALID_STATUSES.includes(status)) {
-    throw new ValidationError(`El estado debe ser uno de: ${VALID_STATUSES.join(", ")}`);
-  }
-  const tz = timeZone || getDefaultTimeZone();
-  const resolvedMonth = resolvePaymentMonth(paymentMonth, tz);
-  const numericId = Number(workerId);
-  const worker = workersRepo.findById(numericId, { includeDeleted: true });
-  if (!worker) {
-    throw new NotFoundError(`Worker ${workerId} not found`);
-  }
-  if (worker.deleted_at) {
-    throw new ValidationError("No se puede cambiar el estado de pago de trabajadores inactivos");
-  }
-
-  if (status === "paid") {
-    const before = workersRepo.getPaymentStatusRow(numericId, resolvedMonth);
-    if (before.paymentStatus === "paid" && before.paidRowsJson) {
-      return workersRepo.getPaymentStatus(numericId, resolvedMonth);
-    }
-    if (before.paidRowsJson && before.paidTotalAmount != null && !Number.isNaN(Number(before.paidTotalAmount))) {
-      return workersRepo.upsertPaymentStatus(numericId, status, resolvedMonth, {
-        paidTotalAmount: Number(before.paidTotalAmount),
-        paidRowsJson: before.paidRowsJson,
-      });
-    }
-    const workerForSnapshot = workersRepo.findById(numericId, { paymentMonth: resolvedMonth });
-    const snap = await workerPaymentHistoryService.computePaidSnapshot(
-      workerForSnapshot,
-      resolvedMonth,
-      tz,
-    );
-    const paidRowsJson = JSON.stringify(snap.rows);
-    return workersRepo.upsertPaymentStatus(numericId, status, resolvedMonth, {
-      paidTotalAmount: snap.totalNet,
-      paidRowsJson,
-    });
-  }
-
-  return workersRepo.upsertPaymentStatus(numericId, status, resolvedMonth, null);
-}
-
-function resolvePaymentMonth(paymentMonth, timeZone) {
-  if (paymentMonth == null || String(paymentMonth).trim() === "") {
-    return getDefaultPaymentMonthKey(timeZone);
-  }
-  const month = String(paymentMonth).trim();
-  if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(month)) {
-    throw new ValidationError("El periodo de pago debe tener formato YYYY-MM");
-  }
-  return month;
-}
-
 function attachPasswordField(worker) {
   if (!worker?.email) return { ...worker, password: "" };
   const authUser = authRepo.findByEmailIncludingDeleted(worker.email);
@@ -407,7 +313,4 @@ module.exports = {
   purgeInactiveWorker,
   addPropertyToWorker,
   updateWorker,
-  updateWorkerPaymentInfoByEmail,
-  updateWorkerPaymentStatus,
-  resolvePaymentMonth,
 };

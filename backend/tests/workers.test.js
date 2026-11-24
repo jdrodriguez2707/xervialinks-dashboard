@@ -16,21 +16,22 @@ describe("POST /api/workers", () => {
     const res = await request(app)
       .post("/api/workers")
       .set("Authorization", `Bearer ${token}`)
-      .send({ name: "Alice", email: "alice@example.com", percentage: 70, password: "pass123" });
+      .send({ name: "Alice", email: "alice@example.com", password: "pass123" });
     expect(res.status).toBe(201);
     expect(res.body.data).toMatchObject({
       name: "Alice",
       email: "alice@example.com",
-      percentage: 70,
       properties: [],
     });
+    expect(res.body.data).not.toHaveProperty("percentage");
+    expect(res.body.data).not.toHaveProperty("paymentStatus");
     expect(res.body.data.id).toBeDefined();
   });
 
   it("returns 401 without token", async () => {
     const res = await request(app)
       .post("/api/workers")
-      .send({ name: "X", email: "x@example.com", percentage: 10, password: "pass123" });
+      .send({ name: "X", email: "x@example.com", password: "pass123" });
     expect(res.status).toBe(401);
   });
 
@@ -38,20 +39,12 @@ describe("POST /api/workers", () => {
     await request(app)
       .post("/api/workers")
       .set("Authorization", `Bearer ${token}`)
-      .send({ name: "Bob", email: "bob@example.com", percentage: 50, password: "pass123" });
+      .send({ name: "Bob", email: "bob@example.com", password: "pass123" });
     const res = await request(app)
       .post("/api/workers")
       .set("Authorization", `Bearer ${token}`)
-      .send({ name: "Bob2", email: "bob@example.com", percentage: 30, password: "pass123" });
+      .send({ name: "Bob2", email: "bob@example.com", password: "pass123" });
     expect(res.status).toBe(409);
-  });
-
-  it("returns 400 when percentage is invalid", async () => {
-    const res = await request(app)
-      .post("/api/workers")
-      .set("Authorization", `Bearer ${token}`)
-      .send({ name: "Charlie", email: "charlie@example.com", percentage: 0, password: "pass123" });
-    expect(res.status).toBe(400);
   });
 
   it("returns 400 when required fields are missing", async () => {
@@ -79,7 +72,7 @@ describe("GET /api/workers/:id", () => {
     const res = await request(app)
       .post("/api/workers")
       .set("Authorization", `Bearer ${token}`)
-      .send({ name: "Eve", email: "eve@example.com", percentage: 60, password: "pass123" });
+      .send({ name: "Eve", email: "eve@example.com", password: "pass123" });
     workerId = res.body.data.id;
   });
 
@@ -109,7 +102,6 @@ describe("PATCH /api/workers/:id", () => {
       .send({
         name: "Patchable",
         email: "patchable@example.com",
-        percentage: 50,
         password: "pass123",
       });
     workerId = res.body.data.id;
@@ -119,26 +111,25 @@ describe("PATCH /api/workers/:id", () => {
       .send({ type: "domain", value: "patch.worker.example.com" });
   });
 
-  it("updates name and percentage while keeping domains", async () => {
+  it("updates name while keeping domains", async () => {
     const res = await request(app)
       .patch(`/api/workers/${workerId}`)
       .set("Authorization", `Bearer ${token}`)
       .send({
         name: "Patchy",
         email: "patchable@example.com",
-        percentage: 55,
         domains: ["patch.worker.example.com"],
       });
     expect(res.status).toBe(200);
     expect(res.body.data.name).toBe("Patchy");
-    expect(res.body.data.percentage).toBe(55);
+    expect(res.body.data.properties.map((p) => p.value)).toEqual(["patch.worker.example.com"]);
   });
 
   it("returns 400 when domains is missing", async () => {
     const res = await request(app)
       .patch(`/api/workers/${workerId}`)
       .set("Authorization", `Bearer ${token}`)
-      .send({ name: "X", email: "patchable@example.com", percentage: 55 });
+      .send({ name: "X", email: "patchable@example.com" });
     expect(res.status).toBe(400);
   });
 });
@@ -150,7 +141,7 @@ describe("POST /api/workers/:id/properties", () => {
     const res = await request(app)
       .post("/api/workers")
       .set("Authorization", `Bearer ${token}`)
-      .send({ name: "Frank", email: "frank@example.com", percentage: 40, password: "pass123" });
+      .send({ name: "Frank", email: "frank@example.com", password: "pass123" });
     workerId = res.body.data.id;
   });
 
@@ -207,7 +198,7 @@ describe("POST /api/workers/:id/properties", () => {
     const workerRes = await request(app)
       .post("/api/workers")
       .set("Authorization", `Bearer ${token}`)
-      .send({ name: "George", email: "george@example.com", percentage: 35, password: "pass123" });
+      .send({ name: "George", email: "george@example.com", password: "pass123" });
     const secondWorkerId = workerRes.body.data.id;
 
     await request(app)
@@ -227,13 +218,13 @@ describe("POST /api/workers/:id/properties", () => {
     const firstRes = await request(app)
       .post("/api/workers")
       .set("Authorization", `Bearer ${token}`)
-      .send({ name: "Owner A", email: "ownera@example.com", percentage: 30, password: "pass123" });
+      .send({ name: "Owner A", email: "ownera@example.com", password: "pass123" });
     const firstWorkerId = firstRes.body.data.id;
 
     const secondRes = await request(app)
       .post("/api/workers")
       .set("Authorization", `Bearer ${token}`)
-      .send({ name: "Owner B", email: "ownerb@example.com", percentage: 30, password: "pass123" });
+      .send({ name: "Owner B", email: "ownerb@example.com", password: "pass123" });
     const secondWorkerId = secondRes.body.data.id;
 
     await request(app)
@@ -255,57 +246,18 @@ describe("POST /api/workers/:id/properties", () => {
   });
 });
 
-describe("PATCH /api/workers/:id/payment-status", () => {
-  let workerId;
-  const aprilMonth = "2026-04";
-  const mayMonth = "2026-05";
-
-  beforeAll(async () => {
-    const res = await request(app)
-      .post("/api/workers")
+describe("removed payment endpoints", () => {
+  it("no longer exposes payment status or payouts", async () => {
+    const workers = await request(app).get("/api/workers").set("Authorization", `Bearer ${token}`);
+    const anyId = workers.body.data[0].id;
+    const status = await request(app)
+      .patch(`/api/workers/${anyId}/payment-status`)
       .set("Authorization", `Bearer ${token}`)
-      .send({ name: "Helen", email: "helen@example.com", percentage: 55, password: "pass123" });
-    workerId = res.body.data.id;
-  });
+      .send({ status: "paid" });
+    expect(status.status).toBe(404);
 
-  it("updates worker payment status to paid", async () => {
-    const res = await request(app)
-      .patch(`/api/workers/${workerId}/payment-status`)
-      .set("Authorization", `Bearer ${token}`)
-      .send({ status: "paid", paymentMonth: aprilMonth });
-    expect(res.status).toBe(200);
-    expect(res.body.data.paymentStatus).toBe("paid");
-    expect(res.body.data.paymentMonth).toBe(aprilMonth);
-  });
-
-  it("tracks payment status independently per month", async () => {
-    const markNext = await request(app)
-      .patch(`/api/workers/${workerId}/payment-status`)
-      .set("Authorization", `Bearer ${token}`)
-      .send({ status: "pending", paymentMonth: mayMonth });
-    expect(markNext.status).toBe(200);
-    expect(markNext.body.data.paymentStatus).toBe("pending");
-    expect(markNext.body.data.paymentMonth).toBe(mayMonth);
-
-    const listApril = await request(app)
-      .get(`/api/workers?paymentMonth=${aprilMonth}`)
-      .set("Authorization", `Bearer ${token}`);
-    const aprilWorker = listApril.body.data.find((w) => w.id === workerId);
-    expect(aprilWorker.paymentStatus).toBe("paid");
-
-    const listMay = await request(app)
-      .get(`/api/workers?paymentMonth=${mayMonth}`)
-      .set("Authorization", `Bearer ${token}`);
-    const mayWorker = listMay.body.data.find((w) => w.id === workerId);
-    expect(mayWorker.paymentStatus).toBe("pending");
-  });
-
-  it("returns 400 for invalid status", async () => {
-    const res = await request(app)
-      .patch(`/api/workers/${workerId}/payment-status`)
-      .set("Authorization", `Bearer ${token}`)
-      .send({ status: "invalid" });
-    expect(res.status).toBe(400);
+    const payouts = await request(app).get("/api/payouts").set("Authorization", `Bearer ${token}`);
+    expect(payouts.status).toBe(404);
   });
 });
 
@@ -319,7 +271,6 @@ describe("DELETE /api/workers/:id", () => {
       .send({
         name: "Soft Delete Worker",
         email: "softdelete@example.com",
-        percentage: 45,
         password: "pass123",
       });
     workerId = res.body.data.id;
@@ -340,15 +291,6 @@ describe("DELETE /api/workers/:id", () => {
     expect(list.status).toBe(200);
     const deleted = list.body.data.find((w) => w.id === workerId);
     expect(deleted).toBeUndefined();
-  });
-
-  it("returns 400 when PATCH payment-status on inactive worker", async () => {
-    const res = await request(app)
-      .patch(`/api/workers/${workerId}/payment-status`)
-      .set("Authorization", `Bearer ${token}`)
-      .send({ status: "paid" });
-    expect(res.status).toBe(400);
-    expect(String(res.body.error || "").toLowerCase()).toContain("inactiv");
   });
 
   it("includes soft-deleted workers when includeDeleted=true", async () => {
@@ -374,7 +316,6 @@ describe("DELETE /api/workers/:id", () => {
       .send({
         name: "No Domain Worker",
         email: "nodomain@example.com",
-        percentage: 35,
         password: "pass123",
       });
     const noDomainWorkerId = createRes.body.data.id;
@@ -390,7 +331,6 @@ describe("DELETE /api/workers/:id", () => {
       .send({
         name: "No Domain Worker 2",
         email: "nodomain@example.com",
-        percentage: 40,
         password: "pass123",
       });
     expect(recreate.status).toBe(201);
@@ -406,7 +346,6 @@ describe("DELETE /api/workers/:id/purge-inactive", () => {
       .send({
         name: "Purge Worker",
         email: "purge@example.com",
-        percentage: 35,
         password: "pass123",
       });
     const workerId = createRes.body.data.id;
@@ -439,7 +378,6 @@ describe("DELETE /api/workers/:id/purge-inactive", () => {
       .send({
         name: "Still Active",
         email: "still.active@example.com",
-        percentage: 25,
         password: "pass123",
       });
     const workerId = createRes.body.data.id;
@@ -456,7 +394,6 @@ describe("DELETE /api/workers/:id/purge-inactive", () => {
       .send({
         name: "Reusable Mail",
         email: "reusable@example.com",
-        percentage: 30,
         password: "pass123",
       });
     const workerId = createRes.body.data.id;
@@ -478,7 +415,6 @@ describe("DELETE /api/workers/:id/purge-inactive", () => {
       .send({
         name: "Reusable Mail 2",
         email: "reusable@example.com",
-        percentage: 40,
         password: "pass123",
       });
 

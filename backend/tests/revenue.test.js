@@ -3,7 +3,6 @@ const app = require("../src/app");
 const { closeDb, resetDb } = require("../src/infrastructure/database/database");
 const { getAdminToken } = require("./helpers/auth");
 const {
-  applyPercentage,
   todayISO,
   daysAgoISO,
   currentMonthStartISO,
@@ -53,30 +52,6 @@ describe("date helpers", () => {
   });
 });
 
-// ─── Unit tests: applyPercentage ──────────────────────────────────────────────
-
-describe("applyPercentage", () => {
-  it("calculates 70% of 1000", () => {
-    expect(applyPercentage(1000, 70)).toBe(700);
-  });
-
-  it("calculates 33.5% of 500", () => {
-    expect(applyPercentage(500, 33.5)).toBe(167.5);
-  });
-
-  it("returns 0 when revenue is 0", () => {
-    expect(applyPercentage(0, 70)).toBe(0);
-  });
-
-  it("returns full amount at 100%", () => {
-    expect(applyPercentage(250.5, 100)).toBe(250.5);
-  });
-
-  it("rounds to 2 decimal places", () => {
-    expect(applyPercentage(100, 33.333)).toBe(33.33);
-  });
-});
-
 describe("calculateChangePercent", () => {
   it("calculates positive and negative changes to one decimal place", () => {
     expect(calculateChangePercent(125, 100)).toBe(25);
@@ -114,7 +89,7 @@ describe("getWorkerDailyStats", () => {
     expect(result).toHaveLength(17);
     expect(result[0].date).toBe("2026-11-01");
     expect(result[16].date).toBe("2026-11-17");
-    expect(result[16].grossRevenue).toBe(50);
+    expect(result[16].revenue).toBe(50);
     expect(result[16].impressions).toBe(5000);
     expect(result[16].ecpm).toBe(10);
   });
@@ -161,7 +136,6 @@ describe("getWorkerDashboardPeriods comparisons", () => {
     try {
       const result = await getWorkerDashboardPeriods(
         {
-          percentage: 50,
           properties: [
             {
               type: "domain",
@@ -180,17 +154,14 @@ describe("getWorkerDashboardPeriods comparisons", () => {
       expect(result.today).not.toHaveProperty("comparison");
       expect(result.yesterday.comparison).toEqual({
         revenue: -50,
-        grossRevenue: -50,
         impressions: -50,
       });
       expect(result.last7Days.comparison).toEqual({
         revenue: 45.5,
-        grossRevenue: 45.5,
         impressions: 45.5,
       });
       expect(result.currentMonth.comparison).toEqual({
         revenue: 144.4,
-        grossRevenue: 144.4,
         impressions: 144.4,
       });
     } finally {
@@ -226,7 +197,6 @@ describe("getWorkerDashboardPeriods comparisons", () => {
     try {
       const result = await getWorkerDashboardPeriods(
         {
-          percentage: 50,
           properties: [
             {
               type: "domain",
@@ -241,10 +211,9 @@ describe("getWorkerDashboardPeriods comparisons", () => {
 
       expect(result.currentMonth.comparison).toEqual({
         revenue: 200,
-        grossRevenue: 200,
         impressions: 200,
       });
-      expect(result.currentMonth.grossRevenue).toBe(80);
+      expect(result.currentMonth.revenue).toBe(80);
       expect(findAllSpy).toHaveBeenCalledWith(
         expect.objectContaining({ startDate: "2026-02-01", endDate: "2026-03-31" }),
       );
@@ -274,7 +243,6 @@ describe("getWorkerDashboardPeriods comparisons", () => {
     try {
       const result = await getWorkerDashboardPeriods(
         {
-          percentage: 50,
           properties: [
             {
               type: "domain",
@@ -287,10 +255,9 @@ describe("getWorkerDashboardPeriods comparisons", () => {
         { referenceDate: "2026-03-01" },
       );
 
-      expect(result.currentMonth.grossRevenue).toBe(50);
+      expect(result.currentMonth.revenue).toBe(50);
       expect(result.currentMonth.comparison).toEqual({
         revenue: null,
-        grossRevenue: null,
         impressions: null,
       });
     } finally {
@@ -363,7 +330,6 @@ describe("GET /api/worker/context", () => {
       .send({
         name: "Context Worker",
         email: "contextworker@example.com",
-        percentage: 50,
         password: "pass123",
       });
     const workerId = workerRes.body.data.id;
@@ -385,14 +351,17 @@ describe("GET /api/worker/context", () => {
     expect(res.status).toBe(401);
   });
 
-  it("returns properties and paymentInfo without metrics", async () => {
+  it("returns properties without percentage or payment data", async () => {
     const res = await request(app)
       .get("/api/worker/context")
       .set("Authorization", `Bearer ${workerToken}`);
 
     expect(res.status).toBe(200);
     expect(Array.isArray(res.body.data.properties)).toBe(true);
-    expect(res.body.data).toHaveProperty("paymentInfo");
+    expect(res.body.data).toHaveProperty("dailyStatsEnabled");
+    expect(res.body.data).not.toHaveProperty("percentage");
+    expect(res.body.data).not.toHaveProperty("paymentInfo");
+    expect(res.body.data).not.toHaveProperty("paymentStatus");
   });
 });
 
@@ -408,7 +377,6 @@ describe("GET /api/worker/dashboard", () => {
       .send({
         name: "Dashboard Worker",
         email: "dashworker@example.com",
-        percentage: 70,
         password: "pass123",
       });
     const workerId = workerRes.body.data.id;
@@ -465,7 +433,7 @@ describe("GET /api/worker/dashboard", () => {
     }
     expect(data.today).not.toHaveProperty("comparison");
     for (const period of ["yesterday", "last7Days", "currentMonth"]) {
-      for (const metric of ["revenue", "grossRevenue", "impressions"]) {
+      for (const metric of ["revenue", "impressions"]) {
         expect(data[period].comparison).toHaveProperty(metric);
         expect(
           data[period].comparison[metric] === null ||
@@ -475,21 +443,18 @@ describe("GET /api/worker/dashboard", () => {
     }
   });
 
-  it("revenue has percentage applied (net < gross)", async () => {
+  it("revenue is the full estimated revenue of the assigned subdomain", async () => {
     const res = await request(app)
       .get("/api/worker/dashboard")
       .set("Authorization", `Bearer ${workerToken}`);
 
     const { data } = res.body;
-    // The mock always has data for "today" in America/Bogota.
-    // Net revenue (70%) must be less than gross (279.42) and positive.
-    expect(data.today.revenue).toBeGreaterThan(0);
-    expect(data.today.revenue).toBeLessThan(279.42);
-    // 70% of 279.42 = 195.594; allow ±1 for floating-point/rounding
-    expect(data.today.revenue).toBeCloseTo(195.59, 0);
+    // The mock always has data for "today" in America/Bogota: elvalerobux = 279.42.
+    expect(data.today.revenue).toBeCloseTo(279.42, 1);
+    expect(data.today).not.toHaveProperty("grossRevenue");
   });
 
-  it("ecpm is gross (not affected by worker percentage)", async () => {
+  it("ecpm is computed from revenue and impressions", async () => {
     const res = await request(app)
       .get("/api/worker/dashboard")
       .set("Authorization", `Bearer ${workerToken}`);
@@ -510,7 +475,7 @@ describe("GET /api/worker/dashboard", () => {
     expect(data.currentMonth.impressions).toBeGreaterThanOrEqual(data.today.impressions);
   });
 
-  it("returns all gross month-to-date rows without including today", async () => {
+  it("returns all month-to-date rows without including today", async () => {
     const res = await request(app)
       .get("/api/worker/dashboard?currentDate=2026-11-18")
       .set("Authorization", `Bearer ${workerToken}`);
@@ -520,113 +485,9 @@ describe("GET /api/worker/dashboard", () => {
     expect(res.body.data.dailyStats[0].date).toBe("2026-11-01");
     expect(res.body.data.dailyStats[16].date).toBe("2026-11-17");
     for (const row of res.body.data.dailyStats) {
-      expect(typeof row.grossRevenue).toBe("number");
+      expect(typeof row.revenue).toBe("number");
       expect(typeof row.impressions).toBe("number");
       expect(typeof row.ecpm).toBe("number");
     }
-  });
-});
-
-describe("GET /api/worker/payment-history", () => {
-  let workerToken;
-  let paymentHistoryWorkerId;
-
-  beforeAll(async () => {
-    const workerRes = await request(app)
-      .post("/api/workers")
-      .set("Authorization", `Bearer ${adminToken}`)
-      .send({
-        name: "Payment History Worker",
-        email: "payment.history.worker@example.com",
-        percentage: 60,
-        password: "pass123",
-      });
-    const workerId = workerRes.body.data.id;
-    paymentHistoryWorkerId = workerId;
-
-    await request(app)
-      .post(`/api/workers/${workerId}/properties`)
-      .set("Authorization", `Bearer ${adminToken}`)
-      .send({ type: "domain", value: "plez.barbacoadicto.com" });
-
-    const paymentMonth = todayISO("America/Bogota").slice(0, 7);
-    await request(app)
-      .patch(`/api/workers/${workerId}/payment-status`)
-      .set("Authorization", `Bearer ${adminToken}`)
-      .set("X-Client-Timezone", "America/Bogota")
-      .send({ status: "paid", paymentMonth });
-
-    const loginRes = await request(app)
-      .post("/api/auth/login")
-      .send({ email: "payment.history.worker@example.com", password: "pass123" });
-    workerToken = loginRes.body.data.token;
-  });
-
-  it("returns monthly rows per assigned domain with payment status", async () => {
-    const paymentMonth = todayISO("America/Bogota").slice(0, 7);
-    const res = await request(app)
-      .get(`/api/worker/payment-history?paymentMonth=${paymentMonth}`)
-      .set("Authorization", `Bearer ${workerToken}`);
-
-    expect(res.status).toBe(200);
-    expect(res.body.data.period).toBe(paymentMonth);
-    expect(Array.isArray(res.body.data.rows)).toBe(true);
-    expect(res.body.data.rows.length).toBeGreaterThan(0);
-    expect(res.body.data.rows[0]).toHaveProperty("domain");
-    expect(res.body.data.rows[0]).toHaveProperty("impressions");
-    expect(res.body.data.rows[0]).toHaveProperty("payout");
-    expect(res.body.data.rows[0]).toHaveProperty("paymentStatus");
-  });
-
-  it("mantiene montos del periodo tras paid → pending → cambio de porcentaje", async () => {
-    const paymentMonth = todayISO("America/Bogota").slice(0, 7);
-    const histBefore = await request(app)
-      .get(`/api/worker/payment-history?paymentMonth=${paymentMonth}`)
-      .set("Authorization", `Bearer ${workerToken}`)
-      .set("X-Client-Timezone", "America/Bogota");
-    expect(histBefore.status).toBe(200);
-    const totalBefore =
-      histBefore.body.data.totalPayout != null
-        ? Number(histBefore.body.data.totalPayout)
-        : histBefore.body.data.rows.reduce((s, r) => s + Number(r.payout || 0), 0);
-    expect(histBefore.body.data.paymentStatus).toBe("paid");
-
-    await request(app)
-      .patch(`/api/workers/${paymentHistoryWorkerId}/payment-status`)
-      .set("Authorization", `Bearer ${adminToken}`)
-      .set("X-Client-Timezone", "America/Bogota")
-      .send({ status: "pending", paymentMonth });
-
-    await request(app)
-      .patch(`/api/workers/${paymentHistoryWorkerId}`)
-      .set("Authorization", `Bearer ${adminToken}`)
-      .send({
-        name: "Payment History Worker",
-        email: "payment.history.worker@example.com",
-        percentage: 5,
-        domains: ["plez.barbacoadicto.com"],
-      });
-
-    // Evitar misma marca temporal que session_invalidated_at (JWT iat en segundos).
-    await new Promise((r) => setTimeout(r, 1100));
-
-    const loginAgain = await request(app)
-      .post("/api/auth/login")
-      .send({ email: "payment.history.worker@example.com", password: "pass123" });
-    expect(loginAgain.status).toBe(200);
-    const freshWorkerToken = loginAgain.body.data.token;
-
-    const histAfter = await request(app)
-      .get(`/api/worker/payment-history?paymentMonth=${paymentMonth}`)
-      .set("Authorization", `Bearer ${freshWorkerToken}`)
-      .set("X-Client-Timezone", "America/Bogota");
-
-    expect(histAfter.status).toBe(200);
-    expect(histAfter.body.data.paymentStatus).toBe("pending");
-    const totalAfter =
-      histAfter.body.data.totalPayout != null
-        ? Number(histAfter.body.data.totalPayout)
-        : histAfter.body.data.rows.reduce((s, r) => s + Number(r.payout || 0), 0);
-    expect(totalAfter).toBeCloseTo(totalBefore, 2);
   });
 });

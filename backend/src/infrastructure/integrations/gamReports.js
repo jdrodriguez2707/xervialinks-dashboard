@@ -177,7 +177,7 @@ async function fetchAllRows(headers, reportId, resultId, networkCode) {
  *   }]
  *
  * Second dimension is SITE (subdomain), stored as "domain" — the field name
- * used throughout the app (payouts service, worker filtering, etc).
+ * used throughout the app (worker filtering, summaries, etc).
  */
 function normalizeRows(rows) {
   return rows.map((row) => {

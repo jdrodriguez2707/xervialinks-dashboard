@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { CircleDollarSign, SquarePen, Trash2, UserX } from "lucide-react";
+import { SquarePen, Trash2, UserX } from "lucide-react";
 import { addProperty, deleteWorker, purgeInactiveWorker } from "../../../shared/api/workers";
 import { toUserErrorMessage } from "../../../shared/lib/uiError";
 import WorkerForm from "./WorkerForm";
@@ -32,15 +32,12 @@ import StatusBadge from "@/components/StatusBadge";
  *     id: number,
  *     name: string,
  *     email: string,
- *     percentage: number,
  *     deleted_at?: string | null,
- *     paymentStatus?: string,
  *     properties: Array<{ id: number, type: string, value: string }>,
  *   }>,
  *   sites: string[],
  *   onUpdate: () => void | Promise<void>,
  *   mode?: "dashboard" | "management",
- *   onGoToEarnings?: (workerId: number) => void,
  *   onNavigateToWorkerEdit?: (workerId: number) => void,
  *   workerFormOpenRequestId?: number,
  *   autoEditWorkerId?: number | null,
@@ -58,7 +55,6 @@ export default function WorkersList({
   gamNetworks = [],
   onUpdate,
   mode = "management",
-  onGoToEarnings,
   onNavigateToWorkerEdit,
   workerFormOpenRequestId = 0,
   autoEditWorkerId = null,
@@ -149,7 +145,6 @@ export default function WorkersList({
         <WorkerDashboardCard
           key={worker.id}
           worker={worker}
-          onGoToEarnings={onGoToEarnings}
           onNavigateToWorkerEdit={onNavigateToWorkerEdit}
         />
       ))}
@@ -157,11 +152,9 @@ export default function WorkersList({
   );
 }
 
-/** @param {{ worker: object, onGoToEarnings?: (id: number) => void, onNavigateToWorkerEdit?: (id: number) => void }} props */
-function WorkerDashboardCard({ worker, onGoToEarnings, onNavigateToWorkerEdit }) {
+/** @param {{ worker: object, onNavigateToWorkerEdit?: (id: number) => void }} props */
+function WorkerDashboardCard({ worker, onNavigateToWorkerEdit }) {
   const domains = (worker.properties || []).filter((p) => p.type === "domain");
-  const paymentStatus = worker.paymentStatus || "pending";
-  const isPaid = paymentStatus === "paid";
 
   function handleCardActivate() {
     onNavigateToWorkerEdit?.(worker.id);
@@ -187,22 +180,6 @@ function WorkerDashboardCard({ worker, onGoToEarnings, onNavigateToWorkerEdit })
             <p className="text-sm font-semibold">{worker.name}</p>
             <p className="text-xs text-muted-foreground">{worker.email}</p>
           </div>
-          <div className="flex items-center gap-2">
-            <Badge className="bg-primary/15 text-primary tabular-nums">{worker.percentage}%</Badge>
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon"
-              aria-label={`Ver ganancias de ${worker.name}`}
-              title="Ir al módulo de Ganancias"
-              onClick={(e) => {
-                e.stopPropagation();
-                onGoToEarnings?.(worker.id);
-              }}
-            >
-              <CircleDollarSign className="h-4 w-4" />
-            </Button>
-          </div>
         </div>
       </CardHeader>
       <CardContent className="space-y-3">
@@ -217,10 +194,6 @@ function WorkerDashboardCard({ worker, onGoToEarnings, onNavigateToWorkerEdit })
         ) : (
           <p className="text-xs text-muted-foreground">Sin subdominios asignados.</p>
         )}
-        <StatusBadge
-          status={isPaid ? "paid" : "pending"}
-          label={isPaid ? "Pagado" : "Pendiente de pago"}
-        />
       </CardContent>
     </Card>
   );
@@ -354,7 +327,6 @@ function WorkerManagementPanel({
             </div>
           </div>
           <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">
-            <Badge className="bg-primary/15 text-primary tabular-nums">{worker.percentage}%</Badge>
             {!isInactive && (
               <>
                 <Button

@@ -15,7 +15,6 @@ beforeAll(async () => {
     .send({
       name: "Settings Worker",
       email: "settings-worker@example.com",
-      percentage: 50,
       password: "pass123",
     });
   expect(workerCreated.status).toBe(201);

@@ -1,22 +1,18 @@
 const workersService = require("../../application/services/workers.service");
-const { clientTimeZoneFromRequest } = require("../utils/clientTz");
 
 async function listWorkers(req, res) {
   const includeDeleted = req.query.includeDeleted === "true" || req.query.includeDeleted === "1";
-  const timeZone = clientTimeZoneFromRequest(req);
-  const workers = workersService.getAllWorkers(includeDeleted, req.query.paymentMonth, true, timeZone);
+  const workers = workersService.getAllWorkers(includeDeleted, true);
   res.json({ data: workers });
 }
 
 async function getWorker(req, res) {
-  const timeZone = clientTimeZoneFromRequest(req);
-  const worker = workersService.getWorkerById(req.params.id, req.query.paymentMonth, true, timeZone);
+  const worker = workersService.getWorkerById(req.params.id, true);
   res.json({ data: worker });
 }
 
 async function getMe(req, res) {
-  const timeZone = clientTimeZoneFromRequest(req);
-  const worker = workersService.getWorkerByEmail(req.user.email, req.query.paymentMonth, timeZone);
+  const worker = workersService.getWorkerByEmail(req.user.email);
   if (!worker) {
     return res.status(404).json({ error: "No tienes un perfil de trabajador asignado" });
   }
@@ -24,8 +20,8 @@ async function getMe(req, res) {
 }
 
 async function createWorker(req, res) {
-  const { name, email, percentage, password } = req.body;
-  const worker = await workersService.createWorker({ name, email, percentage, password });
+  const { name, email, password } = req.body;
+  const worker = await workersService.createWorker({ name, email, password });
   res.status(201).json({ data: worker });
 }
 
@@ -49,18 +45,6 @@ async function purgeInactiveWorker(req, res) {
   res.status(204).end();
 }
 
-async function updatePaymentStatus(req, res) {
-  const { status, paymentMonth } = req.body || {};
-  const timeZone = clientTimeZoneFromRequest(req);
-  const paymentStatus = await workersService.updateWorkerPaymentStatus(
-    req.params.id,
-    status,
-    paymentMonth,
-    { timeZone },
-  );
-  res.json({ data: paymentStatus });
-}
-
 async function updateWorker(req, res) {
   const worker = await workersService.updateWorker(req.params.id, req.body || {}, {
     defaultGamNetworkCode: req.query.networkCode,
@@ -76,6 +60,5 @@ module.exports = {
   deleteWorker,
   purgeInactiveWorker,
   addProperty,
-  updatePaymentStatus,
   updateWorker,
 };

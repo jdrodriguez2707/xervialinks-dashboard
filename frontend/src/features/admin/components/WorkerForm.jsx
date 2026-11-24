@@ -39,7 +39,6 @@ export default function WorkerForm({
   }, [openRequestId]);
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
-  const [percentage, setPercentage] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState(null);
   const [submitting, setSubmitting] = useState(false);
@@ -57,12 +56,10 @@ export default function WorkerForm({
       await createWorker({
         name,
         email,
-        percentage: parseFloat(percentage),
         password,
       });
       setName("");
       setEmail("");
-      setPercentage("");
       setPassword("");
       handleClose();
       onCreated();
@@ -110,21 +107,6 @@ export default function WorkerForm({
               placeholder="correo@dominio.com"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              required
-            />
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="worker-percentage">Porcentaje</Label>
-            <Input
-              id="worker-percentage"
-              type="number"
-              placeholder="% (ej. 70)"
-              min="0.01"
-              max="100"
-              step="0.01"
-              value={percentage}
-              onChange={(e) => setPercentage(e.target.value)}
               required
             />
           </div>

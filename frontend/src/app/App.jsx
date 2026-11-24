@@ -1,23 +1,13 @@
-import { useEffect, useState, useCallback, useRef, useMemo } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { getStoredUser, getToken, logout, setStoredUser, fetchSession } from "../shared/api/auth";
-import { getAdminDateRange, paymentMonthToDateRangeISO } from "../shared/lib/reportCalendar";
-import {
-  getDefaultPaymentMonthKey,
-  getCalendarMonthKeyInReportTZ,
-  buildEarningsPeriodMonthOptions,
-} from "../shared/lib/paymentMonthOptions";
+import { getAdminDateRange } from "../shared/lib/reportCalendar";
 import { fetchSummary } from "../shared/api/summary";
 import { fetchWorkers } from "../shared/api/workers";
-import { fetchPayouts, fetchPaymentHistory } from "../shared/api/payouts";
 import {
   fetchWorkerDailyStatsVisibility,
   updateWorkerDailyStatsVisibility,
 } from "../shared/api/appSettings";
-import {
-  fetchWorkerContext,
-  fetchWorkerDashboard,
-  fetchWorkerPaymentHistory,
-} from "../shared/api/worker";
+import { fetchWorkerContext, fetchWorkerDashboard } from "../shared/api/worker";
 import { fetchSites } from "../shared/api/sites";
 import { fetchSyncStatus } from "../shared/api/sync";
 import { fetchGamNetworks } from "../shared/api/gamNetworks";
@@ -26,9 +16,6 @@ import { toUserErrorMessage } from "../shared/lib/uiError";
 import GamNetworksModule from "../features/admin/components/GamNetworksModule";
 import LoginForm from "../features/auth/components/LoginForm";
 import SummaryCards from "../features/admin/components/SummaryCards";
-import PayoutsTable from "../features/admin/components/PayoutsTable";
-import AdminEarningsPaymentStatusPanel from "../features/admin/components/AdminEarningsPaymentStatusPanel";
-import PaymentHistoryTable from "../features/admin/components/PaymentHistoryTable";
 import WorkersList from "../features/admin/components/WorkersList";
 import WorkerDashboard from "../features/worker/components/WorkerDashboard";
 import AdminProfile from "../features/admin/components/AdminProfile";
@@ -36,8 +23,6 @@ import SectionHeader from "../components/SectionHeader";
 import ThemeToggle from "../components/ThemeToggle";
 import {
   LayoutDashboard,
-  Wallet,
-  Banknote,
   Users,
   Network,
   UserCircle2,
@@ -59,8 +44,6 @@ const WORKER_TAB_STORAGE_PREFIX = "workerDashboardActiveTab";
 
 const ADMIN_MENU_OPTIONS = [
   { id: "dashboard", label: "Dashboard", icon: LayoutDashboard },
-  { id: "earnings", label: "Ganancias", icon: Wallet },
-  { id: "payment-history", label: "Historial de pagos", icon: Banknote },
   { id: "workers", label: "Trabajadores", icon: Users },
   { id: "network-codes", label: "Codigos de red", icon: Network },
   { id: "profile", label: "Perfil", icon: UserCircle2 },
@@ -157,12 +140,6 @@ export default function App() {
   const [loading, setLoading] = useState(false);
   const [refreshingAdmin, setRefreshingAdmin] = useState(false);
   const [adminDashboardRange, setAdminDashboardRange] = useState("today");
-  const [adminEarningsMonth, setAdminEarningsMonth] = useState(() => getCalendarMonthKeyInReportTZ());
-  const [adminPaymentMonth, setAdminPaymentMonth] = useState(() => getDefaultPaymentMonthKey());
-  const [workerPaymentMonth, setWorkerPaymentMonth] = useState(() => getDefaultPaymentMonthKey());
-  const [workerHistoryPaymentMonth, setWorkerHistoryPaymentMonth] = useState(() =>
-    getDefaultPaymentMonthKey(),
-  );
   const [adminReady, setAdminReady] = useState(false);
   const [error, setError] = useState(null);
   const [workerMetricsLoading, setWorkerMetricsLoading] = useState(false);
@@ -180,16 +157,10 @@ export default function App() {
     return readStoredAdminActiveModule();
   });
   const [workerFormOpenRequestId, setWorkerFormOpenRequestId] = useState(0);
-  const [highlightedEarningsWorkerId, setHighlightedEarningsWorkerId] = useState(null);
   const [workerEditLaunch, setWorkerEditLaunch] = useState({ id: null, nonce: 0 });
   const adminDashboardCacheRef = useRef(new Map());
-  const adminEarningsCacheRef = useRef(new Map());
   const workerValidDomainsRef = useRef([]);
   const adminActiveNetworkCodeRef = useRef(adminActiveNetworkCode);
-  const workerPaymentMonthRef = useRef(getDefaultPaymentMonthKey());
-  const workerHistoryPaymentMonthRef = useRef(getDefaultPaymentMonthKey());
-  const lastDefaultPaymentMonthRef = useRef(getDefaultPaymentMonthKey());
-  const lastEarningsCalendarMonthRef = useRef(getCalendarMonthKeyInReportTZ());
   const workerContextReqSeqRef = useRef(0);
   const loadInitialSeqRef = useRef(0);
 
@@ -203,12 +174,6 @@ export default function App() {
     setWorkerMetricsLoading(false);
     setWorkerMetricsError(null);
     setWorkerSelectedDomain(null);
-    setAdminPaymentMonth(getDefaultPaymentMonthKey());
-    setWorkerPaymentMonth(getDefaultPaymentMonthKey());
-    setWorkerHistoryPaymentMonth(getDefaultPaymentMonthKey());
-    setAdminEarningsMonth(getCalendarMonthKeyInReportTZ());
-    lastEarningsCalendarMonthRef.current = getCalendarMonthKeyInReportTZ();
-    lastDefaultPaymentMonthRef.current = getDefaultPaymentMonthKey();
     setSyncStatus(null);
     workerValidDomainsRef.current = [];
     setAdminActiveNetworkCode(readAdminActiveGamNetworkCode());
@@ -224,7 +189,6 @@ export default function App() {
       }
     }
     adminDashboardCacheRef.current.clear();
-    adminEarningsCacheRef.current.clear();
   }, []);
 
   function adminDashCacheKey(rangeKey) {
@@ -245,23 +209,6 @@ export default function App() {
   function setCachedDashboardSummary(rangeKey, summary) {
     adminDashboardCacheRef.current.set(adminDashCacheKey(rangeKey), {
       summary,
-      cachedAt: Date.now(),
-    });
-  }
-
-  function getCachedEarningsPayouts(rangeKey) {
-    const entry = adminEarningsCacheRef.current.get(adminDashCacheKey(rangeKey));
-    if (!entry) return null;
-    if (Date.now() - entry.cachedAt > ADMIN_CACHE_TTL_MS) {
-      adminEarningsCacheRef.current.delete(adminDashCacheKey(rangeKey));
-      return null;
-    }
-    return entry.payouts;
-  }
-
-  function setCachedEarningsPayouts(rangeKey, payouts) {
-    adminEarningsCacheRef.current.set(adminDashCacheKey(rangeKey), {
-      payouts,
       cachedAt: Date.now(),
     });
   }
@@ -294,9 +241,7 @@ export default function App() {
           handleLogout(rawMessage);
         } else if (rawMessage.includes("subdominio solicitado no está asignado")) {
           try {
-            const ctx = await fetchWorkerContext({
-              paymentMonth: workerPaymentMonthRef.current,
-            });
+            const ctx = await fetchWorkerContext();
             const domains = getWorkerDomains(ctx);
             const fallbackDomain = domains[0] || null;
             setData((prev) => ({ ...prev, workerContext: ctx }));
@@ -364,26 +309,19 @@ export default function App() {
         adminActiveNetworkCodeRef.current = activeCode;
 
         const range = getAdminDateRange("today");
-        const earningsRange = paymentMonthToDateRangeISO(adminEarningsMonth);
         const netOpts = { networkCode: activeCode || undefined };
-        const [summary, workers, payouts, paymentHistory, sites, sync, dailyStatsVisibility] =
-          await Promise.all([
-            fetchSummary({ ...range, ...netOpts }),
-            fetchWorkers({ includeDeleted: true, paymentMonth: adminPaymentMonth, ...netOpts }),
-            fetchPayouts({ ...earningsRange, ...netOpts }),
-            fetchPaymentHistory(netOpts),
-            fetchSites(netOpts),
-            fetchSyncStatus(netOpts).catch(() => null),
-            fetchWorkerDailyStatsVisibility(),
-          ]);
+        const [summary, workers, sites, sync, dailyStatsVisibility] = await Promise.all([
+          fetchSummary({ ...range, ...netOpts }),
+          fetchWorkers({ includeDeleted: true, ...netOpts }),
+          fetchSites(netOpts),
+          fetchSyncStatus(netOpts).catch(() => null),
+          fetchWorkerDailyStatsVisibility(),
+        ]);
         if (seq !== loadInitialSeqRef.current) return;
         setCachedDashboardSummary("today", summary);
-        setCachedEarningsPayouts(adminEarningsMonth, payouts);
         setData({
           summary,
           workers,
-          payouts,
-          paymentHistory,
           sites,
           gamNetworks: gamNetList,
           workerDailyStatsEnabled: dailyStatsVisibility.enabled,
@@ -401,24 +339,8 @@ export default function App() {
             })
             .catch(() => {});
         });
-
-        const warmEarningsMonths = buildEarningsPeriodMonthOptions(new Date())
-          .slice(0, 4)
-          .map((o) => o.value);
-        warmEarningsMonths.forEach((monthKey) => {
-          if (getCachedEarningsPayouts(monthKey) != null) return;
-          const er = paymentMonthToDateRangeISO(monthKey);
-          fetchPayouts({ ...er, ...netOpts })
-            .then((p) => {
-              setCachedEarningsPayouts(monthKey, p);
-            })
-            .catch(() => {});
-        });
       } else {
-        const [context, paymentHistory] = await Promise.all([
-          fetchWorkerContext({ paymentMonth: workerPaymentMonth }),
-          fetchWorkerPaymentHistory({ paymentMonth: workerHistoryPaymentMonth }),
-        ]);
+        const context = await fetchWorkerContext();
         if (seq !== loadInitialSeqRef.current) return;
         const domains = getWorkerDomains(context);
         let initialDomain = domains[0] || null;
@@ -431,7 +353,6 @@ export default function App() {
         setData({
           workerContext: context,
           workerMetrics: null,
-          workerPaymentHistory: paymentHistory,
         });
         setWorkerSelectedDomain(initialDomain);
         setWorkerMetricsError(null);
@@ -451,7 +372,7 @@ export default function App() {
     } finally {
       if (seq === loadInitialSeqRef.current) setLoading(false);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- adminPaymentMonth / worker months: otros useEffect; evita bucle
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- cache helpers are stable refs; adding them would re-run the initial load
   }, [user, loadWorkerMetrics, handleLogout]);
 
   useEffect(() => {
@@ -492,32 +413,9 @@ export default function App() {
     setCurrentDateLabel(formatUserDateLabel());
     const timer = window.setInterval(() => {
       setCurrentDateLabel(formatUserDateLabel());
-      const nextDefault = getDefaultPaymentMonthKey();
-      const previousDefault = lastDefaultPaymentMonthRef.current;
-      if (nextDefault !== previousDefault) {
-        if (adminPaymentMonth === previousDefault) {
-          setAdminPaymentMonth(nextDefault);
-        }
-        if (workerPaymentMonth === previousDefault) {
-          setWorkerPaymentMonth(nextDefault);
-        }
-        if (workerHistoryPaymentMonth === previousDefault) {
-          setWorkerHistoryPaymentMonth(nextDefault);
-        }
-        lastDefaultPaymentMonthRef.current = nextDefault;
-      }
-
-      const nextCal = getCalendarMonthKeyInReportTZ();
-      const prevCal = lastEarningsCalendarMonthRef.current;
-      if (nextCal !== prevCal) {
-        if (adminEarningsMonth === prevCal) {
-          setAdminEarningsMonth(nextCal);
-        }
-        lastEarningsCalendarMonthRef.current = nextCal;
-      }
     }, 60 * 1000);
     return () => window.clearInterval(timer);
-  }, [adminPaymentMonth, workerPaymentMonth, workerHistoryPaymentMonth, adminEarningsMonth]);
+  }, []);
 
   useEffect(() => {
     if (typeof document === "undefined") return;
@@ -529,14 +427,6 @@ export default function App() {
     }
     document.body.style.overflow = "";
   }, [adminMenuOpen, user?.role]);
-
-  useEffect(() => {
-    if (!highlightedEarningsWorkerId) return;
-    const timer = window.setTimeout(() => {
-      setHighlightedEarningsWorkerId(null);
-    }, 3500);
-    return () => window.clearTimeout(timer);
-  }, [highlightedEarningsWorkerId]);
 
   useEffect(() => {
     async function refreshDashboardByRange() {
@@ -565,46 +455,11 @@ export default function App() {
     refreshDashboardByRange();
   }, [adminDashboardRange, adminActiveNetworkCode, user, adminReady, handleLogout]);
 
-  useEffect(() => {
-    async function refreshEarningsByRange() {
-      if (!user || user.role !== "admin" || !adminReady) return;
-      const cached = getCachedEarningsPayouts(adminEarningsMonth);
-      if (cached != null) {
-        setData((prev) => ({ ...prev, payouts: cached }));
-        return;
-      }
-      setRefreshingAdmin(true);
-      setError(null);
-      try {
-        const range = paymentMonthToDateRangeISO(adminEarningsMonth);
-        const net = adminActiveNetworkCode ? { networkCode: adminActiveNetworkCode } : {};
-        const payouts = await fetchPayouts({ ...range, ...net });
-        setCachedEarningsPayouts(adminEarningsMonth, payouts);
-        setData((prev) => ({ ...prev, payouts }));
-      } catch (err) {
-        const rawMessage = String(err?.message || "");
-        if (isAuthSessionError(rawMessage)) handleLogout(rawMessage);
-        else setError(toUserErrorMessage(err, "No se pudo actualizar la tabla de ganancias."));
-      } finally {
-        setRefreshingAdmin(false);
-      }
-    }
-    refreshEarningsByRange();
-  }, [adminEarningsMonth, adminActiveNetworkCode, user, adminReady, handleLogout]);
-
   // Keep ref in sync so loadWorkerMetrics always has current valid domains
   // without needing data in its dependency array (which would cause re-render loops).
   useEffect(() => {
     workerValidDomainsRef.current = getWorkerDomains(data?.workerContext);
   }, [data?.workerContext]);
-
-  useEffect(() => {
-    workerPaymentMonthRef.current = workerPaymentMonth;
-  }, [workerPaymentMonth]);
-
-  useEffect(() => {
-    workerHistoryPaymentMonthRef.current = workerHistoryPaymentMonth;
-  }, [workerHistoryPaymentMonth]);
 
   useEffect(() => {
     if (!user || user.role !== "worker" || typeof window === "undefined") return;
@@ -618,23 +473,19 @@ export default function App() {
     }
   }, [user, workerSelectedDomain, data?.workerContext?.workerId]);
 
-  const refreshAdminWorkersAndPayouts = useCallback(async () => {
+  const refreshAdminWorkers = useCallback(async () => {
     if (!user || user.role !== "admin") return;
     setRefreshingAdmin(true);
     setError(null);
     try {
       const dashRangeObj = getAdminDateRange(adminDashboardRange);
-      const earnRangeObj = paymentMonthToDateRangeISO(adminEarningsMonth);
       const net = adminActiveNetworkCode ? { networkCode: adminActiveNetworkCode } : {};
-      const [workers, payouts, summary, paymentHistory] = await Promise.all([
-        fetchWorkers({ includeDeleted: true, paymentMonth: adminPaymentMonth, ...net }),
-        fetchPayouts({ ...earnRangeObj, ...net }),
+      const [workers, summary] = await Promise.all([
+        fetchWorkers({ includeDeleted: true, ...net }),
         fetchSummary({ ...dashRangeObj, ...net }),
-        fetchPaymentHistory(net),
       ]);
       setCachedDashboardSummary(adminDashboardRange, summary);
-      setCachedEarningsPayouts(adminEarningsMonth, payouts);
-      setData((prev) => ({ ...prev, workers, payouts, summary, paymentHistory }));
+      setData((prev) => ({ ...prev, workers, summary }));
     } catch (err) {
       const rawMessage = String(err?.message || "");
       if (isAuthSessionError(rawMessage)) handleLogout(rawMessage);
@@ -643,57 +494,7 @@ export default function App() {
     } finally {
       setRefreshingAdmin(false);
     }
-  }, [
-    user,
-    adminDashboardRange,
-    adminEarningsMonth,
-    adminPaymentMonth,
-    adminActiveNetworkCode,
-    handleLogout,
-  ]);
-
-  const refreshAdminEarningsPayouts = useCallback(async () => {
-    if (!user || user.role !== "admin" || !adminReady) return;
-    setRefreshingAdmin(true);
-    setError(null);
-    try {
-      const range = paymentMonthToDateRangeISO(adminEarningsMonth);
-      const net = adminActiveNetworkCode ? { networkCode: adminActiveNetworkCode } : {};
-      const payouts = await fetchPayouts({ ...range, ...net });
-      setCachedEarningsPayouts(adminEarningsMonth, payouts);
-      setData((prev) => ({ ...prev, payouts }));
-    } catch (err) {
-      const rawMessage = String(err?.message || "");
-      if (isAuthSessionError(rawMessage)) handleLogout(rawMessage);
-      else setError(toUserErrorMessage(err, "No se pudo actualizar la tabla de ganancias."));
-    } finally {
-      setRefreshingAdmin(false);
-    }
-  }, [user, adminReady, adminEarningsMonth, adminActiveNetworkCode, handleLogout]);
-
-  const refreshAdminWorkerStatusesOnly = useCallback(async () => {
-    if (!user || user.role !== "admin") return;
-    setRefreshingAdmin(true);
-    setError(null);
-    try {
-      const net = adminActiveNetworkCode ? { networkCode: adminActiveNetworkCode } : {};
-      const [workers, paymentHistory] = await Promise.all([
-        fetchWorkers({
-          includeDeleted: true,
-          paymentMonth: adminPaymentMonth,
-          ...net,
-        }),
-        fetchPaymentHistory(net),
-      ]);
-      setData((prev) => ({ ...prev, workers, paymentHistory }));
-    } catch (err) {
-      const rawMessage = String(err?.message || "");
-      if (isAuthSessionError(rawMessage)) handleLogout(rawMessage);
-      else setError(toUserErrorMessage(err, "No se pudo actualizar el estado de pagos."));
-    } finally {
-      setRefreshingAdmin(false);
-    }
-  }, [user, adminPaymentMonth, adminActiveNetworkCode, handleLogout]);
+  }, [user, adminDashboardRange, adminActiveNetworkCode, handleLogout]);
 
   const handleAdminNetworkChange = useCallback(
     async (nextCode) => {
@@ -702,24 +503,19 @@ export default function App() {
       setAdminActiveNetworkCode(nextCode);
       adminActiveNetworkCodeRef.current = nextCode;
       adminDashboardCacheRef.current.clear();
-      adminEarningsCacheRef.current.clear();
       setRefreshingAdmin(true);
       setError(null);
       try {
         const dashRangeObj = getAdminDateRange(adminDashboardRange);
-        const earnRangeObj = paymentMonthToDateRangeISO(adminEarningsMonth);
         const net = { networkCode: nextCode };
-        const [workers, payouts, summary, paymentHistory, sites, sync] = await Promise.all([
-          fetchWorkers({ includeDeleted: true, paymentMonth: adminPaymentMonth, ...net }),
-          fetchPayouts({ ...earnRangeObj, ...net }),
+        const [workers, summary, sites, sync] = await Promise.all([
+          fetchWorkers({ includeDeleted: true, ...net }),
           fetchSummary({ ...dashRangeObj, ...net }),
-          fetchPaymentHistory(net),
           fetchSites(net),
           fetchSyncStatus(net).catch(() => null),
         ]);
         setCachedDashboardSummary(adminDashboardRange, summary);
-        setCachedEarningsPayouts(adminEarningsMonth, payouts);
-        setData((prev) => ({ ...prev, workers, payouts, summary, paymentHistory, sites }));
+        setData((prev) => ({ ...prev, workers, summary, sites }));
         setSyncStatus(sync);
       } catch (err) {
         const rawMessage = String(err?.message || "");
@@ -729,30 +525,20 @@ export default function App() {
         setRefreshingAdmin(false);
       }
     },
-    [
-      user,
-      adminReady,
-      adminDashboardRange,
-      adminEarningsMonth,
-      adminPaymentMonth,
-      handleLogout,
-    ],
+    [user, adminReady, adminDashboardRange, handleLogout],
   );
 
-  const refreshWorkerContextByPaymentMonth = useCallback(async () => {
+  const refreshWorkerContext = useCallback(async () => {
     if (!user || user.role !== "worker") return;
     const reqSeq = ++workerContextReqSeqRef.current;
     try {
-      const [ctx, paymentHistory] = await Promise.all([
-        fetchWorkerContext({ paymentMonth: workerPaymentMonthRef.current }),
-        fetchWorkerPaymentHistory({ paymentMonth: workerHistoryPaymentMonthRef.current }),
-      ]);
+      const ctx = await fetchWorkerContext();
       if (workerContextReqSeqRef.current !== reqSeq) return;
       const domains = getWorkerDomains(ctx);
       const stillValid = workerSelectedDomain && domains.includes(workerSelectedDomain);
       const nextDomain = stillValid ? workerSelectedDomain : domains[0] || null;
       setWorkerSelectedDomain(nextDomain);
-      setData((prev) => ({ ...prev, workerContext: ctx, workerPaymentHistory: paymentHistory }));
+      setData((prev) => ({ ...prev, workerContext: ctx }));
       setError(null);
     } catch (err) {
       const rawMessage = String(err?.message || "");
@@ -764,51 +550,12 @@ export default function App() {
   }, [user, workerSelectedDomain, handleLogout]);
 
   useEffect(() => {
-    async function refreshWorkersPaymentStatusByMonth() {
-      if (!user || user.role !== "admin" || !adminReady) return;
-      setRefreshingAdmin(true);
-      setError(null);
-      try {
-        const net = adminActiveNetworkCode ? { networkCode: adminActiveNetworkCode } : {};
-        const [workers, paymentHistory] = await Promise.all([
-          fetchWorkers({
-            includeDeleted: true,
-            paymentMonth: adminPaymentMonth,
-            ...net,
-          }),
-          fetchPaymentHistory(net),
-        ]);
-        setData((prev) => ({ ...prev, workers, paymentHistory }));
-      } catch (err) {
-        const rawMessage = String(err?.message || "");
-        if (isAuthSessionError(rawMessage)) handleLogout(rawMessage);
-        else setError(toUserErrorMessage(err, "No se pudo actualizar el periodo de pagos."));
-      } finally {
-        setRefreshingAdmin(false);
-      }
-    }
-    refreshWorkersPaymentStatusByMonth();
-  }, [adminPaymentMonth, adminActiveNetworkCode, user, adminReady, handleLogout]);
-
-  useEffect(() => {
-    if (!user || user.role !== "worker" || !data?.workerContext) return;
-    refreshWorkerContextByPaymentMonth();
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- evitar `data.workerContext` completo (re-disparos en cada refresh)
-  }, [
-    workerPaymentMonth,
-    workerHistoryPaymentMonth,
-    user,
-    data?.workerContext?.workerId,
-    refreshWorkerContextByPaymentMonth,
-  ]);
-
-  useEffect(() => {
     if (!user || user.role !== "worker" || !data?.workerContext?.workerId) return;
     const timer = window.setInterval(() => {
-      refreshWorkerContextByPaymentMonth();
+      refreshWorkerContext();
     }, 5000);
     return () => window.clearInterval(timer);
-  }, [user, data?.workerContext?.workerId, refreshWorkerContextByPaymentMonth]);
+  }, [user, data?.workerContext?.workerId, refreshWorkerContext]);
 
   function handleLogin(loggedUser) {
     setSessionNotice(null);
@@ -819,19 +566,8 @@ export default function App() {
     workerValidDomainsRef.current = [];
     setAdminMenuOpen(false);
     setAdminActiveModule("dashboard");
-    setHighlightedEarningsWorkerId(null);
     setWorkerFormOpenRequestId(0);
-    setAdminPaymentMonth(getDefaultPaymentMonthKey());
-    setWorkerPaymentMonth(getDefaultPaymentMonthKey());
-    setWorkerHistoryPaymentMonth(getDefaultPaymentMonthKey());
-    setAdminEarningsMonth(getCalendarMonthKeyInReportTZ());
-    lastEarningsCalendarMonthRef.current = getCalendarMonthKeyInReportTZ();
-    lastDefaultPaymentMonthRef.current = getDefaultPaymentMonthKey();
     setSyncStatus(null);
-    setAdminMenuOpen(false);
-    setAdminActiveModule("dashboard");
-    setHighlightedEarningsWorkerId(null);
-    setHighlightedEarningsWorkerId(null);
     setUser(loggedUser);
   }
 
@@ -873,7 +609,6 @@ export default function App() {
                   aria-current={isActive ? "page" : undefined}
                   onClick={() => {
                     setAdminActiveModule(item.id);
-                    if (item.id !== "earnings") setHighlightedEarningsWorkerId(null);
                     if (item.id !== "workers") {
                       setWorkerEditLaunch((prev) => ({ ...prev, id: null }));
                     }
@@ -969,16 +704,9 @@ export default function App() {
                 data={data}
                 user={user}
                 isRefreshing={refreshingAdmin}
-                onWorkersUpdate={refreshAdminWorkersAndPayouts}
-                onWorkersPaymentStatusRefresh={refreshAdminWorkerStatusesOnly}
-                onRefreshAdminEarningsPayouts={refreshAdminEarningsPayouts}
+                onWorkersUpdate={refreshAdminWorkers}
                 adminDashboardRange={adminDashboardRange}
                 onChangeAdminDashboardRange={setAdminDashboardRange}
-                adminEarningsMonth={adminEarningsMonth}
-                onChangeAdminEarningsMonth={setAdminEarningsMonth}
-                adminPaymentMonth={adminPaymentMonth}
-                onChangeAdminPaymentMonth={setAdminPaymentMonth}
-                paymentMonthOptionsTick={currentDateLabel}
                 activeModule={adminActiveModule}
                 adminActiveNetworkCode={adminActiveNetworkCode}
                 onGamNetworksUpdated={async () => {
@@ -989,15 +717,10 @@ export default function App() {
                     /* ignore */
                   }
                 }}
-                highlightedEarningsWorkerId={highlightedEarningsWorkerId}
                 workerFormOpenRequestId={workerFormOpenRequestId}
                 onAddWorkerFromDashboard={() => {
                   setAdminActiveModule("workers");
                   setWorkerFormOpenRequestId((n) => n + 1);
-                }}
-                onNavigateToEarnings={(workerId) => {
-                  setAdminActiveModule("earnings");
-                  setHighlightedEarningsWorkerId(workerId);
                 }}
                 workerEditLaunchId={workerEditLaunch.id}
                 workerEditLaunchNonce={workerEditLaunch.nonce}
@@ -1065,8 +788,6 @@ export default function App() {
           workerContext={data?.workerContext ?? null}
           dailyStatsEnabled={data?.workerContext?.dailyStatsEnabled}
           workerMetrics={data?.workerMetrics ?? null}
-          workerPaymentHistory={data?.workerPaymentHistory ?? null}
-          paymentMonthOptionsTick={currentDateLabel}
           selectedDomain={workerSelectedDomain}
           onDomainChange={async (nextDomain) => {
             setWorkerSelectedDomain(nextDomain);
@@ -1077,29 +798,6 @@ export default function App() {
           metricsError={workerMetricsError}
           error={error}
           workerId={data?.workerContext?.workerId ?? null}
-          paymentMonth={workerPaymentMonth}
-          onPaymentMonthChange={setWorkerPaymentMonth}
-          paymentHistoryMonth={workerHistoryPaymentMonth}
-          onPaymentHistoryMonthChange={setWorkerHistoryPaymentMonth}
-          onContextRefresh={async () => {
-            try {
-              const [ctx, paymentHistory] = await Promise.all([
-                fetchWorkerContext({ paymentMonth: workerPaymentMonth }),
-                fetchWorkerPaymentHistory({ paymentMonth: workerHistoryPaymentMonth }),
-              ]);
-              const domains = getWorkerDomains(ctx);
-              const stillValid = workerSelectedDomain && domains.includes(workerSelectedDomain);
-              const nextDomain = stillValid ? workerSelectedDomain : domains[0] || null;
-              setWorkerSelectedDomain(nextDomain);
-              setData((prev) => ({
-                ...prev,
-                workerContext: ctx,
-                workerPaymentHistory: paymentHistory,
-              }));
-            } catch {
-              /* ignore refresh errors */
-            }
-          }}
         />
       </main>
     </div>
@@ -1110,22 +808,13 @@ function AdminDashboard({
   user,
   isRefreshing = false,
   onWorkersUpdate,
-  onWorkersPaymentStatusRefresh,
-  onRefreshAdminEarningsPayouts,
   adminDashboardRange,
   onChangeAdminDashboardRange,
-  adminEarningsMonth,
-  onChangeAdminEarningsMonth,
-  adminPaymentMonth,
-  onChangeAdminPaymentMonth,
-  paymentMonthOptionsTick,
   activeModule,
   adminActiveNetworkCode,
   onGamNetworksUpdated,
-  highlightedEarningsWorkerId,
   workerFormOpenRequestId,
   onAddWorkerFromDashboard,
-  onNavigateToEarnings,
   workerEditLaunchId,
   workerEditLaunchNonce,
   onNavigateToWorkerEdit,
@@ -1134,14 +823,9 @@ function AdminDashboard({
   workerDailyStatsEnabled,
   onWorkerDailyStatsVisibilityChange,
 }) {
-  const { summary, workers, payouts, paymentHistory = [], sites, gamNetworks = [] } = data;
+  const { summary, workers, sites, gamNetworks = [] } = data;
   const [updatingDailyStatsVisibility, setUpdatingDailyStatsVisibility] = useState(false);
   const [dailyStatsVisibilityError, setDailyStatsVisibilityError] = useState("");
-
-  const earningsMonthOptions = useMemo(() => {
-    void paymentMonthOptionsTick;
-    return buildEarningsPeriodMonthOptions(new Date());
-  }, [paymentMonthOptionsTick]);
 
   const activeWorkers = (workers || []).filter((w) => !w.deleted_at);
 
@@ -1161,99 +845,55 @@ function AdminDashboard({
 
   if (activeModule === "workers") {
     return (
-      <WorkersList
-        workers={workers}
-        sites={sites}
-        activeNetworkCode={adminActiveNetworkCode}
-        gamNetworks={gamNetworks}
-        onUpdate={onWorkersUpdate}
-        mode="management"
-        workerFormOpenRequestId={workerFormOpenRequestId}
-        autoEditWorkerId={workerEditLaunchId}
-        autoEditNonce={workerEditLaunchNonce}
-      />
-    );
-  }
-
-  if (activeModule === "earnings") {
-    return (
-      <section>
-        <div className="admin-range-row">
-          <select
-            className="form-select admin-range-select"
-            value={adminEarningsMonth}
-            onChange={(e) => onChangeAdminEarningsMonth(e.target.value)}
-            aria-label="Periodo mensual para ganancias"
-          >
-            {earningsMonthOptions.map((option) => (
-              <option key={option.value} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </select>
-        </div>
-        <SectionHeader
-          title="Ganancias por trabajador"
-          action={
-            <div className="flex items-center justify-between gap-3">
-              <span className="text-sm font-medium text-foreground">
+      <>
+        <div className="mb-4 rounded-lg border border-border bg-card px-4 py-3">
+          <div className="flex items-center justify-between gap-3">
+            <div className="min-w-0">
+              <p className="text-sm font-medium text-foreground">
                 Tabla de métricas para trabajadores
-              </span>
-              <button
-                type="button"
-                role="switch"
-                aria-checked={workerDailyStatsEnabled}
-                aria-label="Tabla de métricas para trabajadores"
-                disabled={updatingDailyStatsVisibility}
-                onClick={toggleWorkerDailyStatsVisibility}
-                className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors duration-200 ease-in-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60 ${
-                  workerDailyStatsEnabled
-                    ? "border-transparent bg-gradient-to-r from-primary to-secondary"
-                    : "border-border bg-muted"
-                }`}
-              >
-                <span
-                  className={`inline-block h-5 w-5 rounded-full border border-border bg-background shadow-sm transition-transform duration-200 ease-in-out ${
-                    workerDailyStatsEnabled ? "translate-x-5" : "translate-x-0.5"
-                  }`}
-                />
-              </button>
+              </p>
+              <p className="text-xs text-muted-foreground">
+                Permite a los trabajadores ver la tabla diaria de métricas de sus subdominios.
+              </p>
             </div>
-          }
-        />
-        {dailyStatsVisibilityError && (
-          <p className="status-msg error" role="alert">
-            {dailyStatsVisibilityError}
-          </p>
-        )}
-        <PayoutsTable
-          payouts={payouts.payouts}
-          totalPayout={payouts.totalPayout}
-          highlightedWorkerId={highlightedEarningsWorkerId}
-          isLoading={isRefreshing}
-          earningsDateRange={paymentMonthToDateRangeISO(adminEarningsMonth)}
-          networkCode={adminActiveNetworkCode}
-          onNetOverrideSaved={onRefreshAdminEarningsPayouts}
-        />
-        <AdminEarningsPaymentStatusPanel
-          payouts={payouts.payouts}
+            <button
+              type="button"
+              role="switch"
+              aria-checked={workerDailyStatsEnabled}
+              aria-label="Tabla de métricas para trabajadores"
+              disabled={updatingDailyStatsVisibility}
+              onClick={toggleWorkerDailyStatsVisibility}
+              className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors duration-200 ease-in-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60 ${
+                workerDailyStatsEnabled
+                  ? "border-transparent bg-gradient-to-r from-primary to-secondary"
+                  : "border-border bg-muted"
+              }`}
+            >
+              <span
+                className={`inline-block h-5 w-5 rounded-full border border-border bg-background shadow-sm transition-transform duration-200 ease-in-out ${
+                  workerDailyStatsEnabled ? "translate-x-5" : "translate-x-0.5"
+                }`}
+              />
+            </button>
+          </div>
+          {dailyStatsVisibilityError && (
+            <p className="status-msg error mt-2" role="alert">
+              {dailyStatsVisibilityError}
+            </p>
+          )}
+        </div>
+        <WorkersList
           workers={workers}
-          paymentMonth={adminPaymentMonth}
-          onPaymentMonthChange={onChangeAdminPaymentMonth}
-          paymentMonthOptionsTick={paymentMonthOptionsTick}
-          onRefresh={onWorkersPaymentStatusRefresh}
-          isLoading={isRefreshing}
+          sites={sites}
+          activeNetworkCode={adminActiveNetworkCode}
+          gamNetworks={gamNetworks}
+          onUpdate={onWorkersUpdate}
+          mode="management"
+          workerFormOpenRequestId={workerFormOpenRequestId}
+          autoEditWorkerId={workerEditLaunchId}
+          autoEditNonce={workerEditLaunchNonce}
         />
-      </section>
-    );
-  }
-
-  if (activeModule === "payment-history") {
-    return (
-      <section>
-        <SectionHeader title="Historial de pagos" />
-        <PaymentHistoryTable rows={paymentHistory} isLoading={isRefreshing} />
-      </section>
+      </>
     );
   }
 
@@ -1302,8 +942,8 @@ function AdminDashboard({
         {activeWorkers.length === 0 ? (
           <div className="admin-dashboard-workers-empty">
             <p className="empty-state">
-              Aún no hay trabajadores activos. Crea el primero para asignar subdominios y ver
-              ganancias.
+              Aún no hay trabajadores activos. Crea el primero para asignar subdominios y
+              compartir sus métricas.
             </p>
             <button
               type="button"
@@ -1321,7 +961,6 @@ function AdminDashboard({
           gamNetworks={gamNetworks}
           onUpdate={onWorkersUpdate}
           mode="dashboard"
-          onGoToEarnings={onNavigateToEarnings}
           onNavigateToWorkerEdit={onNavigateToWorkerEdit}
         />
         )}

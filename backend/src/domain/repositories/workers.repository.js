@@ -1,35 +1,33 @@
 const { getDb } = require("../../infrastructure/database/database");
 
-function findAll({ includeDeleted = false, paymentMonth = null } = {}) {
+function findAll({ includeDeleted = false } = {}) {
   const db = getDb();
   const workers = includeDeleted
     ? db.prepare("SELECT * FROM workers ORDER BY name ASC").all()
     : db.prepare("SELECT * FROM workers WHERE deleted_at IS NULL ORDER BY name ASC").all();
-  return workers.map((worker) => attachProperties(worker, { paymentMonth }));
+  return workers.map((worker) => attachProperties(worker));
 }
 
-function findById(id, { includeDeleted = false, paymentMonth = null } = {}) {
+function findById(id, { includeDeleted = false } = {}) {
   const db = getDb();
   const worker = includeDeleted
     ? db.prepare("SELECT * FROM workers WHERE id = ?").get(id)
     : db.prepare("SELECT * FROM workers WHERE id = ? AND deleted_at IS NULL").get(id);
   if (!worker) return null;
-  return attachProperties(worker, { paymentMonth });
+  return attachProperties(worker);
 }
 
-function findByEmail(email, { includeDeleted = false, paymentMonth = null } = {}) {
+function findByEmail(email, { includeDeleted = false } = {}) {
   const db = getDb();
   const worker = includeDeleted
     ? db.prepare("SELECT * FROM workers WHERE email = ?").get(email)
     : db.prepare("SELECT * FROM workers WHERE email = ? AND deleted_at IS NULL").get(email);
-  return worker ? attachProperties(worker, { paymentMonth }) : null;
+  return worker ? attachProperties(worker) : null;
 }
 
-function create({ name, email, percentage }) {
+function create({ name, email }) {
   const db = getDb();
-  const result = db
-    .prepare("INSERT INTO workers (name, email, percentage) VALUES (?, ?, ?)")
-    .run(name, email, percentage);
+  const result = db.prepare("INSERT INTO workers (name, email) VALUES (?, ?)").run(name, email);
   return findById(result.lastInsertRowid);
 }
 
@@ -37,19 +35,17 @@ function create({ name, email, percentage }) {
  * Creates a worker AND a user account in a single atomic transaction.
  * The password hash must be computed before calling this function.
  *
- * @param {{ name: string, email: string, percentage: number }} workerData
+ * @param {{ name: string, email: string }} workerData
  * @param {{ passwordHash: string }} userCredentials
  */
-function createWithUser({ name, email, percentage }, { passwordHash, passwordCipher = null }) {
+function createWithUser({ name, email }, { passwordHash, passwordCipher = null }) {
   const db = getDb();
   return db.transaction(() => {
     db.prepare(
       "INSERT INTO users (name, email, password_hash, password_cipher, role) VALUES (?, ?, ?, ?, 'worker')",
     ).run(name, email, passwordHash, passwordCipher);
 
-    const result = db
-      .prepare("INSERT INTO workers (name, email, percentage) VALUES (?, ?, ?)")
-      .run(name, email, percentage);
+    const result = db.prepare("INSERT INTO workers (name, email) VALUES (?, ?)").run(name, email);
 
     return findById(result.lastInsertRowid);
   })();
@@ -78,8 +74,6 @@ function hardDeleteById(id) {
   if (!worker) return false;
 
   db.transaction(() => {
-    db.prepare("DELETE FROM worker_payment_info WHERE worker_id = ?").run(id);
-    db.prepare("DELETE FROM worker_payment_status WHERE worker_id = ?").run(id);
     db.prepare("DELETE FROM properties WHERE worker_id = ?").run(id);
     db.prepare("DELETE FROM workers WHERE id = ?").run(id);
     db.prepare("DELETE FROM users WHERE email = ? AND role = 'worker'").run(worker.email);
@@ -94,8 +88,6 @@ function hardDeleteInactiveById(id) {
   if (!worker || !worker.deleted_at) return false;
 
   db.transaction(() => {
-    db.prepare("DELETE FROM worker_payment_info WHERE worker_id = ?").run(id);
-    db.prepare("DELETE FROM worker_payment_status WHERE worker_id = ?").run(id);
     db.prepare("DELETE FROM properties WHERE worker_id = ?").run(id);
     db.prepare("DELETE FROM workers WHERE id = ?").run(id);
     db.prepare("DELETE FROM users WHERE email = ? AND role = 'worker'").run(worker.email);
@@ -152,131 +144,7 @@ function getProperties(workerId) {
     .all(workerId);
 }
 
-function getPaymentInfo(workerId) {
-  const db = getDb();
-  return (
-    db
-      .prepare(
-        `SELECT method_type AS methodType, payment_details AS paymentDetails, updated_at AS updatedAt
-         FROM worker_payment_info
-         WHERE worker_id = ?`,
-      )
-      .get(workerId) || null
-  );
-}
-
-function getPaymentStatus(workerId, paymentMonth) {
-  const full = getPaymentStatusRow(workerId, paymentMonth);
-  return {
-    paymentStatus: full.paymentStatus,
-    paymentStatusUpdatedAt: full.paymentStatusUpdatedAt,
-    paymentMonth: full.paymentMonth,
-    paidTotalAmount: full.paidTotalAmount,
-  };
-}
-
-/** Full row including frozen payout JSON when status is paid. */
-function getPaymentStatusRow(workerId, paymentMonth) {
-  const db = getDb();
-  const month = String(paymentMonth || "").trim();
-  if (!month) {
-    return {
-      paymentStatus: "pending",
-      paymentStatusUpdatedAt: null,
-      paymentMonth: null,
-      paidTotalAmount: null,
-      paidRowsJson: null,
-    };
-  }
-  const row = db
-    .prepare(
-      `SELECT status AS paymentStatus,
-              updated_at AS paymentStatusUpdatedAt,
-              payment_month AS paymentMonth,
-              paid_total_amount AS paidTotalAmount,
-              paid_rows_json AS paidRowsJson
-       FROM worker_payment_status
-       WHERE worker_id = ? AND payment_month = ?`,
-    )
-    .get(workerId, month);
-  return (
-    row || {
-      paymentStatus: "pending",
-      paymentStatusUpdatedAt: null,
-      paymentMonth: month,
-      paidTotalAmount: null,
-      paidRowsJson: null,
-    }
-  );
-}
-
-/**
- * @param {{ paidTotalAmount?: number|null, paidRowsJson?: string|null }} [snapshot] Al marcar paid, montos congelados. Al marcar pending, se conservan columnas paid_* si ya existían (no se borran).
- */
-function upsertPaymentStatus(workerId, status, paymentMonth, snapshot = null) {
-  const db = getDb();
-  const month = String(paymentMonth || "").trim();
-  const paidTotal =
-    status === "paid" && snapshot && snapshot.paidTotalAmount != null
-      ? Number(snapshot.paidTotalAmount)
-      : null;
-  const paidRows =
-    status === "paid" && snapshot && snapshot.paidRowsJson != null ? String(snapshot.paidRowsJson) : null;
-
-  db.prepare(
-    `INSERT INTO worker_payment_status (worker_id, payment_month, status, updated_at, paid_total_amount, paid_rows_json)
-     VALUES (?, ?, ?, datetime('now'), ?, ?)
-     ON CONFLICT(worker_id, payment_month) DO UPDATE SET
-       status = excluded.status,
-       updated_at = datetime('now'),
-       paid_total_amount = CASE
-         WHEN excluded.status = 'paid' AND excluded.paid_total_amount IS NOT NULL THEN excluded.paid_total_amount
-         ELSE worker_payment_status.paid_total_amount
-       END,
-       paid_rows_json = CASE
-         WHEN excluded.status = 'paid' AND excluded.paid_rows_json IS NOT NULL THEN excluded.paid_rows_json
-         ELSE worker_payment_status.paid_rows_json
-       END`,
-  ).run(workerId, month, status, paidTotal, paidRows);
-  return getPaymentStatus(workerId, month);
-}
-
-function upsertPaymentInfo(workerId, { methodType, paymentDetails }) {
-  const db = getDb();
-  db.prepare(
-    `INSERT INTO worker_payment_info (worker_id, method_type, payment_details, updated_at)
-     VALUES (?, ?, ?, datetime('now'))
-     ON CONFLICT(worker_id) DO UPDATE SET
-       method_type = excluded.method_type,
-       payment_details = excluded.payment_details,
-       updated_at = datetime('now')`,
-  ).run(workerId, methodType, paymentDetails);
-  return getPaymentInfo(workerId);
-}
-
-function listPaidPaymentStatuses() {
-  const db = getDb();
-  return db
-    .prepare(
-      `SELECT
-         ps.worker_id AS workerId,
-         ps.payment_month AS paymentMonth,
-         ps.updated_at AS paidAt,
-         ps.paid_total_amount AS paidTotalAmount,
-         ps.paid_rows_json AS paidRowsJson,
-         w.name AS workerName,
-         p.method_type AS methodType
-       FROM worker_payment_status ps
-       INNER JOIN workers w ON w.id = ps.worker_id
-       LEFT JOIN worker_payment_info p ON p.worker_id = ps.worker_id
-       WHERE ps.status = 'paid'
-       ORDER BY ps.updated_at DESC, ps.id DESC`,
-    )
-    .all();
-}
-
-function attachProperties(worker, { paymentMonth = null } = {}) {
-  const paymentStatus = getPaymentStatus(worker.id, paymentMonth);
+function attachProperties(worker) {
   const rawProps = getProperties(worker.id);
   const properties = rawProps.map((p) => ({
     ...p,
@@ -285,11 +153,6 @@ function attachProperties(worker, { paymentMonth = null } = {}) {
   return {
     ...worker,
     properties,
-    paymentInfo: getPaymentInfo(worker.id),
-    paymentStatus: paymentStatus.paymentStatus,
-    paymentStatusUpdatedAt: paymentStatus.paymentStatusUpdatedAt,
-    paymentMonth: paymentStatus.paymentMonth,
-    paidTotalAmount: paymentStatus.paidTotalAmount,
   };
 }
 
@@ -306,7 +169,6 @@ function updateWorkerComplete(
   {
     name,
     email,
-    percentage,
     passwordHash,
     passwordCipher,
     sessionInvalidation = 0,
@@ -318,10 +180,10 @@ function updateWorkerComplete(
   return db.transaction(() => {
     const wr = db
       .prepare(
-        `UPDATE workers SET name = ?, email = ?, percentage = ?
+        `UPDATE workers SET name = ?, email = ?
          WHERE id = ? AND deleted_at IS NULL`,
       )
-      .run(name, email, percentage, workerId);
+      .run(name, email, workerId);
     if (wr.changes === 0) {
       throw new Error("Worker not found or inactive");
     }
@@ -377,11 +239,6 @@ module.exports = {
   hardDeleteInactiveById,
   addProperty,
   findPropertyByTypeAndValue,
-  getPaymentStatus,
-  getPaymentStatusRow,
-  upsertPaymentStatus,
-  upsertPaymentInfo,
-  listPaidPaymentStatuses,
   getProperties,
   updateWorkerComplete,
 };

@@ -11,7 +11,7 @@ export default defineConfig({
       manifest: {
         name: "XerviaLinks Metrics",
         short_name: "XerviaLinks",
-        description: "Ingresos, trabajadores y redes de Google Ad Manager",
+        description: "Métricas de rendimiento por subdominio para editores",
         theme_color: "#7c3aed",
         background_color: "#0f172a",
         display: "standalone",

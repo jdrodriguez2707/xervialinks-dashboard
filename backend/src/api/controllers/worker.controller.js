@@ -1,6 +1,5 @@
 const workersService = require("../../application/services/workers.service");
 const revenueService = require("../../application/services/revenue.service");
-const workerPaymentHistoryService = require("../../application/services/workerPaymentHistory.service");
 const { clientTimeZoneFromRequest } = require("../utils/clientTz");
 const { isValidISODate } = require("../../application/services/clientTimezone");
 const appSettingsService = require("../../application/services/appSettings.service");
@@ -27,17 +26,12 @@ async function getContext(req, res) {
       .status(403)
       .json({ error: "Tu cuenta de trabajador fue eliminada. Contacta al administrador." });
   }
-  const timeZone = clientTimeZoneFromRequest(req);
-  const worker = workersService.getWorkerByEmail(req.user.email, req.query.paymentMonth, timeZone);
+  const worker = workersService.getWorkerByEmail(req.user.email);
 
   res.json({
     data: {
       workerId: worker.id,
-      percentage: worker.percentage,
       properties: stripGamNetworkFromWorkerProperties(worker.properties),
-      paymentInfo: worker.paymentInfo || null,
-      paymentStatus: worker.paymentStatus || "pending",
-      paymentStatusUpdatedAt: worker.paymentStatusUpdatedAt || null,
       dailyStatsEnabled: appSettingsService.getWorkerDailyStatsEnabled(),
     },
   });
@@ -85,33 +79,4 @@ async function getDashboard(req, res) {
   res.json({ data: periods });
 }
 
-async function upsertPaymentInfo(req, res) {
-  const { methodType, paymentDetails } = req.body || {};
-  const paymentInfo = workersService.updateWorkerPaymentInfoByEmail(req.user.email, {
-    methodType,
-    paymentDetails,
-  });
-  res.json({ data: paymentInfo });
-}
-
-async function getPaymentHistory(req, res) {
-  const workerIncludingDeleted = workersService.getWorkerByEmailIncludingDeleted(req.user.email);
-  if (!workerIncludingDeleted) {
-    return res.status(404).json({ error: "No tienes un perfil de trabajador asignado" });
-  }
-  if (workerIncludingDeleted.deleted_at) {
-    return res
-      .status(403)
-      .json({ error: "Tu cuenta de trabajador fue eliminada. Contacta al administrador." });
-  }
-
-  const timeZone = clientTimeZoneFromRequest(req);
-  const paymentMonth = workersService.resolvePaymentMonth(req.query.paymentMonth, timeZone);
-  const history = await workerPaymentHistoryService.getWorkerPaymentHistoryByEmail(req.user.email, {
-    paymentMonth,
-    timeZone,
-  });
-  res.json({ data: history });
-}
-
-module.exports = { getContext, getDashboard, upsertPaymentInfo, getPaymentHistory };
+module.exports = { getContext, getDashboard };

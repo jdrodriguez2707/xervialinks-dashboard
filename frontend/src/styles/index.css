@@ -392,10 +392,6 @@
     @apply flex items-center justify-between mb-3;
   }
 
-  .percentage-badge {
-    @apply inline-flex rounded-full bg-primary/15 text-primary px-2 py-0.5 text-xs font-semibold;
-  }
-
   .btn-icon {
     @apply inline-flex items-center justify-center rounded-md border border-input bg-background p-2 hover:bg-accent transition-colors;
   }
